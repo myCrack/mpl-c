@@ -1,10 +1,19 @@
-"memory" includeModule
+"Array.Array" use
+"HashTable.HashTable" use
+"Owner.Owner" use
+"String.String" use
+"String.StringView" use
+"control" use
+"memory.debugMemory" use
 
-"control" includeModule
-"astNodeType" includeModule
-"Block" includeModule
-"File" includeModule
-"schemas" includeModule
+"Block.CompilerPositionInfo" use
+"Block.Block" use
+"File.File" use
+"Var.RefToVar" use
+"Var.Variable" use
+"astNodeType.IndexArray" use
+"irWriter.IRArgument" use
+"schemas.VariableSchema" use
 
 StringArray: [String Array];
 

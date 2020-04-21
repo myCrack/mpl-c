@@ -1,7 +1,8 @@
-"Array"     includeModule
-"HashTable" includeModule
-"String"    includeModule
-"Variant"   includeModule
+"Array.Array" use
+"HashTable.HashTable" use
+"String.String" use
+"Variant.Variant" use
+"control" use
 
 AstNodeType: {
   Code:            [ 0];

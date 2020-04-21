@@ -1,4 +1,10 @@
-"control" useModule
+"Array.Array" use
+"String.assembleString" use
+"String.toString" use
+"control.times" use
+
+"irWriter.appendInstruction" use
+"irWriter.getStringImplementation" use
 
 addDebugProlog: [
   "declare void @llvm.dbg.declare(metadata, metadata, metadata)" toString @processor.@debugInfo.@strings.pushBack

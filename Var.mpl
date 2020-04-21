@@ -1,10 +1,10 @@
-"Array" useModule
-"Owner" useModule
-"String" useModule
-"Variant" useModule
-"control" useModule
+"Array.Array" use
+"String.String" use
+"Owner.Owner" use
+"Variant.Variant" use
+"control" use
 
-"Mref" useModule
+"Mref.Mref" use
 
 Dirty:   [0n8 dynamic];
 Dynamic: [1n8 dynamic];

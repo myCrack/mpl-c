@@ -1,7 +1,7 @@
-"String" useModule
-"control" useModule
+"String.String" use
+"control.Int32" use
 
-"Mref" useModule
+"Mref.Mref" use
 
 File: [{
   name: String;

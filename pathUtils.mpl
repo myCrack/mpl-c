@@ -1,5 +1,3 @@
-"control" useModule
-
 extractClearPath: [
   splittedPath: splitString;
   [

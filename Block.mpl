@@ -1,10 +1,12 @@
-"Array" useModule
-"HashTable" useModule
-"String" useModule
-"control" useModule
+"Array.Array" use
+"HashTable.HashTable" use
+"String.String" use
+"control" use
 
-"Mref" useModule
-"Var" useModule
+"File.File" use
+"Mref.Mref" use
+"Var.RefToVar" use
+"Var.Struct" use
 
 ArgVirtual:     [0n8 dynamic];
 ArgGlobal:      [1n8 dynamic];

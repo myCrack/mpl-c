@@ -1,7 +1,24 @@
-"control" includeModule
-"ascii" includeModule
-"String" includeModule
-"astNodeType" includeModule
+"Array.Array" use
+"Array.makeSubRange" use
+"String.String" use
+"String.StringView" use
+"String.assembleString" use
+"String.codepointToString" use
+"String.makeStringView" use
+"String.makeStringView2" use
+"String.splitString" use
+"String.stringMemory" use
+"String.toString" use
+"ascii.ascii" use
+"control" use
+"conventions.cdecl" use
+"String.asView" use
+
+"astNodeType.AstNode" use
+"astNodeType.AstNodeType" use
+"astNodeType.IndexArray" use
+"astNodeType.ParserResult" use
+"astNodeType.PositionInfo" use
 
 codepointHex?: [
   codepoint:;

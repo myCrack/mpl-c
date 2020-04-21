@@ -1,15 +1,21 @@
+"Array" includeModule
 "HashTable" includeModule
 "Variant"   includeModule
 "Owner"     includeModule
-"control" useModule
-"String" useModule
 
+"File"        includeModule
+"Block"       includeModule
+"Var"         includeModule
+"astNodeType" includeModule
 "irWriter"    includeModule
-"debugWriter" includeModule
+"defaultImpl" includeModule
 "Mref"        includeModule
 "processor"   includeModule
-"File"        useModule
-"Var"         useModule
+"schemas"     includeModule
+
+"debugWriter" includeModule
+"control" includeModule
+"String" includeModule
 
 NameCaseSelfMember:            [ 5n8 dynamic];
 NameCaseClosureMember:         [ 6n8 dynamic];

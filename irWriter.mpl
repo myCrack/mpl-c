@@ -1,5 +1,12 @@
-"control" includeModule
-"defaultImpl" includeModule
+"String.String" use
+"String.toString" use
+"control.&&" use
+"control.Nat8" use
+"control.Natx" use
+
+"Block.Instruction" use
+"Block.makeInstruction" use
+"Var.VarBuiltin" use
 
 appendInstruction: [
   list: block:;;

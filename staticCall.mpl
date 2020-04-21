@@ -1,5 +1,3 @@
-"control" useModule
-
 staticCall: [
   staticCallBody:;
   copy staticCallLast:;   # required to be static

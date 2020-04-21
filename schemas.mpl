@@ -1,5 +1,7 @@
-"control" includeModule
-"String" includeModule
+"Array.Array" use
+"String.hash" use
+"Variant.Variant" use
+"control" use
 
 makeVariableSchema: [
   var:;

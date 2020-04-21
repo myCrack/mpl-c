@@ -6,6 +6,11 @@
 "processor" useModule
 "processorImpl" useModule
 "file" useModule
+"memory" useModule
+
+"Array.makeSubRange" use
+"ascii.ascii" use
+"memory.debugMemory" use
 
 printInfo: [
   "USAGE: mplc.exe [options] <inputs>" print LF print
@@ -133,6 +138,8 @@ processIntegerOption: [
 ];
 
 {argc: 0; argv: 0nx;} 0 {convention: cdecl;} [
+  #debugMemory [TRUE !memoryDebugEnabled] when
+
   ("Start mplc compiler") addLog
   [
     argc:;
@@ -369,6 +376,7 @@ processIntegerOption: [
   ] call
 
   debugMemory [] && [
+    #mplReleaseCache
     (
       "allocations: " memoryCurrentAllocationCount copy "/" memoryTotalAllocationCount copy
       ", bytes: " memoryCurrentAllocationSize copy "/" memoryTotalAllocationSize copy

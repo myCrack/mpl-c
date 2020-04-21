@@ -1,4 +1,15 @@
-"control" includeModule
+"String.addLog" use
+"String.print" use
+"String.printList" use
+"String.toString" use
+"control.&&" use
+"control.assert" use
+"control.exit" use
+"control.printf" use
+"control.when" use
+
+"Var.RefToVar" use
+"irWriter.createCopyToExists" use
 
 failProcForProcessor: [
   failProc: [print " - fail while handling fail" print];
