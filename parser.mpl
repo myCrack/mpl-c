@@ -10,9 +10,24 @@
 "String.stringMemory" use
 "String.toString" use
 "ascii.ascii" use
-"control" use
+"control.&&" use
+"control.=" use
+"control.Cref" use
+"control.Cond" use
+"control.Int32" use
+"control.Nat32" use
+"control.Nat8" use
+"control.Ref" use
+"control.between?" use
+"control.case" use
+"control.each" use
+"control.enum" use
+"control.sequence" use
+"control.times" use
+"control.when" use
+"control.within?" use
+"control.||" use
 "conventions.cdecl" use
-"String.asView" use
 
 "astNodeType.AstNode" use
 "astNodeType.AstNodeType" use
@@ -337,7 +352,7 @@ makeParserConstants: [{
     256 @result.resize
 
     result.getSize [
-      i left.at i right.at or i @result @ set
+      i left.at i right.at or i @result.at set
     ] times
 
     result

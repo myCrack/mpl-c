@@ -4,7 +4,9 @@
 "String.toString" use
 "control.&&" use
 "control.assert" use
+"control.cond" use
 "control.exit" use
+"control.print" use
 "control.printf" use
 "control.when" use
 

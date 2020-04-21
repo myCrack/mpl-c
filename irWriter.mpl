@@ -3,9 +3,12 @@
 "control.&&" use
 "control.Nat8" use
 "control.Natx" use
+"control.assert" use
+"control.isNil" use
 
 "Block.Instruction" use
 "Block.makeInstruction" use
+"File.File" use
 "Var.VarBuiltin" use
 
 appendInstruction: [
@@ -516,7 +519,7 @@ sortInstructions: [
   fakePointers:       Instruction Array;
   noallocs:           Instruction Array;
   block.program.getSize [
-    program: i @block.@program @;
+    program: i @block.@program.at;
     i 0 = [program.alloca copy] || [
       program.fakePointer [
         @program move @fakePointersAllocs.pushBack

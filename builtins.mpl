@@ -1,7 +1,27 @@
-"control" includeModule
+#"control" includeModule
 
 "builtinImpl" useModule
-"Var" useModule
+#"Var" useModule
+
+#"String.print" use
+#"String.toString" use
+#"control.Cref" use
+#"control.Int32" use
+#"control.Ref" use
+#"control.print" use
+#"control.times" use
+#"conventions.cdecl" use
+
+#"Block.Block" use
+#"Block.NameCaseBuiltin" use
+#"astNodeType.MultiParserResult" use
+#"builtinImpl" use
+#"defaultImpl.failProcForProcessor" use
+#"processor.Processor" use
+#"processor.ProcessorResult" use
+#"variable.NameInfo" use
+#"variable.getMplType" use
+#"variable.getVar" use
 
 builtins: (
   {name: "!"                       ; impl: @mplBuiltinExclamation             ;}

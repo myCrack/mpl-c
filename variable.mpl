@@ -1,21 +1,60 @@
-"Array" includeModule
-"HashTable" includeModule
-"Variant"   includeModule
-"Owner"     includeModule
+"Array.Array" use
+"HashTable.hash" use
+"String.String" use
+"String.StringView" use
+"String.addLog" use
+"String.asView" use
+"String.assembleString" use
+"String.hash" use
+"String.makeStringView" use
+"String.print" use
+"String.splitString" use
+"String.toString" use
+"control" use
+"conventions.cdecl" use
 
-"File"        includeModule
-"Block"       includeModule
-"Var"         includeModule
-"astNodeType" includeModule
-"irWriter"    includeModule
-"defaultImpl" includeModule
-"Mref"        includeModule
-"processor"   includeModule
-"schemas"     includeModule
-
-"debugWriter" includeModule
-"control" includeModule
-"String" includeModule
+"Block.Block" use
+"Block.CFunctionSignature" use
+"Block.CompilerPositionInfo" use
+"Block.NameCaseInvalid" use
+"Block.NodeCaseCode" use
+"File.File" use
+"Var.RefToVar" use
+"Var.Schema" use
+"Var.VarBuiltin" use
+"Var.VarCode" use
+"Var.VarCond" use
+"Var.VarImport" use
+"Var.VarInt8" use
+"Var.VarInt16" use
+"Var.VarInt32" use
+"Var.VarInt64" use
+"Var.VarIntX" use
+"Var.VarNat8" use
+"Var.VarNat16" use
+"Var.VarNat32" use
+"Var.VarNat64" use
+"Var.VarNatX" use
+"Var.VarReal32" use
+"Var.VarReal64" use
+"Var.VarRef" use
+"Var.VarString" use
+"Var.VarStruct" use
+"Var.Variable" use
+"Var.Virtual" use
+"astNodeType.AstNode" use
+"astNodeType.IndexArray" use
+"astNodeType.MultiParserResult" use
+"debugWriter.getTypeDebugDeclaration" use
+"defaultImpl.failProcForProcessor" use
+"irWriter.createTypeDeclaration" use
+"irWriter.getStringImplementation" use
+"processor.Processor" use
+"processor.ProcessorResult" use
+"processor.RefToVarTable" use
+"schemas.getVariableSchemaId" use
+"schemas.hash" use
+"schemas.makeVariableSchema" use
 
 NameCaseSelfMember:            [ 5n8 dynamic];
 NameCaseClosureMember:         [ 6n8 dynamic];
@@ -26,20 +65,6 @@ NameCaseClosureObjectCapture:  [10n8 dynamic];
 
 MemberCaseToObjectCase:        [2n8 +];
 MemberCaseToObjectCaptureCase: [4n8 +];
-
-=: ["REF_TO_VAR" has] [
-  refsAreEqual
-] pfunc;
-
-hash: ["REF_TO_VAR" has] [
-  refToVar:;
-  refToVar.hostId 0n32 cast 67n32 * refToVar.var storageAddress 0n32 cast 17n32 * +
-] pfunc;
-
-=: ["CODE_NODE_INFO" has] [
-  l:r:;;
-  l.index r.index =
-] pfunc;
 
 NameInfoEntry: [{
   refToVar: RefToVar;
@@ -272,7 +297,7 @@ getVar: [
 
 getNameById: [processor.nameBuffer.at makeStringView];
 getMplName:  [getVar.mplNameId processor.nameInfos.at.name makeStringView];
-getMplSchema: [getVar.mplSchemaId @processor.@schemaBuffer @];
+getMplSchema: [getVar.mplSchemaId @processor.@schemaBuffer.at];
 
 getDbgType:  [getMplSchema.dbgTypeId getNameById];
 getIrName:   [getVar.irNameId getNameById];
@@ -802,8 +827,8 @@ getVirtualValue: [
 
       struct.fields.getSize [
         i 0 > ["," @result.cat] when
-        i struct.fields @ .refToVar isVirtual ~ [
-          i struct.fields @ .refToVar getVirtualValue @result.cat
+        i struct.fields.at .refToVar isVirtual ~ [
+          i struct.fields.at .refToVar getVirtualValue @result.cat
         ] when
       ] times
       "}" @result.cat
@@ -822,7 +847,7 @@ getVirtualValue: [
         pointeeVar.data.getTag (
           VarString  [
             string: VarString pointeeVar.data.get.getStringView;
-            (string textSize "_" string getStringImplementation) @result.catMany
+            (string.size "_" string getStringImplementation) @result.catMany
           ]
           VarImport  [VarImport  pointeeVar.data.get @result.cat]
           [[FALSE] "Wrong type for virtual reference!" assert]

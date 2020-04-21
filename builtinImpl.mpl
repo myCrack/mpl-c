@@ -1,5 +1,22 @@
-"processSubNodes" includeModule
+"Array" includeModule
+"HashTable" includeModule
+"Owner" includeModule
+"String" includeModule
+"control" includeModule
+
+"Block" includeModule
+"File" includeModule
+"Var" includeModule
+"astNodeType" includeModule
+"codeNode" includeModule
+"debugWriter" includeModule
+"defaultImpl" includeModule
+"irWriter" includeModule
 "pathUtils" includeModule
+"processSubNodes" includeModule
+"processor" includeModule
+"staticCall" includeModule
+"variable" includeModule
 
 declareBuiltin: [
   virtual declareBuiltinName:;

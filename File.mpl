@@ -1,6 +1,7 @@
 "String.String" use
 "control.Int32" use
 
+"Block.BlockSchema" use
 "Mref.Mref" use
 
 File: [{

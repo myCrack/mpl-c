@@ -2,7 +2,12 @@
 "String.String" use
 "Owner.Owner" use
 "Variant.Variant" use
-"control" use
+"control.Cond" use
+"control.Int32" use
+"control.Int64" use
+"control.Nat64" use
+"control.Nat8" use
+"control.Real64" use
 
 "Mref.Mref" use
 
@@ -42,12 +47,12 @@ VarStruct:  [19 static];
 VarEnd:     [20 static];
 
 CodeNodeInfo: [{
-  CODE_NODE_INFO: ();
-
-  file:   [FileSchema] Mref;
+  file:   ["File.FileSchema" use FileSchema] Mref;
   line:   Int32;
   column: Int32;
   index:  Int32;
+
+  equal: [other:; index other.index =];
 }];
 
 Field: [{
@@ -72,10 +77,12 @@ Struct: [{
 }]; #IDs of pointee vars
 
 RefToVar: [{
-  virtual REF_TO_VAR: ();
   var: [@VarSchema] Mref;
   hostId: -1 dynamic;
   mutable: TRUE dynamic;
+
+  equal: [other:; hostId other.hostId = [var other.var is] &&];
+  hash: [hostId 0n32 cast 67n32 * var storageAddress 0n32 cast 17n32 * +];
 }];
 
 Variable: [{

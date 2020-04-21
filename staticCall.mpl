@@ -1,3 +1,5 @@
+"control.assert" use
+
 staticCall: [
   staticCallBody:;
   copy staticCallLast:;   # required to be static

@@ -3,7 +3,9 @@
 "Owner.Owner" use
 "String.String" use
 "String.StringView" use
-"control" use
+"control.Cond" use
+"control.Int32" use
+"control.Natx" use
 "memory.debugMemory" use
 
 "Block.CompilerPositionInfo" use
@@ -63,20 +65,12 @@ IndexInfo: [{
 }];
 
 NameWithOverload: [{
-  virtual NAME_WITH_OVERLOAD: ();
   nameInfo: -1 dynamic;
   nameOverload: -1 dynamic;
+
+  equal: [other:; nameInfo other.nameInfo = [nameOverload other.nameOverload =] &&];
+  hash: [nameInfo 67n32 * nameOverload 17n32 * +];
 }];
-
-=: ["NAME_WITH_OVERLOAD" has] [
-  n1:; n2:;
-  n1.nameInfo n2.nameInfo = n1.nameOverload n2.nameOverload = and
-] pfunc;
-
-hash: ["NAME_WITH_OVERLOAD" has] [
-  nameWithOverload:;
-  nameWithOverload.nameInfo 67n32 * nameWithOverload.nameOverload 17n32 * +
-] pfunc;
 
 RefToVarTable: [
   RefToVar RefToVar HashTable

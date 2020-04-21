@@ -182,7 +182,7 @@ processIntegerOption: [
           addr: 0nx storageSize i 0ix cast 0nx cast * argv + Natx addressToReference;
           option: addr makeStringViewByAddress;
 
-          option textSize 0nx = [
+          option.size 0 = [
             "Error, argument cannot be empty" print LF print
             FALSE @success set
           ] [

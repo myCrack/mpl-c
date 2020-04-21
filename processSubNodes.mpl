@@ -1,5 +1,101 @@
-"codeNode" includeModule
-"Var" useModule
+"Array.Array" use
+"HashTable.hash" use
+"String.String" use
+"String.StringView" use
+"String.addLog" use
+"String.asView" use
+"String.assembleString" use
+"String.hash" use
+"String.makeStringView" use
+"String.print" use
+"String.toString" use
+#"control.&&" use
+#"control.=" use
+#"control.Cond" use
+#"control.Cref" use
+#"control.Int32" use
+#"control.Nat8" use
+#"control.Natx" use
+#"control.Ref" use
+#"control.asView" use
+#"control.assert" use
+#"control.drop" use
+#"control.each" use
+#"control.isBuiltinTuple" use
+#"control.isDynamic" use
+#"control.isIndexable" use
+#"control.isView" use
+#"control.print" use
+#"control.printf" use
+#"control.sequence" use
+#"control.times" use
+#"control.when" use
+#"control.||" use
+"control" use
+"conventions.cdecl" use
+
+"Block.ArgCopy" use
+"Block.ArgGlobal" use
+"Block.ArgRef" use
+"Block.ArgRefDeref" use
+"Block.ArgReturn" use
+"Block.ArgReturnDeref" use
+"Block.ArgVirtual" use
+"Block.Block" use
+"Block.Capture" use
+"Block.CFunctionSignature" use
+"Block.CompilerPositionInfo" use
+"Block.NameCaseLocal" use
+"Block.NodeCaseCode" use
+"Block.NodeCaseCodeRefDeclaration" use
+"Block.NodeCaseDeclaration" use
+"Block.NodeCaseExport" use
+"Block.NodeCaseLambda" use
+"Block.NodeCaseList" use
+"Block.NodeCaseObject" use
+"Block.NodeStateCompiled" use
+"Block.NodeStateFailed" use
+"Block.NodeStateHasOutput" use
+"Block.NodeStateNew" use
+"Block.NodeStateNoOutput" use
+"Block.NodeRecursionStateFail" use
+"Block.NodeRecursionStateNew" use
+"Block.NodeRecursionStateNo" use
+"Block.NodeRecursionStateOld" use
+"File.File" use
+"Var.Dynamic" use
+"Var.RefToVar" use
+"Var.Static" use
+"Var.VarBuiltin" use
+"Var.VarCond" use
+"Var.VarImport" use
+"Var.VarRef" use
+"Var.VarString" use
+"Var.VarStruct" use
+"Var.Virtual" use
+"Var.Weak" use
+"astNodeType.AstNode" use
+"astNodeType.AstNodeType" use
+"astNodeType.IndexArray" use
+"astNodeType.MultiParserResult" use
+"codeNode" use
+"debugWriter.addDebugReserve" use
+"defaultImpl.failProcForProcessor" use
+"defaultImpl.findNameInfo" use
+"defaultImpl.getStackDepth" use
+"defaultImpl.getStackEntry" use
+"irWriter.IRArgument" use
+"irWriter.createAllocIR" use
+"irWriter.createCallIR" use
+"irWriter.createDerefToRegister" use
+"irWriter.createStaticInitIR" use
+"irWriter.createStoreFromRegister" use
+"processor.Processor" use
+"processor.ProcessorErrorInfo" use
+"processor.ProcessorResult" use
+"processor.RefToVarTable" use
+"staticCall.staticCall" use
+"variable" use
 
 {processorResult: ProcessorResult Ref; cachedGlobalErrorInfoSize: Int32;} () {} [
   cachedGlobalErrorInfoSize: processorResult:;;
@@ -2093,7 +2189,7 @@ processDynamicLoop: [
 
       signature.outputs.getSize [
         currentInNode: i newNode.outputs.at.refToVar;
-        currentInSignature: i signature.outputs @;
+        currentInSignature: i signature.outputs.at;
 
         currentInNode currentInSignature variablesAreSame ~ [
           ("export function output mismatch, expected " currentInSignature block getMplType ";" LF

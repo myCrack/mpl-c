@@ -1,9 +1,9 @@
 "Array.Array" use
 "HashTable.HashTable" use
 "String.String" use
-"control" use
+"control.Cond" use
+"control.Int32" use
 
-"File.File" use
 "Mref.Mref" use
 "Var.RefToVar" use
 "Var.Struct" use
@@ -67,7 +67,7 @@ CFunctionSignature: [{
 }];
 
 CompilerPositionInfo: [{
-  file:   [FileSchema] Mref;
+  file:   ["File.FileSchema" use FileSchema] Mref;
   line:   -1;
   column: -1;
   token:  String;
@@ -113,7 +113,7 @@ NameWithOverloadAndRefToVar: [{
 }];
 
 TokenRef: [{
-  file: [FileSchema] Mref;
+  file: ["File.FileSchema" use FileSchema] Mref;
   token: Int32;
 }];
 

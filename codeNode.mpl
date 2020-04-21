@@ -1,5 +1,186 @@
-"staticCall" includeModule
-"variable" includeModule
+"Array.Array" use
+"HashTable.hash" use
+"Owner.owner" use
+"String.String" use
+"String.StringView" use
+"String.addLog" use
+"String.assembleString" use
+"String.hash" use
+"String.makeStringView" use
+"String.print" use
+"String.splitString" use
+"String.stringMemory" use
+"String.toString" use
+"control" use
+"conventions.cdecl" use
+
+"Block.ArgGlobal" use
+"Block.ArgCopy" use
+"Block.ArgRef" use
+"Block.ArgRefDeref" use
+"Block.ArgReturn" use
+"Block.ArgReturnDeref" use
+"Block.ArgVirtual" use
+"Block.Argument" use
+"Block.Block" use
+"Block.CFunctionSignature" use
+"Block.Capture" use
+"Block.CompilerPositionInfo" use
+"Block.FieldCapture" use
+"Block.MatchingInfo" use
+"Block.NameCaseBuiltin" use
+"Block.NameCaseCapture" use
+"Block.NameCaseFromModule" use
+"Block.NameCaseInvalid" use
+"Block.NameCaseLocal" use
+"Block.NameWithOverloadAndRefToVar" use
+"Block.NodeCaseCode" use
+"Block.NodeCaseCodeRefDeclaration" use
+"Block.NodeCaseDeclaration" use
+"Block.NodeCaseDtor" use
+"Block.NodeCaseEmpty" use
+"Block.NodeCaseExport" use
+"Block.NodeCaseLambda" use
+"Block.NodeCaseList" use
+"Block.NodeCaseObject" use
+"Block.NodeRecursionStateFail" use
+"Block.NodeRecursionStateNo" use
+"Block.NodeRecursionStateOld" use
+"Block.NodeStateCompiled" use
+"Block.NodeStateFailed" use
+"Block.NodeStateHasOutput" use
+"Block.NodeStateNew" use
+"Block.NodeStateNoOutput" use
+"File.File" use
+"Var.CodeNodeInfo" use
+"Var.Dirty" use
+"Var.Dynamic" use
+"Var.Field" use
+"Var.RefToVar" use
+"Var.Schema" use
+"Var.ShadowReasonCapture" use
+"Var.ShadowReasonField" use
+"Var.ShadowReasonInput" use
+"Var.ShadowReasonPointee" use
+"Var.Static" use
+"Var.Struct" use
+"Var.VarBuiltin" use
+"Var.VarCode" use
+"Var.VarEnd" use
+"Var.VarImport" use
+"Var.VarInt16" use
+"Var.VarInt32" use
+"Var.VarInt64" use
+"Var.VarInt8" use
+"Var.VarIntX" use
+"Var.VarNat16" use
+"Var.VarNat32" use
+"Var.VarNat64" use
+"Var.VarNat8" use
+"Var.VarNatX" use
+"Var.VarInvalid" use
+"Var.VarReal32" use
+"Var.VarReal64" use
+"Var.VarRef" use
+"Var.VarString" use
+"Var.VarStruct" use
+"Var.Variable" use
+"Var.Virtual" use
+"Var.Weak" use
+"astNodeType.AstNode" use
+"astNodeType.AstNodeType" use
+"astNodeType.IndexArray" use
+"astNodeType.MultiParserResult" use
+"debugWriter.addDebugLocation" use
+"debugWriter.addDebugReserve" use
+"debugWriter.addFuncDebugInfo" use
+"debugWriter.addGlobalVariableDebugInfo" use
+"debugWriter.addVariableMetadata" use
+"debugWriter.moveLastDebugString" use
+"defaultImpl.defaultMakeConstWith" use
+"defaultImpl.defaultRef" use
+"defaultImpl.defaultSet" use
+"defaultImpl.failProcForProcessor" use
+"defaultImpl.findNameInfo" use
+"defaultImpl.getStackDepth" use
+"defaultImpl.getStackEntry" use
+"irWriter.addStrToProlog" use
+"irWriter.appendInstruction" use
+"irWriter.createAllocIR" use
+"irWriter.createComment" use
+"irWriter.createCopyToNew" use
+"irWriter.createDerefTo" use
+"irWriter.createGEPInsteadOfAlloc" use
+"irWriter.createLabel" use
+"irWriter.createMemset" use
+"irWriter.createPlainIR" use
+"irWriter.createRefOperation" use
+"irWriter.createRetValue" use
+"irWriter.createStaticGEP" use
+"irWriter.createStoreConstant" use
+"irWriter.createStoreFromRegister" use
+"irWriter.createStringIR" use
+"irWriter.sortInstructions" use
+"processor.MatchingNode" use
+"processor.NameWithOverload" use
+"processor.Processor" use
+"processor.ProcessorResult" use
+"processor.RefToVarTable" use
+"staticCall.staticCall" use
+"variable.MemberCaseToObjectCaptureCase" use
+"variable.MemberCaseToObjectCase" use
+"variable.NameCaseClosureMember" use
+"variable.NameCaseClosureObject" use
+"variable.NameCaseClosureObjectCapture" use
+"variable.NameCaseSelfMember" use
+"variable.NameCaseSelfObject" use
+"variable.NameCaseSelfObjectCapture" use
+"variable.NameInfo" use
+"variable.NameInfoEntry" use
+"variable.Overload" use
+"variable.callBuiltin" use
+"variable.checkValue" use
+"variable.compareEntriesRec" use
+"variable.compilable" use
+"variable.compilerError" use
+"variable.createDtorForGlobalVar" use
+"variable.findField" use
+"variable.findFieldWithOverloadShift" use
+"variable.fullUntemporize" use
+"variable.generateRegisterIRName" use
+"variable.getIrName" use
+"variable.getIrType" use
+"variable.getMplSchema" use
+"variable.getMplType" use
+"variable.getMplTypeImpl" use
+"variable.getNameById" use
+"variable.getPlainConstantIR" use
+"variable.getVar" use
+"variable.isAutoStruct" use
+"variable.isForgotten" use
+"variable.isGlobal" use
+"variable.isNonrecursiveType" use
+"variable.isPlain" use
+"variable.isSchema" use
+"variable.isTinyArg" use
+"variable.isUnallocable" use
+"variable.isVirtual" use
+"variable.isVirtualType" use
+"variable.makeStringId" use
+"variable.makeVariableIRName" use
+"variable.makeVariableType" use
+"variable.markAsUnableToDie" use
+"variable.maxStaticity" use
+"variable.noMatterToCopy" use
+"variable.processCall" use
+"variable.processCallByIndexArrayImpl" use
+"variable.processExportFunction" use
+"variable.processFuncPtr" use
+"variable.processPre" use
+"variable.staticityOfVar" use
+"variable.unglobalize" use
+"variable.untemporize" use
+"variable.variablesAreSame" use
 
 addOverload: [
   copy nameInfo:;
@@ -2075,10 +2256,8 @@ checkFailedName: [
   ] when
 ];
 
-processNameNode: [
-  data: file:;;
-
-  nameInfo: data.nameInfo processor.nameInfos.at;
+addNamesFromFile: [
+  nameInfo: file:;;
   file isNil ~ [file.rootBlock isNil ~ [nameInfo.stack.getSize 0 = [nameInfo.stack.last.getSize 0 =] ||] &&] && [
     file.rootBlock.fromModuleNames [
       label:;
@@ -2108,7 +2287,11 @@ processNameNode: [
       ] when
     ] each
   ] when
+];
 
+processNameNode: [
+  data: file:;;
+  data.nameInfo processor.nameInfos.at file addNamesFromFile
   gnr: data.nameInfo @block file getName;
   data.nameInfo gnr checkFailedName
   cnr: @gnr @block captureName;
@@ -2120,7 +2303,8 @@ processNameNode: [
 ];
 
 processNameReadNode: [
-  data:;
+  data: file:;;
+  data.nameInfo processor.nameInfos.at file addNamesFromFile
   gnr: data.nameInfo @block File Ref getName;
   data.nameInfo gnr checkFailedName
   cnr: @gnr @block captureName;
@@ -2141,8 +2325,8 @@ processNameReadNode: [
 ];
 
 processNameWriteNode: [
-  data:;
-
+  data: file:;;
+  data.nameInfo processor.nameInfos.at file addNamesFromFile
   gnr: data.nameInfo @block File Ref getName;
   data.nameInfo gnr checkFailedName
   cnr: @gnr @block captureName;
@@ -2497,10 +2681,10 @@ killStruct: [
     AstNodeType.Label           [@block processLabelNode]
     AstNodeType.List            [file processListNode]
     AstNodeType.Name            [file processNameNode]
-    AstNodeType.NameMember      [processNameMemberNode     ]
-    AstNodeType.NameRead        [processNameReadNode       ]
-    AstNodeType.NameReadMember  [processNameReadMemberNode ]
-    AstNodeType.NameWrite       [processNameWriteNode      ]
+    AstNodeType.NameMember      [processNameMemberNode]
+    AstNodeType.NameRead        [file processNameReadNode]
+    AstNodeType.NameReadMember  [processNameReadMemberNode]
+    AstNodeType.NameWrite       [file processNameWriteNode]
     AstNodeType.NameWriteMember [processNameWriteMemberNode]
     AstNodeType.Numberi16       [processInt16Node          ]
     AstNodeType.Numberi32       [processInt32Node          ]
@@ -2553,7 +2737,7 @@ processUseModule: [
   moduleId @moduleList.pushBack
 
   moduleList.getSize [
-    current: i moduleList @;
+    current: i moduleList.at;
     last: i moduleList.getSize 1 - =;
 
     asUse [last copy] && [
