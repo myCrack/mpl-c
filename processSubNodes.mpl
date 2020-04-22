@@ -699,7 +699,7 @@ fixRef: [
     TRUE dynamic @makeDynamic set
   ] if
 
-  @fixed.var @pointee.@var.set
+  @fixed.var @pointee.setVar
 
   wasVirtual [@refToVar Virtual block makeStaticity @refToVar set] [
     makeDynamic [
@@ -1762,7 +1762,7 @@ processIf: [
               isOutputImplicitDerefThen isOutputImplicitDerefElse = [
                 outputThen outputElse variablesAreSame [
                   newOutput: outputThen copy;
-                  outputElse.mutable outputThen.mutable and @newOutput.@mutable set
+                  outputElse.mutable outputThen.mutable and @newOutput.setMutable
                   outputThen outputElse newOutput mergeValuesRec
                   i newNodeThen.outputs.dataSize + longestOutputSize < ~ [newOutput @outputsThen.pushBack] when
                   i newNodeElse.outputs.dataSize + longestOutputSize < ~ [newOutput @outputsElse.pushBack] when
@@ -2148,7 +2148,7 @@ processDynamicLoop: [
     r getVar.data.getTag VarRef = [
       @r getPointeeNoDerefIR @block push
     ] [
-      FALSE @r.@mutable set
+      FALSE @r.setMutable
       r @block push
     ] if
   ] times
@@ -2236,7 +2236,7 @@ processDynamicLoop: [
   signature.inputs.getSize [
     r: signature.inputs.getSize 1 - i - signature.inputs.at @block copyVarFromChild;
     @r block unglobalize
-    FALSE @r.@mutable set
+    FALSE @r.setMutable
     r @block push
   ] times
 
@@ -2276,7 +2276,7 @@ callImportWith: [
               input: stackEntry copy;
               @input makeVarRealCaptured
               nodeEntry: i @declarationNode.@matchingInfo.@inputs.at.@refToVar;
-              nodeMutable: nodeEntry.mutable copy;
+              nodeMutable: nodeEntry.mutable;
               i declarationNode.csignature.inputs.at getVar.data.getTag VarRef = [
                 TRUE @stackEntry getVar.@capturedAsMutable set
               ] when

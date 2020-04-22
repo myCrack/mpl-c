@@ -3,10 +3,11 @@
 "Owner.Owner" use
 "Variant.Variant" use
 "control.Cond" use
+"control.Nat8" use
 "control.Int32" use
 "control.Int64" use
 "control.Nat64" use
-"control.Nat8" use
+"control.Natx" use
 "control.Real64" use
 
 "Mref.Mref" use
@@ -77,8 +78,29 @@ Struct: [{
 }]; #IDs of pointee vars
 
 RefToVar: [{
-  var: [@VarSchema] Mref;
-  mutable: TRUE dynamic;
+  data: Natx;
+
+  var: [
+    data 1nx ~ and @VarSchema addressToReference
+  ];
+
+  mutable: [
+    data 1nx and 0nx = ~
+  ];
+
+  setVar: [
+    newVar:;
+    newVar VarSchema Ref same ~ ["variable expected" raiseStaticError] when
+    newVar isConst ~ ["mutable variable expected" raiseStaticError] when
+    address: newVar storageAddress;
+    [address 1nx and 0nx =] "Address is not aligned!" assert
+    address data 1nx and or !data
+  ];
+
+  setMutable: [
+    copy newMutable:;
+    newMutable [1nx] [0nx] if data 1nx ~ and or !data
+  ];
 
   assigned: [var isNil ~];
   equal: [other:; var other.var is];

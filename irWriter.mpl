@@ -298,11 +298,11 @@ createCheckedCopyToNewWith: [
           "movable variable is not mutable" block compilerError
         ] if
       ] [
-        prevMut: dstRef.mutable copy;
-        TRUE @dstRef.@mutable set
+        prevMut: dstRef.mutable;
+        TRUE @dstRef.setMutable
         dstRef callInit
         srcRef dstRef callAssign
-        prevMut @dstRef.@mutable set
+        prevMut @dstRef.setMutable
       ] if
     ] if
     doDie [dstRef @block.@candidatesToDie.pushBack] when

@@ -36,7 +36,7 @@ makeVariableSchema: [
       refSchema: VariableSchemaTags.REF_SCHEMA @varSchema.@data.get;
       ref: VarRef var.data.get;
       pointee: ref getVar;
-      ref.mutable copy @refSchema.!mutable
+      ref.mutable @refSchema.!mutable
       pointee.mplSchemaId copy @refSchema.!pointeeSchemaId
     ]
     VarStruct [

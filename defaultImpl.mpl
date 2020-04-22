@@ -132,7 +132,7 @@ defaultMakeConstWith: [
     check [refToVar getVar.temporary copy] && [
       "temporary objects cannot be set const" block compilerError
     ] [
-      FALSE @refToVar.@mutable set
+      FALSE @refToVar.setMutable
       refToVar @block push
     ] if
   ] when

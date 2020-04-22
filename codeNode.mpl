@@ -381,7 +381,7 @@ createVariableWithVirtual: [
 
   result: RefToVar;
 
-  @processor.@variables.last.last @result.@var.set
+  @processor.@variables.last.last @result.setVar
   @block @result getVar.@host.set
 
   makeVirtual [
@@ -397,7 +397,7 @@ createVariableWithVirtual: [
   result @result getVar.@capturedHead set
   result @result getVar.@capturedTail set
 
-  result isNonrecursiveType ~ [result isUnallocable ~] && @result.@mutable set
+  result isNonrecursiveType ~ [result isUnallocable ~] && @result.setMutable
 
   makeType [result block makeVariableType] when
   @result block makeVariableIRName
@@ -470,7 +470,7 @@ getPointeeForMatching: [
   [var.data.getTag VarRef =] "Not a reference!" assert
   pointee: VarRef @var.@data.get; # reference
   result: pointee copy;
-  refToVar.mutable pointee.mutable and @result.@mutable set # to deref is
+  refToVar.mutable pointee.mutable and @result.setMutable # to deref is
   result
 ];
 
@@ -563,7 +563,7 @@ getPointeeWith: [
     @pointee fullUntemporize
 
     result: pointee copy;
-    refToVar.mutable pointee.mutable and @result.@mutable set # to deref is
+    refToVar.mutable pointee.mutable and @result.setMutable # to deref is
     result
   ] if
 ];
@@ -581,7 +581,7 @@ getFieldForMatching: [
 
   mplFieldIndex 0 < ~ [
     fieldRefToVar: mplFieldIndex struct.fields.at.refToVar copy;
-    refToVar.mutable @fieldRefToVar.@mutable set
+    refToVar.mutable @fieldRefToVar.setMutable
     @fieldRefToVar block unglobalize
 
     fieldVar: @fieldRefToVar getVar;
@@ -635,7 +635,7 @@ getField: [
       ] when
     ] when
 
-    refToVar.mutable @fieldRefToVar.@mutable set
+    refToVar.mutable @fieldRefToVar.setMutable
 
     @fieldRefToVar
   ] [
@@ -682,7 +682,7 @@ setOneVar: [
 
   [srcVar.data.getTag dstVar.data.getTag =] "Variable types mismatch!" assert
   [refSrc isVirtual refDst isVirtual =] "Virtualness mismatch!" assert
-  [refDst.mutable copy] "Constness mismatch!" assert
+  [refDst.mutable] "Constness mismatch!" assert
 
   srcVar.data.getTag VarStruct = ~ [
     srcVar.data.getTag VarInvalid VarRef 1 + [
@@ -697,7 +697,7 @@ setOneVar: [
     staticity Weak = [refDst staticityOfVar @staticity set] when
     @refDst staticity block makeStaticity drop
   ] [
-    srcVar.data.getTag VarRef = [refSrc.mutable copy] && [VarRef srcVar.data.get.mutable copy] && [
+    srcVar.data.getTag VarRef = [refSrc.mutable] && [VarRef srcVar.data.get.mutable] && [
       staticity: refSrc staticityOfVar;
       refSrc @block makeVarTreeDirty
       @refSrc staticity block makeStaticity drop
@@ -757,7 +757,7 @@ createRefWith: [
     pointee staticityOfVar Weak = [Dynamic @var.@staticity set] when
     @pointee fullUntemporize
 
-    pointee.mutable [mutable copy] && @pointee.@mutable set
+    pointee.mutable [mutable copy] && @pointee.setMutable
     newRefToVar: pointee VarRef @block createVariable;
     createOperation [pointee @newRefToVar @block createRefOperation] when
     newRefToVar
@@ -889,7 +889,7 @@ makeVirtualVarReal: [
       ] loop
     ] when
 
-    FALSE @result.@mutable set
+    FALSE @result.setMutable
     result @realValue set
 
     realValue copy
@@ -1122,7 +1122,7 @@ createNamedVariable: [
       ] if
     ] if
 
-    TRUE dynamic @newRefToVar.@mutable set
+    TRUE dynamic @newRefToVar.setMutable
 
     nameInfo newRefToVar addOverloadForPre
     @newRefToVar fullUntemporize
@@ -1318,7 +1318,7 @@ getNameAs: [
         object nameCase MemberCaseToObjectCase @block findLocalObject @result.@object set
         nameInfoEntry.index @result.@mplFieldIndex set
         nameInfoEntry.index fields.at.refToVar @result.@refToVar set
-        object.mutable @result.@refToVar.@mutable set
+        object.mutable @result.@refToVar.setMutable
       ] [
         ("Internal error, mismatch structures for name:" curNameInfo.name) assembleString block compilerError
       ] if
@@ -1340,7 +1340,7 @@ getNameAs: [
         # if var was captured somewhere, we must use it
         head: refToVar getVar.capturedHead;
         result: head getVar.capturedTail copy;
-        refToVar.mutable @result.@mutable set # tail cant keep correct staticity in some cases
+        refToVar.mutable @result.setMutable # tail cant keep correct staticity in some cases
 
         block.parent 0 = [nameInfoEntry.startPoint block.id = ~] && [
           fr: nameInfoEntry.startPoint @block.@usedModulesTable.find;
@@ -1931,7 +1931,7 @@ copyOneVarWith: [
     srcVar.data.getTag VarRef = [srcVar.shadowBegin @dst getVar.@shadowBegin set] when  #for ttest48
   ] if
 
-  src.mutable @dst.@mutable set
+  src.mutable @dst.setMutable
   dstVar: @dst getVar;
   srcVar.mplSchemaId @dstVar.@mplSchemaId set
 
@@ -2036,7 +2036,7 @@ copyVarFromParent: [TRUE  FALSE dynamic @block copyVarImpl];
 
     reallyCreateShadows: [
       shadowSrc: headVar.capturedTail copy;
-      refToVar.mutable @shadowSrc.@mutable set
+      refToVar.mutable @shadowSrc.setMutable
 
       shadowSrc @block copyOneVar @begin set
       shadowSrc @block copyOneVar @end set
@@ -2087,8 +2087,8 @@ copyVarFromParent: [TRUE  FALSE dynamic @block copyVarImpl];
         headVar.capturedTail @end set
         end getVar.shadowBegin @begin set
 
-        refToVar.mutable @begin.@mutable set
-        refToVar.mutable @end.@mutable set
+        refToVar.mutable @begin.setMutable
+        refToVar.mutable @end.setMutable
 
         beginVar: @begin getVar;
         endVar: @end getVar;
@@ -2171,9 +2171,9 @@ addStackUnderflowInfo: [
         # it is for exports only
         # we have immutable reference, becouse it is a rule of signature
         # after deref we must force mutability
-        mutableOfPointee: VarRef result getVar.data.get.mutable copy;
+        mutableOfPointee: VarRef result getVar.data.get.mutable;
         @result @block getPointee @result set
-        mutableOfPointee @result.@mutable set
+        mutableOfPointee @result.setMutable
       ] when
 
       newInput: Argument;
@@ -2231,7 +2231,7 @@ pushName: [
       possiblePointee isCallable [
         object possiblePointee nameInfo [object possiblePointee @nameInfo callCallableStructWithPre] callCallable
       ] [
-        FALSE dynamic @possiblePointee.@mutable set
+        FALSE dynamic @possiblePointee.setMutable
         possiblePointee @block push
       ] if
     ] if
@@ -2381,7 +2381,7 @@ processMember: [
             field: index 0 cast VarStruct pointeeVar.data.get.get.fields.at.refToVar;
             result: field VarRef TRUE dynamic TRUE dynamic TRUE dynamic @block createVariableWithVirtual;
             @result fullUntemporize
-            read 1 = result.mutable and @result.@mutable set
+            read 1 = result.mutable and @result.setMutable
             result @block push
           ] [
             fieldError
@@ -2471,7 +2471,7 @@ callInit: [
   compilable [
     uninited: RefToVar Array;
     refToVar isVirtual ~ [refToVar makeVarTreeDynamic] when
-    TRUE dynamic @refToVar.@mutable set
+    TRUE dynamic @refToVar.setMutable
     refToVar @uninited.pushBack
     i: 0 dynamic;
     [
@@ -2602,7 +2602,7 @@ callDie: [
   compilable [
     unkilled: RefToVar Array;
     @refToVar fullUntemporize
-    TRUE dynamic @refToVar.@mutable set
+    TRUE dynamic @refToVar.setMutable
     refToVar @unkilled.pushBack
 
     [
@@ -3264,7 +3264,7 @@ makeCompilerPosition: [
         refForArg TRUE
       ] [
         copyForArg: refToVar @block copyVarToNew;
-        TRUE dynamic @copyForArg.@mutable set
+        TRUE dynamic @copyForArg.setMutable
         @refToVar @copyForArg @block createCopyToNew
         copyForArg FALSE
       ] if
@@ -3346,7 +3346,7 @@ makeCompilerPosition: [
     refToVar isAutoStruct [
       var.usedInHeader [
         copyForArg: refToVar @block copyVarToNew;
-        TRUE dynamic @copyForArg.@mutable set
+        TRUE dynamic @copyForArg.setMutable
         @refToVar @copyForArg @block createCopyToNew
         copyForArg @refToVar set
       ] when
