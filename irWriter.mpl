@@ -31,7 +31,7 @@ createDerefTo: [
 
 createDerefToRegister: [
   block:;
-  derefName: block generateRegisterIRName;
+  derefName: @block generateRegisterIRName;
   derefName @block createDerefTo
   derefName
 ];

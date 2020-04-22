@@ -78,16 +78,17 @@ Struct: [{
 
 RefToVar: [{
   var: [@VarSchema] Mref;
-  hostId: -1 dynamic;
   mutable: TRUE dynamic;
 
-  equal: [other:; hostId other.hostId = [var other.var is] &&];
-  hash: [hostId 0n32 cast 67n32 * var storageAddress 0n32 cast 17n32 * +];
+  assigned: [var isNil ~];
+  equal: [other:; var other.var is];
+  hash: [address: var storageAddress; address 32n32 rshift address + Nat32 cast];
 }];
 
 Variable: [{
   VARIABLE: ();
 
+  host:                              [@BlockSchema] Mref;
   mplNameId:                         -1 dynamic;
   irNameId:                          -1 dynamic;
   mplSchemaId:                       -1 dynamic;

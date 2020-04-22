@@ -86,7 +86,7 @@ mplBuiltinProcessAtList: [
                 @refToIndex makeVarRealCaptured
                 firstField: 0 realStruct.fields.at.refToVar;
                 fieldRef: firstField copyVarFromParent;
-                firstField.hostId block.id = ~ [
+                firstField getVar.host block is ~ [
                   fBegin: RefToVar;
                   fEnd: RefToVar;
                   fieldRef @fBegin @fEnd ShadowReasonField @block makeShadowsDynamic
@@ -96,7 +96,7 @@ mplBuiltinProcessAtList: [
                 refToStruct.mutable @fieldRef.@mutable set
                 @fieldRef fullUntemporize
                 fieldRef staticityOfVar Virtual < ~ [
-                  "dynamic index is combined of virtuals" block compilerError
+                  "dynamic index in combined of virtuals" block compilerError
                 ] [
                   fieldRef @block makeVarTreeDynamicStoraged
                   @fieldRef block unglobalize

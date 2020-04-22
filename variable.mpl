@@ -282,16 +282,7 @@ getMplType: [
 # these functions require capture "processor"
 getVar: [
   refToVar:;
-
-  [
-    refToVar.hostId 0 < ~ [refToVar.hostId processor.blocks.dataSize <] && [
-      TRUE
-    ] [
-      ("invalid host id=" refToVar.hostId " of " processor.blocks.dataSize) addLog
-      FALSE
-    ] if
-  ] "Wrong refToVar!" assert
-
+  [refToVar.assigned] "Wrong refToVar!" assert
   @refToVar.var
 ];
 
@@ -337,7 +328,7 @@ maxStaticity: [
 refsAreEqual: [
   refToVar1:;
   refToVar2:;
-  refToVar1.hostId refToVar2.hostId = [refToVar1.var refToVar2.var is] &&
+  refToVar1.var refToVar2.var is
 ];
 
 variablesAreSame: [
@@ -1400,24 +1391,23 @@ getStaticStructIR: [
 
 # require captures "processor" and "codeNode"
 generateVariableIRNameWith: [
-  hostId: temporaryRegister: block:;;;
+  hostOfVariable: temporaryRegister: block:;;;
   temporaryRegister ~ [block.parent 0 =] && [
     ("@global." processor.globalVarCount) assembleString makeStringId
     processor.globalVarCount 1 + @processor.@globalVarCount set
   ] [
-    hostNode: hostId @processor.@blocks.at.get;
-    ("%var." hostNode.lastVarName) assembleString makeStringId
-    hostNode.lastVarName 1 + @hostNode.@lastVarName set
+    ("%var." hostOfVariable.lastVarName) assembleString makeStringId
+    hostOfVariable.lastVarName 1 + @hostOfVariable.@lastVarName set
   ] if
 ];
 
 generateVariableIRName: [FALSE generateVariableIRNameWith];
-generateRegisterIRName: [block:; block.id TRUE block generateVariableIRNameWith];
+generateRegisterIRName: [block:; @block TRUE block generateVariableIRNameWith];
 
 makeVariableIRName: [
   refToVar: block:;;
   var: @refToVar getVar;
-  refToVar.hostId refToVar isGlobal ~ block generateVariableIRNameWith @var.@irNameId set
+  @var.host refToVar isGlobal ~ block generateVariableIRNameWith @var.@irNameId set
 ];
 
 findFieldWithOverloadShift: [
