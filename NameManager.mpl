@@ -38,7 +38,7 @@ NameManager: [{
       index -1 = [FALSE] [
         itemFile: index items.at.file;
         itemFile isNil [itemFile file is] || [FALSE] [
-          index 1 + !index
+          index 1 - !index
           TRUE
         ] if
       ] if
