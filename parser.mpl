@@ -7,7 +7,6 @@
 "String.makeStringView" use
 "String.makeStringView2" use
 "String.splitString" use
-"String.stringMemory" use
 "String.toString" use
 "ascii.ascii" use
 "control.&&" use
@@ -395,7 +394,7 @@ undo: [
     prevPosition @currentPosition set
     currentPosition.offset 0 < ~ [
       currentPosition.offset splittedString.chars.at @currentSymbol set
-      currentSymbol stringMemory Nat8 addressToReference Nat32 cast @currentCode set
+      currentSymbol.data Nat8 addressToReference Nat32 cast @currentCode set
     ] [
       StringView @currentSymbol set
       ascii.null @currentCode set
@@ -417,7 +416,7 @@ iterate: [
 
     currentPosition.offset splittedString.chars.getSize < [
       currentPosition.offset splittedString.chars.at @currentSymbol set
-      currentSymbol stringMemory Nat8 addressToReference Nat32 cast @currentCode set
+      currentSymbol.data Nat8 addressToReference Nat32 cast @currentCode set
     ] [
       StringView @currentSymbol set
       ascii.null @currentCode set

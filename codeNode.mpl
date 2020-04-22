@@ -9,7 +9,6 @@
 "String.makeStringView" use
 "String.print" use
 "String.splitString" use
-"String.stringMemory" use
 "String.toString" use
 "control" use
 "conventions.cdecl" use
@@ -3750,7 +3749,7 @@ makeCompilerPosition: [
           splitted.success [
             splitted.chars [
               symbol:;
-              codePoint: symbol stringMemory Nat8 addressToReference;
+              codePoint: symbol.data Nat8 addressToReference;
               codePoint 48n8 < ~ [codePoint 57n8 > ~] &&         #0..9
               [codePoint 65n8 < ~ [codePoint 90n8 > ~] &&] ||    #A..Z
               [codePoint 97n8 < ~ [codePoint 122n8 > ~] &&] || [ #a..z
