@@ -5,6 +5,7 @@
 "astOptimizers" useModule
 "processor" useModule
 "processorImpl" useModule
+"NameManager.NameManager" use
 "file" useModule
 "memory" useModule
 
@@ -344,9 +345,10 @@ processIntegerOption: [
 
           success [
             multiParserResult: MultiParserResult;
+            nameManager: NameInfoEntry NameManager;
             @parserResults @multiParserResult concatParserResults
             ("trees concated" makeStringView) addLog
-            @multiParserResult optimizeNames
+            @multiParserResult @nameManager optimizeNames
             ("names optimized" makeStringView) addLog
 
             ("filenames:" makeStringView) addLog
@@ -354,7 +356,7 @@ processIntegerOption: [
 
             result: String;
             program: String;
-            multiParserResult options 0 @result @program process
+            multiParserResult @nameManager options 0 @result @program process
             result.size 0 = [
               outputFileName program saveString [
                 ("program written to " outputFileName) addLog

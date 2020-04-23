@@ -67,6 +67,7 @@ MemberCaseToObjectCase:        [2n8 +];
 MemberCaseToObjectCaptureCase: [4n8 +];
 
 NameInfoEntry: [{
+  file: File Cref;
   refToVar: RefToVar;
   startPoint: -1 dynamic; # id of node
   nameCase: NameCaseInvalid;
@@ -108,6 +109,7 @@ makeVariableType:      [block:; block @processor @processorResult makeVariableTy
 compilerError:         [block:; makeStringView block @processor @processorResult compilerErrorImpl];
 generateDebugTypeId:   [block:; block @processor @processorResult generateDebugTypeIdImpl];
 generateIrTypeId:      [block:; block @processor @processorResult generateIrTypeIdImpl];
+
 getMplType: [
   block:;
   result: String;
@@ -287,7 +289,7 @@ getVar: [
 ];
 
 getNameById: [processor.nameBuffer.at makeStringView];
-getMplName:  [getVar.mplNameId processor.nameInfos.at.name makeStringView];
+getMplName:  [getVar.mplNameId processor.nameManager.getText];
 getMplSchema: [getVar.mplSchemaId @processor.@schemaBuffer.at];
 
 getDbgType:  [getMplSchema.dbgTypeId getNameById];
@@ -1136,9 +1138,9 @@ getPlainConstantIR: [
         branch.fields [
           curField:;
           curField.refToVar isVirtual ~ [
-            (curField.nameInfo processor.nameInfos.at.name ":" curField.refToVar getDbgType ";") @resultDBG.catMany
+            (curField.nameInfo processor.nameManager.getText ":" curField.refToVar getDbgType ";") @resultDBG.catMany
           ] [
-            (curField.nameInfo processor.nameInfos.at.name ".") @resultDBG.catMany
+            (curField.nameInfo processor.nameManager.getText ".") @resultDBG.catMany
           ] if
         ] each
 
@@ -1248,7 +1250,7 @@ getPlainConstantIR: [
           i branch.fields.dataSize < [
             curField: i branch.fields.at;
             (
-              curField.nameInfo processor.nameInfos.at.name ":"
+              curField.nameInfo processor.nameManager.getText ":"
               curField.refToVar block getMplType ";") @resultMPL.catMany
             i 1 + @i set TRUE
           ] &&
@@ -1410,8 +1412,8 @@ makeVariableIRName: [
   @var.host refToVar isGlobal ~ block generateVariableIRNameWith @var.@irNameId set
 ];
 
-findFieldWithOverloadShift: [
-  copy overloadShift:;
+findFieldWithOverloadDepth: [
+  copy overloadDepth:;
   refToVar:;
   copy fieldNameInfo:;
 
@@ -1431,12 +1433,12 @@ findFieldWithOverloadShift: [
         i 1 - @i set
 
         i struct.fields.at .nameInfo fieldNameInfo = [
-          overloadShift 0 = [
+          overloadDepth 0 = [
             TRUE @result.@success set
             i @result.@index set
             FALSE
           ] [
-            overloadShift 1 - @overloadShift set
+            overloadDepth 1 - @overloadDepth set
             TRUE
           ] if
         ] [
@@ -1451,4 +1453,4 @@ findFieldWithOverloadShift: [
   result
 ];
 
-findField: [0 dynamic findFieldWithOverloadShift];
+findField: [0 dynamic findFieldWithOverloadDepth];

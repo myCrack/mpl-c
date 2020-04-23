@@ -11,6 +11,7 @@
 "Block.CompilerPositionInfo" use
 "Block.Block" use
 "File.File" use
+"NameManager.NameManager" use
 "Var.RefToVar" use
 "Var.Variable" use
 "astNodeType.IndexArray" use
@@ -109,9 +110,8 @@ Processor: [{
 
   matchingNodes:       Natx MatchingNode HashTable;
   recursiveNodesStack: Int32 Array;
-  nameInfos:           NameInfo Array;
+  nameManager:         NameInfoEntry NameManager;
   modules:             String Int32 HashTable; # -1 no module, or Id of codeNode
-  nameToId:            String Int32 HashTable; # id of nameInfo from parser
 
   emptyNameInfo:               -1 dynamic;
   callNameInfo:                -1 dynamic;

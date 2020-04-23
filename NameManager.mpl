@@ -14,16 +14,18 @@ NameManager: [{
   schema Item:; # Should have a field named "file", which is used as opaque pointer by NameManager
 
   createName: [
-    text: dup String same [] [toString] uif;
+    text:;
     result: text textNameIds.find;
     result.success [result.value copy] [
+      string: text String same [@text] [text toString] uif;
       nameId: names.size;
       nameId 1 + @names.enlarge
-      text.getStringView nameId @textNameIds.insertUnsafe # Make StringView using the source String object, reference should remain valid when we move String
-      @text move @names.last.@text set
+      string.getStringView nameId @textNameIds.insertUnsafe # Make StringView using the source String object, reference should remain valid when we move String
+      @string move @names.last.@text set
       nameId
     ] if
   ];
+
 
   addItem: [
     item: nameId:;;
@@ -33,15 +35,13 @@ NameManager: [{
   findItem: [
     index: file: nameId:;; copy;
     items: nameId names.at.items;
-    index -1 = [items.size 1 - !index] when
+    index -1 = [items.size !index] when
     [
-      index -1 = [FALSE] [
+      index 1 - !index
+      index -1 = [
         itemFile: index items.at.file;
-        itemFile isNil [itemFile file is] || [FALSE] [
-          index 1 - !index
-          TRUE
-        ] if
-      ] if
+        itemFile isNil [itemFile file is] ||
+      ] || ~
     ] loop
 
     index

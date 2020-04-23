@@ -118,18 +118,7 @@ addBuiltin: [
   copy id:;
   name:;
 
-  fr: @name @processor.@nameToId.find;
-  fr.success [
-    fr.value copy
-  ] [
-    s: @name toString;
-    result: processor.nameInfos.getSize;
-    s makeNameInfo @processor.@nameInfos.pushBack
-    s result @processor.@nameToId.insert
-    result
-  ] if
-  nameId:;
-
+  nameId: @name makeStringView @processor.@nameManager.createName;
   bvar: @id VarBuiltin @block createVariable Virtual @block makeStaticity;
   nameId bvar NameCaseBuiltin addNameInfo
 ];

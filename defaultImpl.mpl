@@ -57,10 +57,10 @@ defaultCall: [
           [compilable]
           [refToVar staticityOfVar Weak < ["name must be a static string" block compilerError] when]
           [
-            nameInfo: VarString var.data.get findNameInfo;
+            nameInfo: VarString var.data.get makeStringView findNameInfo;
             getNameResult: nameInfo @block File Ref getName;
             nameInfo getNameResult checkFailedName
-            captureNameResult: @getNameResult @block captureName;
+            captureNameResult: @getNameResult 0 @block captureName;
             refToName: captureNameResult.refToVar copy;
           ]
           [
@@ -249,21 +249,4 @@ defaultPrintStackTrace: [
   block defaultPrintStack
 ];
 
-findNameInfo: [
-  key:;
-  fr: @key @processor.@nameToId.find;
-  fr.success [
-    fr.value copy
-  ] [
-    string: key toString;
-    result: processor.nameToId.getSize;
-    [result processor.nameInfos.dataSize =] "Name info data sizes inconsistent!" assert
-    string result @processor.@nameToId.insert
-
-    newNameInfo: NameInfo;
-    string @newNameInfo.@name set
-    newNameInfo @processor.@nameInfos.pushBack
-
-    result
-  ] if
-];
+findNameInfo: [@processor.@nameManager.createName];

@@ -88,13 +88,8 @@ optimizeNamesInCurrentNode: [
 
   optimizeName: [
     nameWithInfo:;
-    fr: nameWithInfo.name makeStringView ids.find;
-    fr.success [
-      fr.value @nameWithInfo.@nameInfo set
-    ] [
-      ids.dataSize @nameWithInfo.@nameInfo set
-      nameWithInfo.name ids.dataSize @ids.insert # copy string here
-    ] if
+    nameIndex: nameWithInfo.name makeStringView @nameManager.createName;
+    nameIndex @nameWithInfo.@nameInfo set
   ];
 
   addToProcess: [
@@ -118,8 +113,7 @@ optimizeNamesInCurrentNode: [
 ];
 
 optimizeNames: [
-  multiParserResult:;
-  ids: @multiParserResult.@names;
+  multiParserResult: nameManager: ;;
 
   i: 0 dynamic;
   [

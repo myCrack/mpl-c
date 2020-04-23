@@ -1,33 +1,29 @@
 "processSubNodes" useModule
 "builtins" useModule
 
+"NameManager.NameManager" use
+
 {
   program: String Ref;
   result: String Ref;
   unitId: 0;
   options: ProcessorOptions Cref;
+  nameManager: NameInfoEntry NameManager Ref;
   multiParserResult: MultiParserResult Cref;
 } () {convention: cdecl;} [
   program:;
   result:;
   copy unitId:;
   options:;
+  nameManager:;
   multiParserResult:;
 
   processorResult: ProcessorResult;
   processor: Processor;
 
   unitId @processor.@unitId set
-  multiParserResult.names @processor.@nameToId set
+  @nameManager move @processor.@nameManager set
   @options @processor.@options set
-
-  processor.nameToId.getSize @processor.@nameInfos.resize
-  @processor.@nameToId [
-    pair:;
-    id: pair.value;
-    key: pair.key;
-    key id @processor.@nameInfos.at.@name set
-  ] each
 
   ""           findNameInfo @processor.@emptyNameInfo set
   "CALL"       findNameInfo @processor.@callNameInfo set
@@ -219,7 +215,7 @@
   [compilable ~ [processor.recursiveNodesStack.getSize 0 =] ||] "Recursive stack is not empty!" assert
 
   processorResult.success [
-    ("nameCount=" processor.nameInfos.dataSize
+    ("nameCount=" processor.nameManager.names.dataSize
       "; irNameCount=" processor.nameBuffer.dataSize) addLog
 
     ("max depth of recursion=" processor.maxDepthOfRecursion) addLog

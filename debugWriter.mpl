@@ -133,7 +133,7 @@ addMemberInfo: [
   index: processor.debugInfo.lastId copy;
   processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
 
-  name: field.nameInfo processor.nameInfos.at.name makeStringView;
+  name: field.nameInfo processor.nameManager.getText;
 
   name "" = [
     ("!" index " = !DIDerivedType(tag: DW_TAG_member, name: \"f" fieldNumber "\", scope: !" block.funcDbgIndex
@@ -228,7 +228,7 @@ addVariableDebugInfo: [
     [debugDeclarationIndex -1 = ~] "There is no debug declaration for this type!" assert
     index: processor.debugInfo.lastId copy;
     processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
-    ("!" index " = !DILocalVariable(name: \"" nameInfo processor.nameInfos.at.name "\", scope: !" block.funcDbgIndex
+    ("!" index " = !DILocalVariable(name: \"" nameInfo processor.nameManager.getText "\", scope: !" block.funcDbgIndex
       ", file: !" block.position.file.debugId
       ", line: " block.position.line ", type: !" debugDeclarationIndex ")") assembleString @processor.@debugInfo.@strings.pushBack
     index block.funcDbgIndex @processor.@debugInfo.@locationIds.insert
@@ -251,7 +251,7 @@ addGlobalVariableDebugInfo: [
 
     index: processor.debugInfo.lastId copy;
     processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
-    ("!" index " = !DIGlobalVariable(name: \"" nameInfo processor.nameInfos.at.name "\", linkageName: \"" refToVar getIrName
+    ("!" index " = !DIGlobalVariable(name: \"" nameInfo processor.nameManager.getText "\", linkageName: \"" refToVar getIrName
       "\", scope: !" processor.debugInfo.unit ", file: !" block.position.file.debugId
       ", line: " block.position.line ", type: !" debugDeclarationIndex ", isLocal: false, isDefinition: true)") assembleString @processor.@debugInfo.@strings.pushBack
 

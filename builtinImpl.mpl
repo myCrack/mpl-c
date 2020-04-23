@@ -406,7 +406,7 @@ parseSignature: [
               ]
             ) sequence
           ] [
-            ("unknown option: " f.nameInfo processor.nameInfos.at.name) assembleString block compilerError
+            ("unknown option: " f.nameInfo processor.nameManager.getText) assembleString block compilerError
           ]
         ) case
       ] each
@@ -817,7 +817,7 @@ staticityOfBinResult: [
       varName.data.getTag VarString = ~ ["method name must be a static string" block compilerError] when
     ]
     [
-      fieldNameInfo: VarString varName.data.get findNameInfo;
+      fieldNameInfo: VarString varName.data.get makeStringView findNameInfo;
       fieldNameInfo @block pop 0 processMember
     ]
   ) sequence
@@ -937,7 +937,7 @@ staticityOfBinResult: [
     ]
     [
       gnr: newBlock.varNameInfo @block File Ref getName;
-      cnr: @gnr @block captureName;
+      cnr: @gnr 0 @block captureName;
       refToVar: cnr.refToVar copy;
 
       refToVar @block push
@@ -998,7 +998,7 @@ staticityOfBinResult: [
       varName.data.getTag VarString = ~ ["name must be static string" block compilerError] when
     ]
     [
-      VarString varName.data.get findNameInfo @block pop @block createNamedVariable
+      VarString varName.data.get makeStringView findNameInfo @block pop @block createNamedVariable
     ]
   ) sequence
 ] "mplBuiltinDef" @declareBuiltin ucall
@@ -1065,8 +1065,7 @@ staticityOfBinResult: [
       oldIrNameId var.irNameId refToVar getMplSchema.irTypeId createGlobalAliasIR
       oldInstructionIndex @var.@globalDeclarationInstructionIndex set
 
-      nameInfo: name findNameInfo;
-      nameInfo refToVar addOverloadForPre
+      nameInfo: name makeStringView findNameInfo;
       nameInfo refToVar NameCaseLocal addNameInfo
       processor.options.debug [
         d: nameInfo refToVar block addGlobalVariableDebugInfo;
@@ -1143,7 +1142,7 @@ staticityOfBinResult: [
           pointeeVar: pointee getVar;
           pointeeVar.data.getTag VarStruct = ~ ["not a combined" block compilerError] when
           compilable [
-            count VarStruct pointeeVar.data.get.get.fields.at.nameInfo processor.nameInfos.at.name @block makeVarString @block push
+            count VarStruct pointeeVar.data.get.get.fields.at.nameInfo processor.nameManager.getText @block makeVarString @block push
           ] when
         ] [
           var.data.getTag VarStruct = ~ ["not a combined" block compilerError] when
@@ -1151,7 +1150,7 @@ staticityOfBinResult: [
             struct: VarStruct var.data.get.get;
             count 0 < [count struct.fields.getSize < ~] || ["index is out of bounds" block compilerError] when
             compilable [
-              count struct.fields.at.nameInfo processor.nameInfos.at.name @block makeVarString @block push
+              count struct.fields.at.nameInfo processor.nameManager.getText @block makeVarString @block push
             ] when
           ] when
         ] if
@@ -1322,8 +1321,7 @@ staticityOfBinResult: [
             ("@" name) assembleString makeStringId @newVar.@irNameId set
             @newRefToVar createVarImportIR makeVarTreeDynamic
 
-            nameInfo: name findNameInfo;
-            nameInfo newRefToVar addOverloadForPre
+            nameInfo: name makeStringView findNameInfo;
             nameInfo newRefToVar NameCaseLocal addNameInfo
             processor.options.debug [newRefToVar isVirtual ~] && [
               d: nameInfo newRefToVar block addGlobalVariableDebugInfo;
@@ -1797,7 +1795,6 @@ staticityOfBinResult: [
         fileBlock.labelNames [
           label:;
           name "" = [label.nameInfo nameInfo =] || [label.refToVar isVirtual [label.refToVar getVar.data.getTag VarImport =] ||] && [
-            label.nameInfo label.refToVar addOverloadForPre
             label.nameInfo label.refToVar NameCaseFromModule addNameInfo
             labelCount 1 + !labelCount
           ] when

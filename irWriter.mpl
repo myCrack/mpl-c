@@ -175,7 +175,7 @@ createStaticGEP: [
 createFailWithMessage: [
   message: block:;;
   gnr: processor.failProcNameInfo @block File Ref getName;
-  cnr: @gnr @block captureName;
+  cnr: @gnr 0 @block captureName;
   failProcRefToVar: cnr.refToVar copy;
   message toString @block makeVarString @block push
 

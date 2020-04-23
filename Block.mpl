@@ -50,13 +50,11 @@ Argument: [{
 }];
 
 Capture: [{
-  refToVar: RefToVar;
-  argCase: ArgRef;
-  captureCase: NameCaseInvalid;
-  nameInfo: -1 dynamic;
-  nameOverload: -1 dynamic;
-  cntNameOverload: -1 dynamic;
-  cntNameOverloadParent: -1 dynamic;
+  refToVar:          RefToVar;
+  argCase:           ArgRef;
+  captureCase:       NameCaseInvalid;
+  nameInfo:          -1 dynamic;
+  nameOverloadDepth: -1 dynamic;
 }];
 
 CFunctionSignature: [{
@@ -74,13 +72,11 @@ CompilerPositionInfo: [{
 }];
 
 FieldCapture: [{
-  object: RefToVar;
-  capturingPoint: -1 dynamic; #index of code node where it was
-  captureCase: NameCaseInvalid;
-  nameInfo: -1 dynamic;
-  nameOverload: -1 dynamic;
-  cntNameOverload: -1 dynamic;
-  cntNameOverloadParent: -1 dynamic;
+  object:            RefToVar;
+  capturingPoint:    -1 dynamic; #index of code node where it was
+  captureCase:       NameCaseInvalid;
+  nameInfo:          -1 dynamic;
+  nameOverloadDepth: -1 dynamic;
 }];
 
 makeInstruction: [{
@@ -105,9 +101,7 @@ MatchingInfo: [{
 NameWithOverloadAndRefToVar: [{
   virtual NAME_WITH_OVERLOAD_AND_REF_TO_VAR: ();
   nameInfo: -1 dynamic;
-  nameOverload: -1 dynamic;
-  cntNameOverload: -1 dynamic;
-  cntNameOverloadParent: -1 dynamic;
+  nameOverloadDepth:-1 dynamic;
   refToVar: RefToVar;
   startPoint: -1 dynamic;
 }];

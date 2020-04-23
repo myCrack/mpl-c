@@ -9,6 +9,9 @@
 "String.makeStringView" use
 "String.print" use
 "String.toString" use
+
+
+
 #"control.&&" use
 #"control.=" use
 #"control.Cond" use
@@ -300,7 +303,7 @@
                     cacheFieldNameInfo stackFieldNameInfo = [
                       j currentFromCache block getFieldForMatching @unfinishedCache.pushBack
                       j currentFromStack block getFieldForMatching @unfinishedStack.pushBack
-                      i j cacheFieldNameInfo processor.nameInfos.at.name makeStringView makeWayInfo @unfinishedWay.pushBack
+                      i j cacheFieldNameInfo processor.nameManager.getText makeWayInfo @unfinishedWay.pushBack
                       j 1 + !j
                     ] [
                       FALSE !success
@@ -344,17 +347,27 @@
   success
 ] "compareEntriesRecImpl" exportFunction
 
-getOverload: [
+getOverloadIndex: [
   cap: block:;;
-  overload: cap.nameOverload copy;
-  maxOverloadCountCur: cap.nameInfo getOverloadCount;
-  maxOverloadCountNes: cap.cntNameOverloadParent copy;
-  overload maxOverloadCountCur + maxOverloadCountNes < [
-    ("while matching cant call overload for name: " cap.nameInfo processor.nameInfos.at.name) assembleString block compilerError
-    0
-  ] [
-    overload maxOverloadCountCur + maxOverloadCountNes -
-  ] if
+  overloadDepth: cap.nameOverloadDepth copy;
+  index: -1;
+
+  [
+    index File Cref cap.nameInfo processor.nameManager.findItem !index
+    index 0 < [
+      ("while matching cant call overload for name: " cap.nameInfo processor.nameManager.getText) assembleString block compilerError
+      FALSE
+    ] [
+      overloadDepth 0 = [
+        FALSE
+      ] [
+        overloadDepth 1 - !overloadDepth
+        TRUE
+      ] if
+    ] if
+  ] loop
+
+  index
 ];
 
 tryMatchNode: [
@@ -482,8 +495,8 @@ tryMatchNode: [
         i currentMatchingNode.matchingInfo.captures.dataSize < [
           currentCapture: i currentMatchingNode.matchingInfo.captures.at;
           cacheEntry: currentCapture.refToVar;
-          overload: currentCapture.refToVar.assigned ~ [-1] [currentCapture @block getOverload] if;
-          stackEntry: currentCapture.nameInfo currentCapture overload @block getNameForMatchingWithOverload.refToVar;
+          overloadIndex: currentCapture.refToVar.assigned ~ [-1] [currentCapture @block getOverloadIndex] if;
+          stackEntry: currentCapture.nameInfo currentCapture overloadIndex @block getNameForMatchingWithOverloadIndex.refToVar;
 
           stackEntry.assigned ~ cacheEntry.assigned ~ and [
             stackEntry.assigned cacheEntry.assigned and [stackEntry cacheEntry compareEntriesRec] &&
@@ -491,7 +504,7 @@ tryMatchNode: [
             i 1 + @i set
           ] [
             currentMatchingNode.nodeCompileOnce [
-              "in compiled-once func capture " makeStringView [currentCapture.nameInfo processor.nameInfos.at.name @s.cat] mismatchMessage
+              "in compiled-once func capture " makeStringView [currentCapture.nameInfo processor.nameManager.getText @s.cat] mismatchMessage
             ] when
 
             FALSE dynamic @success set
@@ -507,15 +520,15 @@ tryMatchNode: [
       [
         i currentMatchingNode.matchingInfo.fieldCaptures.dataSize < [
           currentFieldCapture: i currentMatchingNode.matchingInfo.fieldCaptures.at;
-          overload: currentFieldCapture @block getOverload;
+          overloadIndex: currentFieldCapture @block getOverloadIndex;
           compilable [
-            currentFieldInfo: overload currentFieldCapture.nameInfo processor.nameInfos.at.stack.at.last;
+            currentFieldInfo: overloadIndex currentFieldCapture.nameInfo processor.nameManager.getItem;
             currentFieldInfo.nameCase currentFieldCapture.captureCase = [currentFieldCapture.object currentFieldInfo.refToVar variablesAreSame] &&
           ] && [
             i 1 + @i set
           ] [
             currentMatchingNode.nodeCompileOnce [
-              ("in compiled-once func fieldCapture " currentFieldCapture.nameInfo processor.nameInfos.at.name "\" mismatch") assembleString block compilerError
+              ("in compiled-once func fieldCapture " currentFieldCapture.nameInfo processor.nameManager.getText "\" mismatch") assembleString block compilerError
             ] when
 
             FALSE dynamic @success set
@@ -920,12 +933,12 @@ usePreCapturesWith: [
       i currentChangesNode.matchingInfo.captures.dataSize < [
         currentCapture: i currentChangesNode.matchingInfo.captures.at;
         cacheEntry: currentCapture.refToVar;
-        overload: currentCapture.refToVar.assigned ~ [-1] [currentCapture @block getOverload] if;
-        gnr: currentCapture.nameInfo currentCapture overload @block getNameForMatchingWithOverload;
+        overloadIndex: currentCapture.refToVar.assigned ~ [-1] [currentCapture @block getOverloadIndex] if;
+        gnr: currentCapture.nameInfo currentCapture overloadIndex @block getNameForMatchingWithOverloadIndex;
         gnr.refToVar.assigned ~ [
           # it is failed capture
         ] [
-          stackEntry: @gnr @block captureName.refToVar;
+          stackEntry: @gnr currentCapture.nameOverloadDepth @block captureName.refToVar;
 
           unfinishedStack: @processor.acquireVarRefArray;
           unfinishedCache: @processor.acquireVarRefArray;
@@ -979,8 +992,8 @@ usePreCapturesWith: [
     [
       i currentChangesNode.matchingInfo.fieldCaptures.dataSize < [
         currentFieldCapture: i currentChangesNode.matchingInfo.fieldCaptures.at;
-        overload: currentFieldCapture @block getOverload;
-        fieldCnr: currentFieldCapture.nameInfo overload getNameWithOverload @block captureName;
+        overloadIndex: currentFieldCapture @block getOverloadIndex;
+        fieldCnr: currentFieldCapture.nameInfo overloadIndex getNameWithOverloadIndex currentFieldCapture.nameOverloadDepth @block captureName;
         i 1 + @i set compilable
       ] &&
     ] loop
@@ -1052,8 +1065,10 @@ applyNodeChanges: [
       cacheEntry.assigned ~ [
         currentCapture.nameInfo addFailedCapture
       ] [
-        overload: currentCapture @block getOverload;
-        stackEntry: currentCapture.nameInfo currentCapture overload @block getNameForMatchingWithOverload @block captureName.refToVar;
+        overloadIndex: currentCapture @block getOverloadIndex;
+        stackEntry: currentCapture.nameInfo currentCapture overloadIndex @block getNameForMatchingWithOverloadIndex currentCapture.nameOverloadDepth @block captureName.refToVar;
+        (currentCapture.nameOverloadDepth ": " stackEntry block getMplType " -|- " cacheEntry block getMplType) assembleString print LF print
+
         stackEntry cacheEntry applyEntriesRec
       ] if
 
@@ -1066,8 +1081,8 @@ applyNodeChanges: [
     i currentChangesNode.matchingInfo.fieldCaptures.dataSize < [
       currentFieldCapture: i currentChangesNode.matchingInfo.fieldCaptures.at;
 
-      overload: currentFieldCapture @block getOverload;
-      fieldCnr: currentFieldCapture.nameInfo overload getNameWithOverload @block captureName;
+      overloadIndex: currentFieldCapture @block getOverloadIndex;
+      fieldCnr: currentFieldCapture.nameInfo overloadIndex getNameWithOverloadIndex currentFieldCapture.nameOverloadDepth @block captureName;
 
       i 1 + @i set compilable
     ] &&
@@ -1304,8 +1319,8 @@ makeCallInstructionWith: [
 
       currentCapture.refToVar.assigned [
         currentCapture.argCase ArgRef = [
-          overload: currentCapture block getOverload;
-          refToVar: currentCapture.nameInfo currentCapture overload @block getNameForMatchingWithOverload @block captureName.refToVar;
+          overloadIndex: currentCapture block getOverloadIndex;
+          refToVar: currentCapture.nameInfo currentCapture overloadIndex @block getNameForMatchingWithOverloadIndex currentCapture.nameOverloadDepth @block captureName.refToVar;
           [currentCapture.refToVar refToVar variablesAreSame] "invalid capture type while generating arg list!" assert
 
           arg: IRArgument;
