@@ -16,11 +16,20 @@ ArgReturn:      [4n8 dynamic];
 ArgRefDeref:    [5n8 dynamic];
 ArgReturnDeref: [6n8 dynamic];
 
-NameCaseInvalid:    [0n8 dynamic];
-NameCaseBuiltin:    [1n8 dynamic];
-NameCaseLocal:      [2n8 dynamic];
-NameCaseFromModule: [3n8 dynamic];
-NameCaseCapture:    [4n8 dynamic];
+NameCaseInvalid:               [ 0n8 dynamic];
+NameCaseBuiltin:               [ 1n8 dynamic];
+NameCaseLocal:                 [ 2n8 dynamic];
+NameCaseFromModule:            [ 3n8 dynamic];
+NameCaseCapture:               [ 4n8 dynamic];
+NameCaseSelfMember:            [ 5n8 dynamic];
+NameCaseClosureMember:         [ 6n8 dynamic];
+NameCaseSelfObject:            [ 7n8 dynamic];
+NameCaseClosureObject:         [ 8n8 dynamic];
+NameCaseSelfObjectCapture:     [ 9n8 dynamic];
+NameCaseClosureObjectCapture:  [10n8 dynamic];
+
+MemberCaseToObjectCase:        [2n8 +];
+MemberCaseToObjectCaptureCase: [4n8 +];
 
 NodeCaseEmpty:              [0n8 dynamic];
 NodeCaseCode:               [1n8 dynamic];
@@ -96,6 +105,14 @@ MatchingInfo: [{
   fieldCaptures: FieldCapture Array;
   hasStackUnderflow: FALSE dynamic;
   unfoundedNames: Int32 Cond HashTable; #nameInfos
+}];
+
+NameWithOverload: [{
+  nameInfo: -1 dynamic;
+  nameOverloadDepth: -1 dynamic;
+
+  equal: [other:; nameInfo other.nameInfo = [nameOverload other.nameOverload =] &&];
+  hash: [nameInfo 67n32 * nameOverload 17n32 * +];
 }];
 
 NameWithOverloadAndRefToVar: [{

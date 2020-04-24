@@ -316,6 +316,7 @@ addFileDebugInfo: [
 addFuncSubroutineInfo: [
   compileOnce
   block:;
+
   index: processor.debugInfo.lastId copy;
   processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
   ("!" index " = !{null}") assembleString @processor.@debugInfo.@strings.pushBack

@@ -56,16 +56,6 @@
 "schemas.hash" use
 "schemas.makeVariableSchema" use
 
-NameCaseSelfMember:            [ 5n8 dynamic];
-NameCaseClosureMember:         [ 6n8 dynamic];
-NameCaseSelfObject:            [ 7n8 dynamic];
-NameCaseClosureObject:         [ 8n8 dynamic];
-NameCaseSelfObjectCapture:     [ 9n8 dynamic];
-NameCaseClosureObjectCapture:  [10n8 dynamic];
-
-MemberCaseToObjectCase:        [2n8 +];
-MemberCaseToObjectCaptureCase: [4n8 +];
-
 NameInfoEntry: [{
   file: File Cref;
   refToVar: RefToVar;

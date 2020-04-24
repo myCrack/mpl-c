@@ -65,14 +65,6 @@ IndexInfo: [{
   index: -1 dynamic;
 }];
 
-NameWithOverload: [{
-  nameInfo: -1 dynamic;
-  nameOverload: -1 dynamic;
-
-  equal: [other:; nameInfo other.nameInfo = [nameOverload other.nameOverload =] &&];
-  hash: [nameInfo 67n32 * nameOverload 17n32 * +];
-}];
-
 RefToVarTable: [
   RefToVar RefToVar HashTable
 ];

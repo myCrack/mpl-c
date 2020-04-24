@@ -1789,18 +1789,7 @@ staticityOfBinResult: [
       name: string extractExtension;
       fr: filename processor.modules.find;
       fr.success [fr.value 0 < ~] && [
-        fileBlock: fr.value processor.blocks.at.get;
-        nameInfo: name findNameInfo;
-        labelCount: 0;
-        fileBlock.labelNames [
-          label:;
-          name "" = [label.nameInfo nameInfo =] || [label.refToVar isVirtual [label.refToVar getVar.data.getTag VarImport =] ||] && [
-            label.nameInfo label.refToVar NameCaseFromModule addNameInfo
-            labelCount 1 + !labelCount
-          ] when
-        ] each
-
-        labelCount 0 = [("no names match \"" name "\"") assembleString block compilerError] when
+        #insert module names here
       ] [
         TRUE dynamic @processorResult.@findModuleFail set
         filename toString @processorResult.@errorInfo.@missedModule set

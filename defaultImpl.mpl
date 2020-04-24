@@ -64,12 +64,12 @@ defaultCall: [
             refToName: captureNameResult.refToVar copy;
           ]
           [
-            FALSE dynamic captureNameResult.object refToName 0 nameInfo pushName
+            TRUE dynamic captureNameResult.object refToName 0 nameInfo pushName
           ]
         ) sequence
       ]
       [drop refToVar isCallable] [
-        RefToVar refToVar "call" makeStringView callCallableStruct # call struct with INVALID object
+        TRUE dynamic RefToVar refToVar "call" makeStringView callCallableStruct # call struct with INVALID object
       ]
       [
         "not callable" block compilerError
@@ -154,13 +154,7 @@ defaultUseOrIncludeModule: [
 
       fr: string makeStringView processor.modules.find;
       fr.success [fr.value 0 < ~] && [
-        frn: fr.value block.usedModulesTable.find;
-        frn2: fr.value block.directlyIncludedModulesTable.find;
-        frn.success frn2.success or [
-          ("duplicate use module: " string) assembleString block compilerError
-        ] [
-          fr.value asUse processUseModule
-        ] if
+        #insert variables here
       ] [
         TRUE dynamic @processorResult.@findModuleFail set
         string @processorResult.@errorInfo.@missedModule set

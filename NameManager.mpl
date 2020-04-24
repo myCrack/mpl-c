@@ -1,7 +1,9 @@
 "Array.Array" use
 "HashTable.HashTable" use
+"HashTable.hash" use
 "String.String" use
 "String.StringView" use
+"String.hash" use
 "String.toString" use
 "control.=" use
 "control.Int32" use
@@ -25,7 +27,6 @@ NameManager: [{
       nameId
     ] if
   ];
-
 
   addItem: [
     item: nameId:;;

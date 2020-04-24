@@ -132,7 +132,7 @@ createStringIR: [
   processor.lastStringId 1 + @processor.@lastStringId set
 
   var: @refToVar getVar;
-  @stringName findNameInfo @var.@mplNameId set
+  stringName makeStringView findNameInfo @var.@mplNameId set
   ("getelementptr inbounds ({i32, [" string.size " x i8]}, {i32, [" string.size " x i8]}* " stringName ", i32 0, i32 1, i32 0)") assembleString makeStringId @var.@irNameId set
 
   valueImplementation: string getStringImplementation;

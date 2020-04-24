@@ -4,14 +4,17 @@
 "parser" useModule
 "astOptimizers" useModule
 "processor" useModule
-"processorImpl" useModule
+"processorImpl" use
 "NameManager.NameManager" use
+"variable.NameInfoEntry" use
+
 "file" useModule
 "memory" useModule
-
 "Array.makeSubRange" use
 "ascii.ascii" use
 "memory.debugMemory" use
+"HashTable.hash" use
+"String.hash" use
 
 printInfo: [
   "USAGE: mplc.exe [options] <inputs>" print LF print
@@ -334,7 +337,7 @@ processIntegerOption: [
               loadStringResult: filename loadString;
               loadStringResult.success [
                 ("Loaded string from " filename) addLog
-                ("HASH=" loadStringResult.data hash) addLog
+                ("HASH=" loadStringResult.data) addLog
                 filename loadStringResult.data addToProcess
               ] [
                 "Unable to load string:" print filename print LF print

@@ -33,6 +33,15 @@
 "Block.NameCaseFromModule" use
 "Block.NameCaseInvalid" use
 "Block.NameCaseLocal" use
+"Block.MemberCaseToObjectCaptureCase" use
+"Block.MemberCaseToObjectCase" use
+"Block.NameCaseClosureMember" use
+"Block.NameCaseClosureObject" use
+"Block.NameCaseClosureObjectCapture" use
+"Block.NameCaseSelfMember" use
+"Block.NameCaseSelfObject" use
+"Block.NameCaseSelfObjectCapture" use
+"Block.NameWithOverload" use
 "Block.NameWithOverloadAndRefToVar" use
 "Block.NodeCaseCode" use
 "Block.NodeCaseCodeRefDeclaration" use
@@ -122,19 +131,10 @@
 "irWriter.createStringIR" use
 "irWriter.sortInstructions" use
 "processor.MatchingNode" use
-"processor.NameWithOverload" use
 "processor.Processor" use
 "processor.ProcessorResult" use
 "processor.RefToVarTable" use
 "staticCall.staticCall" use
-"variable.MemberCaseToObjectCaptureCase" use
-"variable.MemberCaseToObjectCase" use
-"variable.NameCaseClosureMember" use
-"variable.NameCaseClosureObject" use
-"variable.NameCaseClosureObjectCapture" use
-"variable.NameCaseSelfMember" use
-"variable.NameCaseSelfObject" use
-"variable.NameCaseSelfObjectCapture" use
 "variable.NameInfo" use
 "variable.NameInfoEntry" use
 "variable.Overload" use
@@ -218,9 +218,11 @@ addNameInfoWith: [
           ] [
             addNameCase NameCaseSelfMember = [addNameCase NameCaseClosureMember =] || [
               nameWithOverload @block.@fieldCaptureNames.pushBack
+              FALSE @addInfo set
             ] [
               addNameCase NameCaseSelfObject = [addNameCase NameCaseClosureObject =] || [
                 # do nothing
+                FALSE @addInfo set
               ] [
                 [FALSE] "wrong name info case" assert
               ] if
@@ -1311,17 +1313,17 @@ getName: [block: file:;; Capture FALSE dynamic -1 dynamic @block file getNameAs]
 getNameForMatching: [TRUE dynamic -1 dynamic @block File Ref getNameAs];
 
 getNameWithOverloadIndex: [
-  copy overloadIndex:;
+  overloadIndex: copy;
   Capture FALSE dynamic overloadIndex @block File Ref getNameAs
 ];
 
 getNameForMatchingWithOverloadIndex: [
-  overloadIndex: block:;;
+  overloadIndex: block:; copy;
   TRUE dynamic overloadIndex @block File Ref getNameAs
 ];
 
 captureName: [
-  getNameResult: overloadDepth: block:;;;
+  getNameResult: overloadDepth: block:; copy;;
 
   result: {
     refToVar: RefToVar;
@@ -1457,7 +1459,7 @@ captureName: [
       ] &&;
 
       needToCapture [
-        getNameResult.nameInfo result.refToVar NameCaseCapture getNameResult.startPoint overloadDepth @block addNameInfoOverloaded # add name info for fieldName as Capture; result is member
+        getNameResult.nameInfo result.refToVar getNameResult.nameCase getNameResult.startPoint overloadDepth @block addNameInfoOverloaded # add name info for fieldName as Capture; result is member
 
         newFieldCapture: FieldCapture;
         getNameResult.nameInfo @newFieldCapture.@nameInfo set
@@ -1573,6 +1575,7 @@ callCallableStruct: [
   name:;
   refToVar:;
   object:;
+  copy field:;
 
   var: refToVar getVar;
   nextIteration: FALSE;
@@ -1617,11 +1620,10 @@ callCallableStructWithPre: [
   copy findInside:;
 
   overloadDepth: 0 dynamic;
-  findFieldDepth: 1 dynamic;
+  findFieldDepth: 0 dynamic;
   overloadIndex: -1 dynamic;
 
   findInside ~ [
-    overloadDepth 1 + !overloadDepth
     overloadIndex File Cref nameInfo @processor.@nameManager.findItem !overloadIndex
   ] when
 
@@ -1652,6 +1654,8 @@ callCallableStructWithPre: [
 
       needPre [
         findInside [
+          findFieldDepth 1 + !findFieldDepth
+
           fr: nameInfo object findFieldDepth findFieldWithOverloadDepth;
           fr.success [
             fr.index @object @block processStaticAt @refToVar set
@@ -1659,9 +1663,10 @@ callCallableStructWithPre: [
             name: nameInfo processor.nameManager.getText;
             ("cant call overload for field with name: " name) assembleString block compilerError
           ] if
-
-          findFieldDepth 1 + !findFieldDepth
         ] [
+          oldGnr: nameInfo overloadIndex getNameWithOverloadIndex;
+          oldGnr.startPoint block.id = ~ [overloadDepth 1 + !overloadDepth] when
+
           overloadIndex File Cref nameInfo processor.nameManager.findItem !overloadIndex
           overloadIndex 0 < [
             name: nameInfo processor.nameManager.getText;
@@ -1674,25 +1679,30 @@ callCallableStructWithPre: [
               cnr: @gnr overloadDepth @block captureName;
               cnr.object @object set
               cnr.refToVar @refToVar set
-              ("find pre ovi=" overloadIndex "; od=" overloadDepth "; t=" cnr.refToVar block getMplType) assembleString print LF print
             ] when
           ] when
-
-          overloadDepth 1 + !overloadDepth
         ] if
 
         compilable [
           findInside object refToVar nameInfo [
-            TRUE @nextIteration set # for builtin or import go out of loop
+            TRUE @nextIteration set # for builtin or import or pure code go out of loop
           ] callCallable
         ] when
       ] [
         # no need pre, just call it!
-        object regNamesSelf
-        refToVar regNamesClosure
-        VarCode codeVar.data.get.index VarCode codeVar.data.get.file nameInfo processor.nameManager.getText processCall
-        refToVar unregNamesClosure
-        object unregNamesSelf
+        findInside [
+          object regNamesSelf
+          refToVar regNamesClosure
+          VarCode codeVar.data.get.index VarCode codeVar.data.get.file nameInfo processor.nameManager.getText processCall
+          refToVar unregNamesClosure
+          object unregNamesSelf
+        ] [
+          object regNamesSelf
+          refToVar regNamesClosure
+          VarCode codeVar.data.get.index VarCode codeVar.data.get.file nameInfo processor.nameManager.getText processCall
+          refToVar unregNamesClosure
+          object unregNamesSelf
+        ] if
       ] if
     ] [
       "CALL field is not a code" block compilerError
@@ -1714,9 +1724,15 @@ callCallable: [
     VarBuiltin var.data.get @block callBuiltin
   ] [
     var.data.getTag VarCode = [
-      object regNamesSelf
-      VarCode var.data.get.index VarCode var.data.get.file @nameInfo processor.nameManager.getText processCall
-      object unregNamesSelf
+      field [
+        object regNamesSelf
+        VarCode var.data.get.index VarCode var.data.get.file @nameInfo processor.nameManager.getText processCall
+        object unregNamesSelf
+      ] [
+        object regNamesSelf
+        VarCode var.data.get.index VarCode var.data.get.file @nameInfo processor.nameManager.getText processCall
+        object unregNamesSelf
+      ] if
     ] [
       var.data.getTag VarImport = [
         refToVar processFuncPtr
@@ -2763,11 +2779,13 @@ unregCodeNodeNames: [
     ] each
   ];
 
-  @block.@labelNames unregisterNamesIn
-  @block.@fromModuleNames unregisterNamesIn
-  @block.@fieldCaptureNames unregisterNamesIn
+  compilable block.parent 0 = and [
+    #dont delete names from vision for succesfull file nodes
+  ] [
+    @block.@labelNames unregisterNamesIn
+    @block.@fromModuleNames unregisterNamesIn
+  ] if
 
-  @block.@fieldCaptureNames.release
 
   @block.@capturedVars [
     curVar: getVar;
