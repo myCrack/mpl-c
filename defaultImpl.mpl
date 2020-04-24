@@ -64,7 +64,7 @@ defaultCall: [
             refToName: captureNameResult.refToVar copy;
           ]
           [
-            captureNameResult.object refToName 0 nameInfo pushName
+            FALSE dynamic captureNameResult.object refToName 0 nameInfo pushName
           ]
         ) sequence
       ]

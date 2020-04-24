@@ -1614,10 +1614,12 @@ callCallableStructWithPre: [
   nameInfo:;
   copy refToVar:;
   copy object:;
+  copy findInside:;
+
   overloadDepth: 0 dynamic;
   findFieldDepth: 1 dynamic;
   overloadIndex: -1 dynamic;
-  findInside: object.assigned;
+
   findInside ~ [
     overloadDepth 1 + !overloadDepth
     overloadIndex File Cref nameInfo @processor.@nameManager.findItem !overloadIndex
@@ -1654,13 +1656,12 @@ callCallableStructWithPre: [
           fr.success [
             fr.index @object @block processStaticAt @refToVar set
           ] [
-            FALSE @findInside set
+            name: nameInfo processor.nameManager.getText;
+            ("cant call overload for field with name: " name) assembleString block compilerError
           ] if
 
           findFieldDepth 1 + !findFieldDepth
-        ] when
-
-        findInside ~ [
+        ] [
           overloadIndex File Cref nameInfo processor.nameManager.findItem !overloadIndex
           overloadIndex 0 < [
             name: nameInfo processor.nameManager.getText;
@@ -1678,10 +1679,10 @@ callCallableStructWithPre: [
           ] when
 
           overloadDepth 1 + !overloadDepth
-        ] when
+        ] if
 
         compilable [
-          object refToVar nameInfo [
+          findInside object refToVar nameInfo [
             TRUE @nextIteration set # for builtin or import go out of loop
           ] callCallable
         ] when
@@ -1706,6 +1707,7 @@ callCallable: [
   nameInfo:;
   refToVar:;
   object:;
+  field:;
 
   var: refToVar getVar;
   var.data.getTag VarBuiltin = [
@@ -2157,7 +2159,8 @@ pushName: [
   copy nameInfo:;
   copy read:;
   copy refToVar:;
-  object:;
+  copy object:;
+  copy field:;
 
   read -1 = [
     refToVar setRef
@@ -2169,7 +2172,7 @@ pushName: [
     ] [
       possiblePointee: @refToVar @block getPossiblePointee;
       possiblePointee isCallable [
-        object possiblePointee nameInfo [object possiblePointee @nameInfo callCallableStructWithPre] callCallable
+        field object possiblePointee nameInfo [field object possiblePointee @nameInfo callCallableStructWithPre] callCallable
       ] [
         FALSE dynamic @possiblePointee.setMutable
         possiblePointee @block push
@@ -2205,7 +2208,7 @@ processNameNode: [
   refToVar: cnr.refToVar copy;
 
   compilable [
-    cnr.object refToVar 0 data.nameInfo pushName
+    FALSE dynamic cnr.object refToVar 0 data.nameInfo pushName
   ] when
 ];
 
@@ -2222,9 +2225,9 @@ processNameReadNode: [
       "can't use @name for builtins, use [name] instead" block compilerError
     ] [
       var.data.getTag VarImport = [
-        RefToVar refToVar 1 data.nameInfo pushName
+        FALSE dynamic RefToVar refToVar 1 data.nameInfo pushName
       ] [
-        RefToVar refToVar 1 data.nameInfo pushName
+        FALSE dynamic RefToVar refToVar 1 data.nameInfo pushName
       ] if
     ] if
   ] when
@@ -2300,7 +2303,7 @@ processMember: [
         fr.success [
           index: fr.index copy;
           fieldRef: index @refToStruct @block processStaticAt;
-          refToStruct fieldRef read nameInfo pushName # let it be marker about field
+          TRUE dynamic refToStruct fieldRef read nameInfo pushName # let it be marker about field
         ] [
           fieldError
         ] if
