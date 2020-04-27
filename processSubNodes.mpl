@@ -348,13 +348,13 @@
 ] "compareEntriesRecImpl" exportFunction
 
 getOverloadIndex: [
-  cap: block: forMathing: ;;;
+  cap: block: file: forMathing: ;;;;
   overloadDepth: cap.nameOverloadDepth copy;
   outOverloadDepth: 0;
   index: -1;
 
   [
-    index File Cref cap.nameInfo processor.nameManager.findItem !index
+    index file cap.nameInfo processor.nameManager.findItem !index
     index 0 < [
       forMathing ~ [
         ("while matching cant call overload for name: " cap.nameInfo processor.nameManager.getText) assembleString block compilerError
@@ -365,7 +365,7 @@ getOverloadIndex: [
       overloadDepth 0 = [
         FALSE
       ] [
-        oldGnr: cap.nameInfo index getNameWithOverloadIndex;
+        oldGnr: cap.nameInfo index @block file getNameWithOverloadIndex;
         oldGnr.startPoint block.id = ~ [outOverloadDepth 1 + !outOverloadDepth] when
 
         overloadDepth 1 - !overloadDepth
@@ -419,7 +419,7 @@ tryMatchNode: [
     matchingCapture: Capture;
     currentMatchingNode.refToVar @matchingCapture.@refToVar set
     NameCaseLocal                @matchingCapture.@captureCase set
-    gnr: currentMatchingNode.varNameInfo matchingCapture getNameForMatching;
+    gnr: currentMatchingNode.varNameInfo matchingCapture @block currentMatchingNode.position.file getNameForMatching;
     gnr.refToVar.assigned ~
   ] &&;
 
@@ -502,8 +502,8 @@ tryMatchNode: [
         i currentMatchingNode.matchingInfo.captures.dataSize < [
           currentCapture: i currentMatchingNode.matchingInfo.captures.at;
           cacheEntry: currentCapture.refToVar;
-          overloadIndex: outOverloadDepth: currentCapture.refToVar.assigned ~ [-1 -1] [currentCapture @block TRUE getOverloadIndex] if;;
-          stackEntry: currentCapture.nameInfo currentCapture overloadIndex @block getNameForMatchingWithOverloadIndex.refToVar;
+          overloadIndex: outOverloadDepth: currentCapture.refToVar.assigned ~ [-1 -1] [currentCapture @block currentMatchingNode.position.file TRUE getOverloadIndex] if;;
+          stackEntry: currentCapture.nameInfo currentCapture overloadIndex @block currentMatchingNode.position.file getNameForMatchingWithOverloadIndex.refToVar;
 
           stackEntry.assigned ~ cacheEntry.assigned ~ and [
             stackEntry.assigned cacheEntry.assigned and [stackEntry cacheEntry compareEntriesRec] &&
@@ -527,7 +527,7 @@ tryMatchNode: [
       [
         i currentMatchingNode.matchingInfo.fieldCaptures.dataSize < [
           currentFieldCapture: i currentMatchingNode.matchingInfo.fieldCaptures.at;
-          overloadIndex: outOverloadDepth: currentFieldCapture @block TRUE getOverloadIndex;;
+          overloadIndex: outOverloadDepth: currentFieldCapture @block currentMatchingNode.position.file TRUE getOverloadIndex;;
           compilable [
             currentFieldInfo: overloadIndex currentFieldCapture.nameInfo processor.nameManager.getItem;
             currentFieldInfo.nameCase currentFieldCapture.captureCase = [currentFieldCapture.object currentFieldInfo.refToVar variablesAreSame] &&
@@ -940,8 +940,8 @@ usePreCapturesWith: [
       i currentChangesNode.matchingInfo.captures.dataSize < [
         currentCapture: i currentChangesNode.matchingInfo.captures.at;
         cacheEntry: currentCapture.refToVar;
-        overloadIndex: outOverloadDepth: currentCapture.refToVar.assigned ~ [-1 -1] [currentCapture @block TRUE getOverloadIndex] if;;
-        gnr: currentCapture.nameInfo currentCapture overloadIndex @block getNameForMatchingWithOverloadIndex;
+        overloadIndex: outOverloadDepth: currentCapture.refToVar.assigned ~ [-1 -1] [currentCapture @block currentChangesNode.position.file TRUE getOverloadIndex] if;;
+        gnr: currentCapture.nameInfo currentCapture overloadIndex @block currentChangesNode.position.file getNameForMatchingWithOverloadIndex;
         gnr.refToVar.assigned ~ [
           # it is failed capture
         ] [
@@ -999,8 +999,8 @@ usePreCapturesWith: [
     [
       i currentChangesNode.matchingInfo.fieldCaptures.dataSize < [
         currentFieldCapture: i currentChangesNode.matchingInfo.fieldCaptures.at;
-        overloadIndex: outOverloadDepth: currentFieldCapture @block TRUE getOverloadIndex;;
-        fieldCnr: currentFieldCapture.nameInfo overloadIndex getNameWithOverloadIndex outOverloadDepth @block captureName;
+        overloadIndex: outOverloadDepth: currentFieldCapture @block currentChangesNode.position.file TRUE getOverloadIndex;;
+        fieldCnr: currentFieldCapture.nameInfo overloadIndex @block currentChangesNode.position.file getNameWithOverloadIndex outOverloadDepth @block captureName;
         i 1 + @i set compilable
       ] &&
     ] loop
@@ -1072,8 +1072,9 @@ applyNodeChanges: [
       cacheEntry.assigned ~ [
         currentCapture.nameInfo addFailedCapture
       ] [
-        overloadIndex: outOverloadDepth: currentCapture @block FALSE getOverloadIndex ;;
-        stackEntry: currentCapture.nameInfo currentCapture overloadIndex @block getNameForMatchingWithOverloadIndex outOverloadDepth @block captureName.refToVar;
+        overloadIndex: outOverloadDepth: currentCapture @block currentChangesNode.position.file FALSE getOverloadIndex ;;
+        gnr: currentCapture.nameInfo currentCapture overloadIndex @block currentChangesNode.position.file getNameForMatchingWithOverloadIndex;
+        stackEntry: gnr outOverloadDepth @block captureName.refToVar;
         stackEntry cacheEntry applyEntriesRec
       ] if
 
@@ -1085,8 +1086,8 @@ applyNodeChanges: [
   [
     i currentChangesNode.matchingInfo.fieldCaptures.dataSize < [
       currentFieldCapture: i currentChangesNode.matchingInfo.fieldCaptures.at;
-      overloadIndex: outOverloadDepth: currentFieldCapture @block FALSE getOverloadIndex;;
-      fieldCnr: currentFieldCapture.nameInfo overloadIndex getNameWithOverloadIndex outOverloadDepth @block captureName;
+      overloadIndex: outOverloadDepth: currentFieldCapture @block currentChangesNode.position.file FALSE getOverloadIndex;;
+      fieldCnr: currentFieldCapture.nameInfo overloadIndex @block currentChangesNode.position.file getNameWithOverloadIndex outOverloadDepth @block captureName;
 
       i 1 + @i set compilable
     ] &&
@@ -1323,8 +1324,8 @@ makeCallInstructionWith: [
 
       currentCapture.refToVar.assigned [
         currentCapture.argCase ArgRef = [
-          overloadIndex: outOverloadDepth: currentCapture @block FALSE getOverloadIndex;;
-          refToVar: currentCapture.nameInfo currentCapture overloadIndex @block getNameForMatchingWithOverloadIndex outOverloadDepth @block captureName.refToVar;
+          overloadIndex: outOverloadDepth: currentCapture @block newNode.position.file FALSE getOverloadIndex;;
+          refToVar: currentCapture.nameInfo currentCapture overloadIndex @block newNode.position.file getNameForMatchingWithOverloadIndex outOverloadDepth @block captureName.refToVar;
           [currentCapture.refToVar refToVar variablesAreSame] "invalid capture type while generating arg list!" assert
 
           arg: IRArgument;
@@ -1393,7 +1394,7 @@ processCallByNode: [
 ];
 
 {processorResult: ProcessorResult Ref; processor: Processor Ref; block: Block Ref; multiParserResult: MultiParserResult Cref;
-  positionInfo: CompilerPositionInfo Cref; name: StringView Cref; nodeCase: NodeCaseCode; file: File Cref; indexArray: IndexArray Cref;} () {convention: cdecl;} [
+  positionInfo: CompilerPositionInfo Cref; name: StringView Cref; nodeCase: NodeCaseCode; indexArray: IndexArray Cref;} () {convention: cdecl;} [
   processorResult:;
   processor:;
   block:;
@@ -1401,12 +1402,12 @@ processCallByNode: [
   positionInfo:;
   name:;
   copy nodeCase:;
-  file:;
   indexArray:;
   failProc: @failProcForProcessor;
   compileOnce
 
   forcedNameString: String;
+  file: positionInfo.file;
 
   newNodeIndex: indexArray tryMatchAllNodes;
   newNodeIndex 0 < [compilable] && [
@@ -1473,7 +1474,7 @@ processCallByNode: [
     AstNodeType.Object [!indexArray NodeCaseObject !nodeCase]
   ) astNode.data.visit
 
-  indexArray file nodeCase dynamic name positionInfo processCallByIndexArray
+  indexArray nodeCase dynamic name positionInfo processCallByIndexArray
 ] "processCallImpl" exportFunction
 
 {processorResult: ProcessorResult Ref; processor: Processor Ref; block: Block Ref; multiParserResult: MultiParserResult Cref; file: File Cref; preAstNodeIndex: Int32;} Cond {convention: cdecl;} [

@@ -1,27 +1,19 @@
-#"control" includeModule
+"control" use
 
-"builtinImpl" useModule
-#"Var" useModule
+"String.print" use
+"String.toString" use
+"conventions.cdecl" use
 
-#"String.print" use
-#"String.toString" use
-#"control.Cref" use
-#"control.Int32" use
-#"control.Ref" use
-#"control.print" use
-#"control.times" use
-#"conventions.cdecl" use
-
-#"Block.Block" use
-#"Block.NameCaseBuiltin" use
-#"astNodeType.MultiParserResult" use
-#"builtinImpl" use
-#"defaultImpl.failProcForProcessor" use
-#"processor.Processor" use
-#"processor.ProcessorResult" use
-#"variable.NameInfo" use
-#"variable.getMplType" use
-#"variable.getVar" use
+"Block.Block" use
+"Block.NameCaseBuiltin" use
+"astNodeType.MultiParserResult" use
+"builtinImpl" use
+"defaultImpl.failProcForProcessor" use
+"processor.Processor" use
+"processor.ProcessorResult" use
+"variable.NameInfo" use
+"variable.getMplType" use
+"variable.getVar" use
 
 builtins: (
   {name: "!"                       ; impl: @mplBuiltinExclamation             ;}
@@ -68,7 +60,6 @@ builtins: (
   {name: "if"                      ; impl: @mplBuiltinIf                      ;}
   {name: "importFunction"          ; impl: @mplBuiltinImportFunction          ;}
   {name: "importVariable"          ; impl: @mplBuiltinImportVariable          ;}
-  {name: "includeModule"           ; impl: @mplBuiltinIncludeModule           ;}
   {name: "is"                      ; impl: @mplBuiltinIs                      ;}
   {name: "isCombined"              ; impl: @mplBuiltinIsCombined              ;}
   {name: "isConst"                 ; impl: @mplBuiltinIsConst                 ;}
@@ -85,6 +76,7 @@ builtins: (
   {name: "neg"                     ; impl: @mplBuiltinNeg                     ;}
   {name: "newVarOfTheSameType"     ; impl: @mplBuiltinNewVarOfTheSameType     ;}
   {name: "or"                      ; impl: @mplBuiltinOr                      ;}
+  {name: "overload"                ; impl: @mplBuiltinOverload                ;}
   {name: "printCompilerMessage"    ; impl: @mplBuiltinPrintCompilerMessage    ;}
   {name: "printStack"              ; impl: @mplBuiltinPrintStack              ;}
   {name: "printStackTrace"         ; impl: @mplBuiltinPrintStackTrace         ;}
@@ -105,7 +97,6 @@ builtins: (
   {name: "ucall"                   ; impl: @mplBuiltinUcall                   ;}
   {name: "uif"                     ; impl: @mplBuiltinUif                     ;}
   {name: "use"                     ; impl: @mplBuiltinUse                     ;}
-  {name: "useModule"               ; impl: @mplBuiltinUseModule               ;}
   {name: "virtual"                 ; impl: @mplBuiltinVirtual                 ;}
   {name: "xor"                     ; impl: @mplBuiltinXor                     ;}
   {name: "~"                       ; impl: @mplBuiltinNot                     ;}
@@ -120,7 +111,12 @@ addBuiltin: [
 
   nameId: @name makeStringView @processor.@nameManager.createName;
   bvar: @id VarBuiltin @block createVariable Virtual @block makeStaticity;
-  nameId bvar NameCaseBuiltin addNameInfo
+
+  {
+    addNameCase: NameCaseBuiltin;
+    refToVar:    bvar copy;
+    nameInfo:    nameId copy;
+  } addNameInfo
 ];
 
 initBuiltins: [

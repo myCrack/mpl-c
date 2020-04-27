@@ -131,12 +131,12 @@
 "irWriter.createStringIR" use
 "irWriter.sortInstructions" use
 "processor.MatchingNode" use
+"processor.NameInfoEntry" use
 "processor.Processor" use
 "processor.ProcessorResult" use
 "processor.RefToVarTable" use
 "staticCall.staticCall" use
 "variable.NameInfo" use
-"variable.NameInfoEntry" use
 "variable.Overload" use
 "variable.callBuiltin" use
 "variable.checkValue" use
@@ -182,84 +182,90 @@
 "variable.untemporize" use
 "variable.variablesAreSame" use
 
-addNameInfoWith: [
-  block:;
-  copy index:;
-  copy reg:;
-  copy overloadDepth:;
-  copy startPoint:;
-  copy addNameCase:;
-  refToVar:;
-  copy nameInfo:;
+addNameInfo: [
+  params:;
 
-  [addNameCase NameCaseFromModule = [refToVar noMatterToCopy] || [refToVar getVar.host block is] ||] "addNameInfo block mismatch!" assert
+  forOverload:   params "overload"      has [params.overload copy] [FALSE dynamic] if;
+  block:         params "block"         has [@params.@block] [@block] if;
+  mplFieldIndex: params "mplFieldIndex" has [params.mplFieldIndex copy] [-1 dynamic] if;
+  reg:           params "reg"           has [params.reg copy] [TRUE dynamic] if;
+  startPoint:    params "startPoint"    has [params.startPoint copy] [block.id copy] if;
+  overloadDepth: params "overloadDepth" has [params.overloadDepth copy] [0 dynamic] if;
+  addNameCase:   params.addNameCase copy dynamic;
+  refToVar:      params.refToVar copy dynamic;
+  nameInfo:      params.nameInfo copy dynamic;
 
-  nameInfo 0 < ~ [
+  [
+    [addNameCase NameCaseFromModule = [refToVar noMatterToCopy] || [refToVar getVar.host block is] ||] "addNameInfo block mismatch!" assert
 
-    addInfo: TRUE;
+    nameInfo 0 < ~ [
 
-    reg ~ [addNameCase NameCaseBuiltin =] || [
-    ] [
-      nameWithOverload: NameWithOverloadAndRefToVar;
-      refToVar      @nameWithOverload.@refToVar     set
-      overloadDepth @nameWithOverload.@nameOverloadDepth set
-      nameInfo      @nameWithOverload.@nameInfo     set
-      startPoint    @nameWithOverload.@startPoint   set
+      addInfo: TRUE;
 
-      addNameCase NameCaseLocal = [
-        nameWithOverload @block.@labelNames.pushBack
+      reg ~ [addNameCase NameCaseBuiltin =] || [
       ] [
-        addNameCase NameCaseFromModule = [
-          nameWithOverload @block.@fromModuleNames.pushBack
+        nameWithOverload: NameWithOverloadAndRefToVar;
+        refToVar      @nameWithOverload.@refToVar          set
+        overloadDepth @nameWithOverload.@nameOverloadDepth set
+        nameInfo      @nameWithOverload.@nameInfo          set
+        startPoint    @nameWithOverload.@startPoint        set
+
+        addNameCase NameCaseLocal = [
+          nameWithOverload @block.@labelNames.pushBack
         ] [
-          addNameCase NameCaseCapture = [addNameCase NameCaseSelfObjectCapture =] || [addNameCase NameCaseClosureObjectCapture =] || [
-            nameWithOverload @block.@captureNames.pushBack
-            FALSE @addInfo set
+          addNameCase NameCaseFromModule = [
+            nameWithOverload @block.@fromModuleNames.pushBack
           ] [
-            addNameCase NameCaseSelfMember = [addNameCase NameCaseClosureMember =] || [
-              nameWithOverload @block.@fieldCaptureNames.pushBack
+            addNameCase NameCaseCapture = [addNameCase NameCaseSelfObjectCapture =] || [addNameCase NameCaseClosureObjectCapture =] || [
+              nameWithOverload @block.@captureNames.pushBack
               FALSE @addInfo set
             ] [
-              addNameCase NameCaseSelfObject = [addNameCase NameCaseClosureObject =] || [
-                # do nothing
+              addNameCase NameCaseSelfMember = [addNameCase NameCaseClosureMember =] || [
+                nameWithOverload @block.@fieldCaptureNames.pushBack
                 FALSE @addInfo set
               ] [
-                [FALSE] "wrong name info case" assert
+                addNameCase NameCaseSelfObject = [addNameCase NameCaseClosureObject =] || [
+                  # do nothing
+                  FALSE @addInfo set
+                ] [
+                  [FALSE] "wrong name info case" assert
+                ] if
               ] if
             ] if
           ] if
         ] if
       ] if
-    ] if
 
-    addInfo [ # captures dont live in stack
-      nameInfoEntry: NameInfoEntry;
-      File Ref    @nameInfoEntry.!file
-      refToVar    @nameInfoEntry.@refToVar set
-      addNameCase @nameInfoEntry.@nameCase set
-      startPoint  @nameInfoEntry.@startPoint set
-      index       @nameInfoEntry.@index set
+      addInfo [ # captures dont live in stack
+        nameInfoEntry: NameInfoEntry;
+        forOverload [
+          FALSE @block.!nextLabelIsOverload
+          File Cref @nameInfoEntry.!file
+        ] [
+          block.nextLabelIsOverload [
+            "invalid use of \"overload\" keyword" block compilerError
+          ] when
 
-      @nameInfoEntry nameInfo @processor.@nameManager.addItem
+          block.position.file @nameInfoEntry.!file
+        ] if
 
-      refToVar noMatterToCopy [
-        refToVar @block.@captureTable.find.success ~ [
-          refToVar TRUE @block.@captureTable.insert
+        refToVar      @nameInfoEntry.@refToVar set
+        addNameCase   @nameInfoEntry.@nameCase set
+        startPoint    @nameInfoEntry.@startPoint set
+        mplFieldIndex @nameInfoEntry.@mplFieldIndex set
+
+        @nameInfoEntry nameInfo @processor.@nameManager.addItem
+
+        refToVar noMatterToCopy [
+          refToVar @block.@captureTable.find.success ~ [
+            refToVar TRUE @block.@captureTable.insert
+          ] when
         ] when
       ] when
-    ] when
-  ] [
-    #we add "self" or "closure" but dont use them in program
-  ] if
-];
-
-addNameInfo: [block.id 0 dynamic TRUE -1 dynamic @block addNameInfoWith];
-addNameInfoOverloaded: [block:; TRUE -1 dynamic @block addNameInfoWith];
-addNameInfoNoReg: [block.id 0 dynamic FALSE -1 dynamic @block addNameInfoWith];
-
-addNameInfoFieldNoReg: [
-  index: copy;
-  block.id 0 dynamic FALSE index @block addNameInfoWith
+    ] [
+      #we add "self" or "closure" but dont use them in program
+    ] if
+  ] call
 ];
 
 getNameLastIndexInfo: [
@@ -413,10 +419,15 @@ makeVarString: [
     string refToVar @processor.@stringNames.insert
 
     @refToVar fullUntemporize
-    refToVar getVar.mplNameId refToVar NameCaseLocal addNameInfo
+
+    {
+      addNameCase: NameCaseLocal;
+      refToVar:    refToVar copy;
+      nameInfo:    refToVar getVar.mplNameId;
+    } addNameInfo
   ] if
 
-  gnr: refToVar getVar.mplNameId @block File Ref getName;
+  gnr: refToVar getVar.mplNameId @block getName;
   cnr: @gnr 0 dynamic @block captureName;
 
   cnr.refToVar copy
@@ -1079,7 +1090,13 @@ createNamedVariable: [
       FALSE @block.@nextLabelIsSchema set
     ] when
 
-    nameInfo newRefToVar NameCaseLocal addNameInfo
+    {
+      addNameCase: NameCaseLocal;
+      refToVar:    newRefToVar copy;
+      nameInfo:    nameInfo copy;
+      overload:    block.nextLabelIsOverload copy;
+    } addNameInfo
+
     compilable [processor.options.debug copy] && [newRefToVar isVirtual ~] && [
       newRefToVar isGlobal [
         d: nameInfo newRefToVar block addGlobalVariableDebugInfo;
@@ -1104,16 +1121,15 @@ createNamedVariable: [
 ];
 
 processLabelNode: [
-  block:;
   .nameInfo @block pop @block createNamedVariable
 ];
 
 processCodeNode: [
-  indexOfAstNode: file:;;
+  indexOfAstNode: ;
   astNode: indexOfAstNode multiParserResult.memory.at; #we have info from parser anyway
   codeInfo: CodeNodeInfo;
 
-  file                @codeInfo.@file.set
+  block.position.file @codeInfo.@file.set
   astNode.line   copy @codeInfo.!line
   astNode.column copy @codeInfo.!column
   indexOfAstNode copy @codeInfo.!index
@@ -1122,22 +1138,22 @@ processCodeNode: [
 ];
 
 processCallByIndexArray: [
-  indexArray: file: nodeCase: name: positionInfo:;;;;;
-  indexArray file nodeCase name positionInfo multiParserResult @block @processor @processorResult processCallByIndexArrayImpl
+  indexArray: nodeCase: name: positionInfo: ;;;;
+  indexArray nodeCase name positionInfo multiParserResult @block @processor @processorResult processCallByIndexArrayImpl
 ];
 
 processObjectNode: [
-  data: file:;;
+  data:;
   position: block.position copy;
   name: "objectInitializer" makeStringView;
-  data file NodeCaseObject dynamic name position processCallByIndexArray
+  data NodeCaseObject dynamic name position processCallByIndexArray
 ];
 
 processListNode: [
-  data: file:;;
+  data: ;
   position: block.position copy;
   name: "listInitializer" makeStringView;
-  data file NodeCaseList dynamic name position processCallByIndexArray
+  data NodeCaseList dynamic name position processCallByIndexArray
 ];
 
 {
@@ -1207,7 +1223,7 @@ findNameStackObject: [
   result: RefToVar;
   i: -1 dynamic;
   [
-    i File Cref nameInfo processor.nameManager.findItem !i
+    i block.position.file nameInfo processor.nameManager.findItem !i
     i 0 < [
       FALSE
     ] [
@@ -1225,7 +1241,8 @@ findNameStackObject: [
 ];
 
 getNameAs: [
-  block: file:;;
+  file:;
+  block:;
   copy overloadIndex:;
   copy forMatching:;
   matchingCapture:;
@@ -1263,10 +1280,10 @@ getNameAs: [
     nameCase NameCaseSelfMember = [nameCase NameCaseClosureMember =] || [
       object: nameInfoEntry.refToVar;
       fields: VarStruct object getVar.data.get.get.fields;
-      nameInfoEntry.index 0 < ~ [nameInfoEntry.index fields.getSize <] && [nameInfoEntry.index fields.at.nameInfo nameInfo =] && [
+      nameInfoEntry.mplFieldIndex 0 < ~ [nameInfoEntry.mplFieldIndex fields.getSize <] && [nameInfoEntry.mplFieldIndex fields.at.nameInfo nameInfo =] && [
         object nameCase MemberCaseToObjectCase @block findLocalObject @result.@object set
-        nameInfoEntry.index @result.@mplFieldIndex set
-        nameInfoEntry.index fields.at.refToVar @result.@refToVar set
+        nameInfoEntry.mplFieldIndex @result.@mplFieldIndex set
+        nameInfoEntry.mplFieldIndex fields.at.refToVar @result.@refToVar set
         object.mutable @result.@refToVar.setMutable
       ] [
         ("Internal error, mismatch structures for name:" nameInfo processor.nameManager.getText) assembleString block compilerError
@@ -1309,17 +1326,21 @@ getNameAs: [
   @result
 ];
 
-getName: [block: file:;; Capture FALSE dynamic -1 dynamic @block file getNameAs];
-getNameForMatching: [TRUE dynamic -1 dynamic @block File Ref getNameAs];
+getName: [block:; Capture FALSE dynamic -1 dynamic @block block.position.file getNameAs];
+
+getNameForMatching: [
+  block: file: ;;
+  TRUE dynamic -1 dynamic @block file getNameAs
+];
 
 getNameWithOverloadIndex: [
-  overloadIndex: copy;
-  Capture FALSE dynamic overloadIndex @block File Ref getNameAs
+  overloadIndex: block: file: ;;;
+  Capture FALSE dynamic overloadIndex @block file getNameAs
 ];
 
 getNameForMatchingWithOverloadIndex: [
-  overloadIndex: block:; copy;
-  TRUE dynamic overloadIndex @block File Ref getNameAs
+  overloadIndex: block: file: ;;;
+  TRUE dynamic overloadIndex @block file getNameAs
 ];
 
 captureName: [
@@ -1447,7 +1468,14 @@ captureName: [
       cro.refToVar @result.@object set
       getNameResult.mplFieldIndex @cro.@refToVar @block processStaticAt @result.@refToVar set
       cro.newVar [
-        nameInfo cro.refToVar getNameResult.nameCase MemberCaseToObjectCaptureCase getNameResult.startPoint overloadDepth @block addNameInfoOverloaded
+        {
+          nameInfo:      nameInfo copy;
+          mplFieldIndex: getNameResult.mplFieldIndex copy;
+          startPoint:    getNameResult.startPoint copy;
+          overloadDepth: overloadDepth copy;
+          addNameCase:   getNameResult.nameCase MemberCaseToObjectCaptureCase;
+          refToVar:      cro.refToVar copy;
+        } addNameInfo
       ] when # add name info for "self"/"closure" as Object; result is object
 
       needToCapture: getNameResult.startPoint block.id = ~ [
@@ -1459,7 +1487,14 @@ captureName: [
       ] &&;
 
       needToCapture [
-        getNameResult.nameInfo result.refToVar getNameResult.nameCase getNameResult.startPoint overloadDepth @block addNameInfoOverloaded # add name info for fieldName as Capture; result is member
+        {
+          nameInfo:      getNameResult.nameInfo copy;
+          mplFieldIndex: getNameResult.mplFieldIndex copy;
+          startPoint:    getNameResult.startPoint copy;
+          overloadDepth: overloadDepth copy;
+          addNameCase:   getNameResult.nameCase copy;
+          refToVar:      result.refToVar copy;
+        } addNameInfo
 
         newFieldCapture: FieldCapture;
         getNameResult.nameInfo @newFieldCapture.@nameInfo set
@@ -1477,7 +1512,13 @@ captureName: [
       cr: getNameResult.nameInfo @getNameResult.@refToVar getNameResult.nameCase captureRefToVar;
       cr.refToVar @result.@refToVar set
       cr.newVar [
-        getNameResult.nameInfo result.refToVar NameCaseCapture getNameResult.startPoint overloadDepth @block addNameInfoOverloaded
+        {
+          nameInfo:      getNameResult.nameInfo copy;
+          startPoint:    getNameResult.startPoint copy;
+          overloadDepth: overloadDepth copy;
+          addNameCase:   NameCaseCapture;
+          refToVar:      result.refToVar copy;
+        } addNameInfo
       ] when
     ] if
 
@@ -1516,7 +1557,15 @@ addFieldsNameInfos: [
     i struct.fields.dataSize < [
       currentField: i struct.fields.at;
       [currentField.nameInfo processor.emptyNameInfo = ~] "Closured list!" assert
-      currentField.nameInfo refToVar addNameCase i addNameInfoFieldNoReg # name info pointing to the struct, not to a field!
+
+      {
+        nameInfo:      currentField.nameInfo copy;
+        mplFieldIndex: i copy;
+        addNameCase:   addNameCase copy;
+        refToVar:      refToVar copy;
+        reg:           FALSE;
+      } addNameInfo
+
       i 1 + @i set TRUE
     ] &&
   ] loop
@@ -1542,7 +1591,13 @@ deleteFieldsNameInfos: [
 regNamesClosure: [
   object:;
   object.assigned [
-    processor.closureNameInfo object NameCaseClosureObject addNameInfoNoReg
+    {
+      nameInfo:      processor.closureNameInfo copy;
+      addNameCase:   NameCaseClosureObject;
+      refToVar:      object copy;
+      reg:           FALSE;
+    } addNameInfo
+
     object NameCaseClosureMember addFieldsNameInfos
   ] when
 ];
@@ -1550,7 +1605,13 @@ regNamesClosure: [
 regNamesSelf: [
   object:;
   object.assigned [
-    processor.selfNameInfo object NameCaseSelfObject addNameInfoNoReg
+    {
+      nameInfo:      processor.selfNameInfo copy;
+      addNameCase:   NameCaseSelfObject;
+      refToVar:      object copy;
+      reg:           FALSE;
+    } addNameInfo
+
     object NameCaseSelfMember addFieldsNameInfos
   ] when
 ];
@@ -1624,7 +1685,7 @@ callCallableStructWithPre: [
   overloadIndex: -1 dynamic;
 
   findInside ~ [
-    overloadIndex File Cref nameInfo @processor.@nameManager.findItem !overloadIndex
+    overloadIndex block.position.file nameInfo @processor.@nameManager.findItem !overloadIndex
   ] when
 
   [
@@ -1664,17 +1725,17 @@ callCallableStructWithPre: [
             ("cant call overload for field with name: " name) assembleString block compilerError
           ] if
         ] [
-          oldGnr: nameInfo overloadIndex getNameWithOverloadIndex;
+          oldGnr: nameInfo overloadIndex @block block.position.file getNameWithOverloadIndex;
           oldGnr.startPoint block.id = ~ [overloadDepth 1 + !overloadDepth] when
 
-          overloadIndex File Cref nameInfo processor.nameManager.findItem !overloadIndex
+          overloadIndex block.position.file nameInfo processor.nameManager.findItem !overloadIndex
           overloadIndex 0 < [
             name: nameInfo processor.nameManager.getText;
             ("cant call overload for name: " name) assembleString block compilerError
           ] when
 
           compilable [
-            gnr: nameInfo overloadIndex getNameWithOverloadIndex;
+            gnr: nameInfo overloadIndex @block block.position.file getNameWithOverloadIndex;
             compilable [
               cnr: @gnr overloadDepth @block captureName;
               cnr.object @object set
@@ -1790,7 +1851,7 @@ tryImplicitLambdaCast: [
         ] when
 
         implNode.varNameInfo 0 < ~ [
-          gnr: implNode.varNameInfo @block File Ref getName;
+          gnr: implNode.varNameInfo @block getName;
           compilable ~ [
             [FALSE] "Name of new lambda is not visible!" assert
           ] [
@@ -2217,8 +2278,8 @@ checkFailedName: [
 ];
 
 processNameNode: [
-  data: file:;;
-  gnr: data.nameInfo @block file getName;
+  data:;
+  gnr: data.nameInfo @block getName;
   data.nameInfo gnr checkFailedName
   cnr: @gnr 0 dynamic @block captureName;
   refToVar: cnr.refToVar copy;
@@ -2229,8 +2290,8 @@ processNameNode: [
 ];
 
 processNameReadNode: [
-  data: file:;;
-  gnr: data.nameInfo @block File Ref getName;
+  data:;
+  gnr: data.nameInfo @block getName;
   data.nameInfo gnr checkFailedName
   cnr: @gnr 0 dynamic @block captureName;
   refToVar: cnr.refToVar;
@@ -2250,8 +2311,8 @@ processNameReadNode: [
 ];
 
 processNameWriteNode: [
-  data: file:;;
-  gnr: data.nameInfo @block File Ref getName;
+  data:;
+  gnr: data.nameInfo @block getName;
   data.nameInfo gnr checkFailedName
   cnr: @gnr 0 dynamic @block captureName;
   refToVar: cnr.refToVar;
@@ -2369,7 +2430,7 @@ addDebugLocationForLastInstruction: [
       (", !dbg !" locationIndex) @block.@programTemplate.catMany
 
       offset copy @instruction.!codeOffset
-      block.programTemplate.getTextSize offset - @instruction.!codeSize
+      block.programTemplate.size offset - @instruction.!codeSize
     ] when
   ] when
 ];
@@ -2580,7 +2641,6 @@ killStruct: [
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
-  file: File Cref;
   indexOfAstNode: Int32;
   astNode: AstNode Cref;
 } () {} [
@@ -2589,7 +2649,6 @@ killStruct: [
   block:;
   multiParserResult:;
   failProc: @failProcForProcessor;
-  file:;
   indexOfAstNode:;
   astNode:;
 
@@ -2601,14 +2660,14 @@ killStruct: [
   programSize: block.program.dataSize copy;
 
   (
-    AstNodeType.Code            [drop indexOfAstNode file processCodeNode]
-    AstNodeType.Label           [@block processLabelNode]
-    AstNodeType.List            [file processListNode]
-    AstNodeType.Name            [file processNameNode]
+    AstNodeType.Code            [drop indexOfAstNode processCodeNode]
+    AstNodeType.Label           [processLabelNode]
+    AstNodeType.List            [processListNode]
+    AstNodeType.Name            [processNameNode]
     AstNodeType.NameMember      [processNameMemberNode]
-    AstNodeType.NameRead        [file processNameReadNode]
+    AstNodeType.NameRead        [processNameReadNode]
     AstNodeType.NameReadMember  [processNameReadMemberNode]
-    AstNodeType.NameWrite       [file processNameWriteNode]
+    AstNodeType.NameWrite       [processNameWriteNode]
     AstNodeType.NameWriteMember [processNameWriteMemberNode]
     AstNodeType.Numberi16       [processInt16Node          ]
     AstNodeType.Numberi32       [processInt32Node          ]
@@ -2620,7 +2679,7 @@ killStruct: [
     AstNodeType.Numbern64       [processNat64Node          ]
     AstNodeType.Numbern8        [processNat8Node           ]
     AstNodeType.Numbernx        [processNatXNode           ]
-    AstNodeType.Object          [file processObjectNode]
+    AstNodeType.Object          [processObjectNode]
     AstNodeType.Real32          [processReal32Node]
     AstNodeType.Real64          [processReal64Node]
     AstNodeType.String          [processStringNode]
@@ -2632,8 +2691,8 @@ killStruct: [
 ] "processNodeImpl" exportFunction
 
 processNode: [
-  token: tokenIndex: file:;;;
-  token tokenIndex file multiParserResult @block @processor @processorResult processNodeImpl
+  token: tokenIndex: ;;
+  token tokenIndex multiParserResult @block @processor @processorResult processNodeImpl
 ];
 
 addNamesFromModule: [
@@ -2646,7 +2705,12 @@ addNamesFromModule: [
     moduleNode: moduleId processor.blocks.at.get;
     moduleNode.labelNames [
       current:;
-      current.nameInfo current.refToVar NameCaseFromModule addNameInfo #it is not own local variable
+
+      {
+        nameInfo:      current.nameInfo copy;
+        addNameCase:   NameCaseFromModule;
+        refToVar:      current.refToVar copy;
+      } addNameInfo #it is not own local variable
     ] each
   ] when
 ];
@@ -3125,7 +3189,7 @@ checkRecursionOfCodeNode: [
 ];
 
 makeCompilerPosition: [
-  astNode: file:;;
+  astNode: file: ;;
   result: CompilerPositionInfo;
 
   file                @result.@file.set
@@ -3154,8 +3218,9 @@ makeCompilerPosition: [
   compilerPositionInfo:;
   functionName:;
 
-  block.nextLabelIsVirtual ["unused virtual specifier" block compilerError] when
-  block.nextLabelIsSchema["unused schema specifier" block compilerError] when
+  block.nextLabelIsVirtual  ["unused virtual specifier"  block compilerError] when
+  block.nextLabelIsOverload ["unused overload specifier" block compilerError] when
+  block.nextLabelIsSchema   ["unused schema specifier"   block compilerError] when
 
   block.nodeCase NodeCaseList   = [finalizeListNode] when
   block.nodeCase NodeCaseObject = [finalizeObjectNode] when
@@ -3630,7 +3695,12 @@ makeCompilerPosition: [
     topNode.id @declarationNode.@moduleId set
     nameInfo: functionName findNameInfo;
     nameInfo @declarationNode.@varNameInfo set
-    nameInfo refToVar NameCaseLocal addNameInfo
+
+    {
+      nameInfo:      nameInfo copy;
+      addNameCase:   NameCaseLocal;
+      refToVar:      refToVar copy;
+    } addNameInfo #it is not own local variable
   ];
 
   #generate function header
@@ -3726,7 +3796,12 @@ makeCompilerPosition: [
 
               nameInfo: functionName findNameInfo;
               block: @refToVar getVar.host; # suppress assert
-              nameInfo refToVar NameCaseFromModule addNameInfo #it is not own local variable
+
+              {
+                nameInfo:      nameInfo copy;
+                addNameCase:   NameCaseFromModule;
+                refToVar:      refToVar copy;
+              } addNameInfo #it is not own local variable
             ] when
           ] when
         ] when
@@ -3862,7 +3937,7 @@ nodeHasCode: [
         astNode: tokenRef.token multiParserResult.memory.at;
         astNode tokenRef.file makeCompilerPosition @block.@position set
 
-        astNode tokenRef.token tokenRef.file processNode
+        astNode tokenRef.token processNode
         compilable [block.state NodeStateNoOutput = ~] &&
       ] &&
     ] loop
@@ -3894,7 +3969,7 @@ nodeHasCode: [
 
   processorResult.findModuleFail [
     moduleName: block.moduleName;
-    moduleName.getTextSize 0 > [
+    moduleName.size 0 > [
       fr: moduleName @processor.@modules.find;
       fr.success [
         -1 @fr.@value set

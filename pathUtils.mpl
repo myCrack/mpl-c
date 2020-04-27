@@ -1,8 +1,5 @@
-"control.&&" use
-"control.Natx" use
-"control.head" use
-"control.min" use
-"control.unhead" use
+"control" use
+"String.splitString" use
 
 extractClearPath: [
   splittedPath: splitString;

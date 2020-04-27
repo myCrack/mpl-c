@@ -58,7 +58,7 @@ defaultCall: [
           [refToVar staticityOfVar Weak < ["name must be a static string" block compilerError] when]
           [
             nameInfo: VarString var.data.get makeStringView findNameInfo;
-            getNameResult: nameInfo @block File Ref getName;
+            getNameResult: nameInfo @block getName;
             nameInfo getNameResult checkFailedName
             captureNameResult: @getNameResult 0 @block captureName;
             refToName: captureNameResult.refToVar copy;

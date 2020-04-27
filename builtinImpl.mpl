@@ -1,22 +1,12 @@
-"Array" includeModule
-"HashTable" includeModule
-"Owner" includeModule
-"String" includeModule
-"control" includeModule
+"control" use
 
-"Block" includeModule
-"File" includeModule
-"Var" includeModule
-"astNodeType" includeModule
-"codeNode" includeModule
-"debugWriter" includeModule
-"defaultImpl" includeModule
-"irWriter" includeModule
-"pathUtils" includeModule
-"processSubNodes" includeModule
-"processor" includeModule
-"staticCall" includeModule
-"variable" includeModule
+"Block.Block" use
+"codeNode.compilable" use
+"codeNode.compilerError" use
+"codeNode.pop" use
+"processor.ProcessorResult" use
+"processor.Processor" use
+"processSubNodes.processIf" use
 
 declareBuiltin: [
   virtual declareBuiltinName:;
@@ -936,7 +926,7 @@ staticityOfBinResult: [
       newBlock: signature name makeStringView TRUE dynamic processImportFunction Block addressToReference;
     ]
     [
-      gnr: newBlock.varNameInfo @block File Ref getName;
+      gnr: newBlock.varNameInfo @block getName;
       cnr: @gnr 0 @block captureName;
       refToVar: cnr.refToVar copy;
 
@@ -1066,7 +1056,13 @@ staticityOfBinResult: [
       oldInstructionIndex @var.@globalDeclarationInstructionIndex set
 
       nameInfo: name makeStringView findNameInfo;
-      nameInfo refToVar NameCaseLocal addNameInfo
+
+      {
+        addNameCase: NameCaseLocal;
+        refToVar:    refToVar copy;
+        nameInfo:    nameInfo copy;
+      } addNameInfo
+
       processor.options.debug [
         d: nameInfo refToVar block addGlobalVariableDebugInfo;
         globalInstruction: var.globalDeclarationInstructionIndex @processor.@prolog.at;
@@ -1322,7 +1318,13 @@ staticityOfBinResult: [
             @newRefToVar createVarImportIR makeVarTreeDynamic
 
             nameInfo: name makeStringView findNameInfo;
-            nameInfo newRefToVar NameCaseLocal addNameInfo
+
+            {
+              addNameCase: NameCaseLocal;
+              refToVar:    newRefToVar copy;
+              nameInfo:    nameInfo copy;
+            } addNameInfo
+
             processor.options.debug [newRefToVar isVirtual ~] && [
               d: nameInfo newRefToVar block addGlobalVariableDebugInfo;
               globalInstruction: newRefToVar getVar.globalDeclarationInstructionIndex @processor.@prolog.at;
@@ -1659,7 +1661,7 @@ staticityOfBinResult: [
         result @block push
       ] [
         string: VarString varName.data.get;
-        string.getTextSize 0i64 cast 0n64 cast VarNatX @block createVariable Static @block makeStaticity @block createPlainIR @block push
+        string.size 0i64 cast 0n64 cast VarNatX @block createVariable Static @block makeStaticity @block createPlainIR @block push
       ] if
     ]
   ) sequence
@@ -1789,7 +1791,23 @@ staticityOfBinResult: [
       name: string extractExtension;
       fr: filename processor.modules.find;
       fr.success [fr.value 0 < ~] && [
-        #insert module names here
+        fileBlock: fr.value processor.blocks.at.get;
+        nameInfo: name findNameInfo;
+        labelCount: 0;
+        fileBlock.labelNames [
+          label:;
+          name "" = [label.nameInfo nameInfo =] || [label.refToVar isVirtual [label.refToVar getVar.data.getTag VarImport =] ||] && [
+            {
+              addNameCase: NameCaseFromModule;
+              refToVar:    label.refToVar copy;
+              nameInfo:    label.nameInfo copy;
+            } addNameInfo
+
+            labelCount 1 + !labelCount
+          ] when
+        ] each
+
+        labelCount 0 = [("no names match \"" name "\"") assembleString block compilerError] when
       ] [
         TRUE dynamic @processorResult.@findModuleFail set
         filename toString @processorResult.@errorInfo.@missedModule set
@@ -1805,6 +1823,11 @@ staticityOfBinResult: [
   block.nextLabelIsVirtual ["duplicate virtual specifier" block compilerError] when
   TRUE @block.@nextLabelIsVirtual set
 ] "mplBuiltinVirtual" @declareBuiltin ucall
+
+[
+  block.nextLabelIsOverload ["duplicate overload specifier" block compilerError] when
+  TRUE @block.@nextLabelIsOverload set
+] "mplBuiltinOverload" @declareBuiltin ucall
 
 [
   VarCond VarNatX 1 + [a2:; a1:; "xor" makeStringView] [xor] [copy] [y:; x:;] mplNumberBinaryOp

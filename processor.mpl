@@ -1,15 +1,15 @@
+"control" use
+
 "Array.Array" use
 "HashTable.HashTable" use
 "Owner.Owner" use
 "String.String" use
 "String.StringView" use
-"control.Cond" use
-"control.Int32" use
-"control.Natx" use
 "memory.debugMemory" use
 
 "Block.CompilerPositionInfo" use
 "Block.Block" use
+"Block.NameCaseInvalid" use
 "File.File" use
 "NameManager.NameManager" use
 "Var.RefToVar" use
@@ -68,6 +68,15 @@ IndexInfo: [{
 RefToVarTable: [
   RefToVar RefToVar HashTable
 ];
+
+NameInfoEntry: [{
+  file: File Cref;
+  refToVar: RefToVar;
+  startPoint: -1 dynamic; # id of node
+  nameCase: NameCaseInvalid;
+  mplFieldIndex: -1 dynamic; # for NameCaseSelfMember
+}];
+
 
 MatchingNode: [{
   unknownMplType: IndexArray;

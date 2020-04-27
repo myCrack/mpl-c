@@ -405,7 +405,7 @@ clearUnusedDebugInfo: [
     locId: pair.key;
     funcDbgId: pair.value;
     debugString: funcDbgId 4 + processor.debugInfo.strings.at;
-    debugString.getTextSize 0 = [
+    debugString.size 0 = [
       String locId 4 + @processor.@debugInfo.@strings.at set
     ] when
   ] each

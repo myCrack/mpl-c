@@ -13,9 +13,9 @@
 
 appendInstruction: [
   list: block:;;
-  offset: block.programTemplate.getTextSize;
+  offset: block.programTemplate.size;
   list @block.@programTemplate.catMany
-  block.programTemplate.getTextSize offset - offset makeInstruction @block.@program.pushBack
+  block.programTemplate.size offset - offset makeInstruction @block.@program.pushBack
 ];
 
 IRArgument: [{
@@ -174,7 +174,7 @@ createStaticGEP: [
 
 createFailWithMessage: [
   message: block:;;
-  gnr: processor.failProcNameInfo @block File Ref getName;
+  gnr: processor.failProcNameInfo @block getName;
   cnr: @gnr 0 @block captureName;
   failProcRefToVar: cnr.refToVar copy;
   message toString @block makeVarString @block push
@@ -391,7 +391,7 @@ createCallIR: [
 
   processor.options.callTrace [@block createCallTraceProlog] when
 
-  offset: block.programTemplate.getTextSize;
+  offset: block.programTemplate.size;
 
   haveRet [
     block generateRegisterIRName @retName set
@@ -419,7 +419,7 @@ createCallIR: [
 
   ")" @block.@programTemplate.cat
 
-  block.programTemplate.getTextSize offset - offset makeInstruction @block.@program.pushBack
+  block.programTemplate.size offset - offset makeInstruction @block.@program.pushBack
 
   @block addDebugLocationForLastInstruction
 

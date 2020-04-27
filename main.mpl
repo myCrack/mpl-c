@@ -1,20 +1,24 @@
-"control" useModule
-"pathUtils" useModule
-"astNodeType" useModule
-"parser" useModule
-"astOptimizers" useModule
-"processor" useModule
-"processorImpl" use
-"NameManager.NameManager" use
-"variable.NameInfoEntry" use
+"control" use
+"conventions.cdecl" use
+"conventions.stdcall" use
 
-"file" useModule
-"memory" useModule
 "Array.makeSubRange" use
 "ascii.ascii" use
 "memory.debugMemory" use
 "HashTable.hash" use
+"String.addLog" use
 "String.hash" use
+"String.makeStringViewByAddress" use
+"String.String" use
+"String.toString" use
+
+"astNodeType.ParserResults" use
+"NameManager.NameManager" use
+"pathUtils.extractClearPath" use
+"processor.NameInfoEntry" use
+"processor.Processor" use
+"processor.ProcessorOptions" use
+"processorImpl.process" use
 
 printInfo: [
   "USAGE: mplc.exe [options] <inputs>" print LF print

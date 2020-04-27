@@ -1,7 +1,14 @@
-"processSubNodes" useModule
-"builtins" useModule
+"control" use
 
+"String.String" use
+
+#"AstNodeType.MultiParserResult" use
+"builtins.initBuiltins" use
+"codeNode.addBlock" use
+"codeNode.addBlock" use
 "NameManager.NameManager" use
+"processor.NameInfoEntry" use
+"processor.ProcessorOptions" use
 
 {
   program: String Ref;
@@ -120,7 +127,7 @@
         moduleName copy topNodeIndex @processor.@blocks.at.get.!moduleName
 
         # call files which depends from this module
-        moduleName.getTextSize 0 > [
+        moduleName.size 0 > [
           fr: moduleName @dependedFiles.find;
           fr.success [
             i: 0 dynamic;
@@ -268,7 +275,7 @@
 
     processor.debugInfo.strings [
       s:;
-      s.getTextSize 0 = ~ [
+      s.size 0 = ~ [
         s @processorResult.@program.cat
         LF @processorResult.@program.cat
       ] when

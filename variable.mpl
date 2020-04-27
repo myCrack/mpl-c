@@ -56,14 +56,6 @@
 "schemas.hash" use
 "schemas.makeVariableSchema" use
 
-NameInfoEntry: [{
-  file: File Cref;
-  refToVar: RefToVar;
-  startPoint: -1 dynamic; # id of node
-  nameCase: NameCaseInvalid;
-  index: -1 dynamic; # for NameCaseSelfMember
-}];
-
 Overload: [NameInfoEntry Array];
 
 makeNameInfo: [{
@@ -137,7 +129,6 @@ getMplType: [
   positionInfo: CompilerPositionInfo Cref;
   name: StringView Cref;
   nodeCase: NodeCaseCode;
-  file: File Cref;
   indexArray: IndexArray Cref;
 } () {convention: cdecl;} "processCallByIndexArrayImpl" importFunction
 
@@ -866,7 +857,7 @@ makeStringId: [
 makeTypeAliasId: [
   irTypeName:;
 
-  irTypeName.getTextSize 0 > [
+  irTypeName.size 0 > [
 
     fr: irTypeName makeStringView @processor.@typeNames.find;
     fr.success [
@@ -1376,7 +1367,7 @@ getStaticStructIR: [
     ] &&
   ] loop
 
-  result.getTextSize 2 - @result.@chars.shrink
+  result.size 2 - @result.@chars.shrink
   @result.makeZ
   result
 ];
