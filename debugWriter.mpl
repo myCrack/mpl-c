@@ -1,7 +1,8 @@
+"control" use
+
 "Array.Array" use
 "String.assembleString" use
 "String.toString" use
-"control.times" use
 
 "irWriter.appendInstruction" use
 "irWriter.getStringImplementation" use

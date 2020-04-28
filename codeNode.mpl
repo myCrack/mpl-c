@@ -1,3 +1,5 @@
+"control" use
+
 "Array.Array" use
 "HashTable.hash" use
 "Owner.owner" use
@@ -10,7 +12,6 @@
 "String.print" use
 "String.splitString" use
 "String.toString" use
-"control" use
 "conventions.cdecl" use
 
 "Block.ArgGlobal" use
@@ -107,6 +108,7 @@
 "debugWriter.addVariableMetadata" use
 "debugWriter.moveLastDebugString" use
 "defaultImpl.defaultMakeConstWith" use
+"defaultImpl.defaultPrintStackTrace" use
 "defaultImpl.defaultRef" use
 "defaultImpl.defaultSet" use
 "defaultImpl.failProcForProcessor" use
@@ -191,6 +193,7 @@ addNameInfo: [
   reg:           params "reg"           has [params.reg copy] [TRUE dynamic] if;
   startPoint:    params "startPoint"    has [params.startPoint copy] [block.id copy] if;
   overloadDepth: params "overloadDepth" has [params.overloadDepth copy] [0 dynamic] if;
+  file:          params "file"          has [params.file] [block.position.file] if;
   addNameCase:   params.addNameCase copy dynamic;
   refToVar:      params.refToVar copy dynamic;
   nameInfo:      params.nameInfo copy dynamic;
@@ -243,10 +246,10 @@ addNameInfo: [
           File Cref @nameInfoEntry.!file
         ] [
           block.nextLabelIsOverload [
-            "invalid use of \"overload\" keyword" block compilerError
+            "invalid use of \"overload\" keyword" @processor block compilerError
           ] when
 
-          block.position.file @nameInfoEntry.!file
+          file @nameInfoEntry.!file
         ] if
 
         refToVar      @nameInfoEntry.@refToVar set
@@ -290,7 +293,7 @@ makeStaticity: [
     var: @refToVar getVar;
     staticity @var.@staticity set
     staticity Virtual < ~ [
-      refToVar block makeVariableType
+      refToVar @processor block makeVariableType
     ] when
   ] when
 
@@ -362,8 +365,8 @@ createVariableWithVirtual: [
 
   result isNonrecursiveType ~ [result isUnallocable ~] && @result.setMutable
 
-  makeType [result block makeVariableType] when
-  @result block makeVariableIRName
+  makeType [result @processor block makeVariableType] when
+  @result @processor block makeVariableIRName
 
   processor.varCount 1 + @processor.@varCount set
 
@@ -377,8 +380,8 @@ push: [
 
 getStackEntryForPreInput: [
   copy depth:;
-  depth block getStackDepth < [
-    entry: depth block getStackEntry;
+  depth @processor block getStackDepth < [
+    entry: depth @processor block getStackEntry;
     [entry getVar.host block is ~] "Pre input is just in inputs!" assert
     shadowBegin: RefToVar;
     shadowEnd: RefToVar;
@@ -428,7 +431,7 @@ makeVarString: [
   ] if
 
   gnr: refToVar getVar.mplNameId @block getName;
-  cnr: @gnr 0 dynamic @block captureName;
+  cnr: @gnr 0 dynamic @block block.position.file captureName;
 
   cnr.refToVar copy
 ];
@@ -561,7 +564,7 @@ getFieldForMatching: [
 
     fieldRefToVar
   ] [
-    "index is out of bounds" block compilerError
+    "index is out of bounds" @processor block compilerError
     RefToVar
   ] if
 ];
@@ -608,7 +611,7 @@ getField: [
 
     @fieldRefToVar
   ] [
-    "index is out of bounds" block compilerError
+    "index is out of bounds" @processor block compilerError
     failResult: RefToVar Ref;
     @failResult
   ] if
@@ -752,7 +755,7 @@ makeVirtualVarReal: [
   refToVar isVirtualType [
     refToVar copy
   ] [
-    processor.options.verboseIR [("made virtual var real, type: " refToVar block getMplType) assembleString @block createComment] when
+    processor.options.verboseIR [("made virtual var real, type: " refToVar @processor block getMplType) assembleString @block createComment] when
 
     realValue: @refToVar getVar.@realValue;
 
@@ -813,7 +816,7 @@ makeVirtualVarReal: [
       ] loop
 
       # second pass: create IR code for variable
-      @result block makeVariableType
+      @result @processor block makeVariableType
       refToVar @unfinishedSrc.pushBack
       @result @block createAllocIR @unfinishedDst.pushBack
 
@@ -881,7 +884,7 @@ makeVarVirtual: [
       curVar: cur getVar;
       curVar.data.getTag VarStruct = [
         cur isAutoStruct [
-          "can not virtualize automatic struct" block compilerError
+          "can not virtualize automatic struct" @processor block compilerError
         ] [
           struct: VarStruct curVar.data.get.get;
           j: 0 dynamic;
@@ -899,11 +902,11 @@ makeVarVirtual: [
         curVar.data.getTag VarRef = [
           VarRef curVar.data.get isUnallocable [
           ] [
-            "can not virtualize reference to local variable" block compilerError
+            "can not virtualize reference to local variable" @processor block compilerError
           ] if
         ] [
           cur staticityOfVar Weak < [
-            "can not virtualize dynamic value" block compilerError
+            "can not virtualize dynamic value" @processor block compilerError
           ] when
         ] if
       ] if
@@ -932,8 +935,8 @@ makeVarTreeDirty: [
       @unfinishedVars.popBack
 
       var: lastRefToVar getVar;
-      lastRefToVar staticityOfVar Virtual = ["can't dynamize virtual value" block compilerError] when
-      lastRefToVar staticityOfVar Schema = ["can't dynamize schema" block compilerError] when
+      lastRefToVar staticityOfVar Virtual = ["can't dynamize virtual value" @processor block compilerError] when
+      lastRefToVar staticityOfVar Schema = ["can't dynamize schema" @processor block compilerError] when
 
       compilable [
         var.data.getTag VarStruct = [
@@ -981,7 +984,7 @@ makePointeeDirtyIfRef: [
 makeVarDynamicOrDirty: [
   newStaticity:;
   refToVar:;
-  refToVar staticityOfVar Virtual = ["can't dynamize virtual value" block compilerError] when
+  refToVar staticityOfVar Virtual = ["can't dynamize virtual value" @processor block compilerError] when
 
   @refToVar makePointeeDirtyIfRef
   msr: @refToVar newStaticity @block makeStaticity;
@@ -1001,7 +1004,7 @@ makeVarTreeDynamicWith: [
       @unfinishedVars.popBack
 
       var: lastRefToVar getVar;
-      lastRefToVar staticityOfVar Virtual = ["can't dynamize virtual value" block compilerError] when
+      lastRefToVar staticityOfVar Virtual = ["can't dynamize virtual value" @processor block compilerError] when
 
       var.data.getTag VarStruct = [
         struct: VarStruct var.data.get.get;
@@ -1043,6 +1046,7 @@ makeVarTreeDynamicStoraged: [block:; TRUE  dynamic @block makeVarTreeDynamicWith
 
 createNamedVariable: [
   nameInfo: refToVar: block:;;;
+
   compilable [
     newRefToVar: refToVar copy;
     staticity: refToVar staticityOfVar;
@@ -1050,7 +1054,7 @@ createNamedVariable: [
 
     block.nextLabelIsVirtual [
       refToVar isVirtual ~ [
-        staticity Dynamic > ~ ["value for virtual label must be static" block compilerError] when
+        staticity Dynamic > ~ ["value for virtual label must be static" @processor block compilerError] when
         staticity Weak = [Static @var.@staticity set] when
       ] when
     ] when
@@ -1084,7 +1088,7 @@ createNamedVariable: [
     FALSE @newRefToVar getVar.@tref set
 
     block.nextLabelIsVirtual block.nextLabelIsSchema or [
-      newRefToVar block makeVariableType
+      newRefToVar @processor block makeVariableType
       block.nextLabelIsSchema [@newRefToVar makeVarSchema][@newRefToVar makeVarVirtual] if
       FALSE @block.@nextLabelIsVirtual set
       FALSE @block.@nextLabelIsSchema set
@@ -1110,7 +1114,7 @@ createNamedVariable: [
 
     block.nodeCase NodeCaseObject = [
       newField: Field;
-      nameInfo @newField.@nameInfo set
+      nameInfo    @newField.@nameInfo set
       newRefToVar @newField.@refToVar set
 
       newField @block.@struct.@fields.pushBack
@@ -1139,7 +1143,7 @@ processCodeNode: [
 
 processCallByIndexArray: [
   indexArray: nodeCase: name: positionInfo: ;;;;
-  indexArray nodeCase name positionInfo multiParserResult @block @processor @processorResult processCallByIndexArrayImpl
+  indexArray nodeCase name positionInfo multiParserResult @block @processor processCallByIndexArrayImpl
 ];
 
 processObjectNode: [
@@ -1157,34 +1161,32 @@ processListNode: [
 ];
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   message: StringView Cref;
 } () {convention: cdecl;} [
-  processorResult:;
   processor:;
   block:;
   message:;
   failProc: @failProcForProcessor;
   [
     compileOnce
-    processorResult.findModuleFail ~ [processor.depthOfPre 0 =] && [HAS_LOGS] && [
+    processor.result.findModuleFail ~ [processor.depthOfPre 0 =] && [HAS_LOGS] && [
       ("COMPILER ERROR") addLog
       (message) addLog
-      block defaultPrintStackTrace
+      @processor block defaultPrintStackTrace
     ] when
 
     compilable [
-      FALSE dynamic @processorResult.@success set
+      FALSE dynamic @processor.@result.@success set
 
-      processor.depthOfPre 0 = [processorResult.passErrorThroughPRE copy] || [
-        message toString @processorResult.@errorInfo.@message set
+      processor.depthOfPre 0 = [processor.result.passErrorThroughPRE copy] || [
+        message toString @processor.@result.@errorInfo.@message set
         [
           block.root [
             FALSE
           ] [
-            block.position @processorResult.@errorInfo.@position.pushBack
+            block.position @processor.@result.@errorInfo.@position.pushBack
             block.parent processor.blocks.at.get !block
             TRUE
           ] if
@@ -1217,13 +1219,14 @@ findLocalObject: [
 
 findNameStackObject: [
   copy nameCase:;
+  file:;
   refToVar:;
   nameInfo:;
 
   result: RefToVar;
   i: -1 dynamic;
   [
-    i block.position.file nameInfo processor.nameManager.findItem !i
+    i file nameInfo processor.nameManager.findItem !i
     i 0 < [
       FALSE
     ] [
@@ -1251,7 +1254,7 @@ getNameAs: [
   unknownName: [
     forMatching [
     ] [
-      ("unknown name:" nameInfo processor.nameManager.getText) assembleString block compilerError
+      ("unknown name:" nameInfo processor.nameManager.getText) assembleString @processor block compilerError
     ] if
   ];
 
@@ -1286,12 +1289,12 @@ getNameAs: [
         nameInfoEntry.mplFieldIndex fields.at.refToVar @result.@refToVar set
         object.mutable @result.@refToVar.setMutable
       ] [
-        ("Internal error, mismatch structures for name:" nameInfo processor.nameManager.getText) assembleString block compilerError
+        ("Internal error, mismatch structures for name:" nameInfo processor.nameManager.getText) assembleString @processor block compilerError
       ] if
     ] [
       nameCase NameCaseSelfObject = [nameCase NameCaseClosureObject =] || [
         forMatching [
-          nameInfo matchingCapture.refToVar nameCase findNameStackObject @result.@refToVar set
+          nameInfo matchingCapture.refToVar file nameCase findNameStackObject @result.@refToVar set
         ] [
           nameInfoEntry.refToVar nameCase @block findLocalObject @result.@refToVar set
         ] if
@@ -1344,7 +1347,7 @@ getNameForMatchingWithOverloadIndex: [
 ];
 
 captureName: [
-  getNameResult: overloadDepth: block:; copy;;
+  getNameResult: overloadDepth: block: file: ;;;;
 
   result: {
     refToVar: RefToVar;
@@ -1409,7 +1412,8 @@ captureName: [
           [getNameResult.overloadIndex 0 < ~] "name overload not initialized!" assert
 
           overloadDepth @newCapture.@nameOverloadDepth set
-          captureCase  @newCapture.@captureCase set
+          captureCase   @newCapture.@captureCase set
+          file          @newCapture.@file.set
 
           refToVar isVirtual [ArgVirtual] [refToVar isGlobal [ArgGlobal] [ArgRef] if ] if @newCapture.@argCase set
           realCapture: newCapture.argCase ArgRef =;
@@ -1497,11 +1501,13 @@ captureName: [
         } addNameInfo
 
         newFieldCapture: FieldCapture;
-        getNameResult.nameInfo @newFieldCapture.@nameInfo set
         [overloadDepth 0 < ~] "name overload not initialized!" assert
-        overloadDepth @newFieldCapture.@nameOverloadDepth set
-        result.object @newFieldCapture.@object set
+
+        getNameResult.nameInfo @newFieldCapture.@nameInfo set
+        overloadDepth          @newFieldCapture.@nameOverloadDepth set
+        result.object          @newFieldCapture.@object set
         getNameResult.nameCase @newFieldCapture.@captureCase set
+        file                   @newFieldCapture.@file.set
         newFieldCapture @block.@buildingMatchingInfo.@fieldCaptures.pushBack
 
         block.state NodeStateNew = [
@@ -1523,7 +1529,7 @@ captureName: [
     ] if
 
     captureError [
-      "real function can not have real local capture" block compilerError
+      "real function can not have real local capture" @processor block compilerError
     ] when
   ] [
     getNameResult.refToVar @result.@refToVar set
@@ -1547,6 +1553,7 @@ isCallable: [
 
 addFieldsNameInfos: [
   copy addNameCase:;
+  file:;
   refToVar:;
 
   var: refToVar getVar;
@@ -1563,6 +1570,7 @@ addFieldsNameInfos: [
         mplFieldIndex: i copy;
         addNameCase:   addNameCase copy;
         refToVar:      refToVar copy;
+        file:          file;
         reg:           FALSE;
       } addNameInfo
 
@@ -1589,30 +1597,32 @@ deleteFieldsNameInfos: [
 ];
 
 regNamesClosure: [
-  object:;
+  object: file: ;;
   object.assigned [
     {
       nameInfo:      processor.closureNameInfo copy;
       addNameCase:   NameCaseClosureObject;
       refToVar:      object copy;
       reg:           FALSE;
+      file:          file;
     } addNameInfo
 
-    object NameCaseClosureMember addFieldsNameInfos
+    object file NameCaseClosureMember addFieldsNameInfos
   ] when
 ];
 
 regNamesSelf: [
-  object:;
+  object: file: ;;
   object.assigned [
     {
       nameInfo:      processor.selfNameInfo copy;
       addNameCase:   NameCaseSelfObject;
       refToVar:      object copy;
       reg:           FALSE;
+      file:          file;
     } addNameInfo
 
-    object NameCaseSelfMember addFieldsNameInfos
+    object file NameCaseSelfMember addFieldsNameInfos
   ] when
 ];
 
@@ -1649,13 +1659,15 @@ callCallableStruct: [
   codeField: fr.index struct.fields.at .refToVar;
   codeVar: codeField getVar;
   codeVar.data.getTag VarCode = [
-    object regNamesSelf
-    refToVar regNamesClosure
-    VarCode codeVar.data.get.index VarCode codeVar.data.get.file name processCall
+    file: VarCode codeVar.data.get.file;
+
+    object file regNamesSelf
+    refToVar file regNamesClosure
+    VarCode codeVar.data.get.index file name processCall
     refToVar unregNamesClosure
     object unregNamesSelf
   ] [
-    "CALL field is not a code" block compilerError
+    "CALL field is not a code" @processor block compilerError
   ] if
 ];
 
@@ -1669,7 +1681,7 @@ callCallableField: [
   code: VarCode var.data.get.index;
   file: VarCode var.data.get.file;
 
-  object regNamesClosure
+  object file regNamesClosure
   code file @name processCall
   object unregNamesClosure
 ];
@@ -1709,7 +1721,7 @@ callCallableStructWithPre: [
         preVar.data.getTag VarCode = [
           VarCode preVar.data.get.index VarCode preVar.data.get.file processPre ~ @needPre set
         ] [
-          "PRE field must be a code" block compilerError
+          "PRE field must be a code" @processor block compilerError
         ] if
       ] when
 
@@ -1722,7 +1734,7 @@ callCallableStructWithPre: [
             fr.index @object @block processStaticAt @refToVar set
           ] [
             name: nameInfo processor.nameManager.getText;
-            ("cant call overload for field with name: " name) assembleString block compilerError
+            ("cant call overload for field with name: " name) assembleString @processor block compilerError
           ] if
         ] [
           oldGnr: nameInfo overloadIndex @block block.position.file getNameWithOverloadIndex;
@@ -1731,13 +1743,13 @@ callCallableStructWithPre: [
           overloadIndex block.position.file nameInfo processor.nameManager.findItem !overloadIndex
           overloadIndex 0 < [
             name: nameInfo processor.nameManager.getText;
-            ("cant call overload for name: " name) assembleString block compilerError
+            ("cant call overload for name: " name) assembleString @processor block compilerError
           ] when
 
           compilable [
             gnr: nameInfo overloadIndex @block block.position.file getNameWithOverloadIndex;
             compilable [
-              cnr: @gnr overloadDepth @block captureName;
+              cnr: @gnr overloadDepth @block block.position.file captureName;
               cnr.object @object set
               cnr.refToVar @refToVar set
             ] when
@@ -1751,22 +1763,24 @@ callCallableStructWithPre: [
         ] when
       ] [
         # no need pre, just call it!
+        file: VarCode codeVar.data.get.file;
+
         findInside [
-          object regNamesSelf
-          refToVar regNamesClosure
-          VarCode codeVar.data.get.index VarCode codeVar.data.get.file nameInfo processor.nameManager.getText processCall
+          object file regNamesSelf
+          refToVar file regNamesClosure
+          VarCode codeVar.data.get.index file nameInfo processor.nameManager.getText processCall
           refToVar unregNamesClosure
           object unregNamesSelf
         ] [
-          object regNamesSelf
-          refToVar regNamesClosure
-          VarCode codeVar.data.get.index VarCode codeVar.data.get.file nameInfo processor.nameManager.getText processCall
+          object file regNamesSelf
+          refToVar file regNamesClosure
+          VarCode codeVar.data.get.index file nameInfo processor.nameManager.getText processCall
           refToVar unregNamesClosure
           object unregNamesSelf
         ] if
       ] if
     ] [
-      "CALL field is not a code" block compilerError
+      "CALL field is not a code" @processor block compilerError
     ] if
 
     nextIteration [compilable] &&
@@ -1785,13 +1799,15 @@ callCallable: [
     VarBuiltin var.data.get @block callBuiltin
   ] [
     var.data.getTag VarCode = [
+      file: VarCode var.data.get.file;
+
       field [
-        object regNamesSelf
-        VarCode var.data.get.index VarCode var.data.get.file @nameInfo processor.nameManager.getText processCall
+        object file regNamesSelf
+        VarCode var.data.get.index file @nameInfo processor.nameManager.getText processCall
         object unregNamesSelf
       ] [
-        object regNamesSelf
-        VarCode var.data.get.index VarCode var.data.get.file @nameInfo processor.nameManager.getText processCall
+        object file regNamesSelf
+        VarCode var.data.get.index file @nameInfo processor.nameManager.getText processCall
         object unregNamesSelf
       ] if
     ] [
@@ -1855,7 +1871,7 @@ tryImplicitLambdaCast: [
           compilable ~ [
             [FALSE] "Name of new lambda is not visible!" assert
           ] [
-            cnr: @gnr 0 dynamic @block captureName;
+            cnr: @gnr 0 dynamic @block block.position.file captureName;
             cnr.refToVar @result.@refToVar set
             TRUE dynamic @result.@success set
           ] if
@@ -1875,7 +1891,7 @@ setRef: [
   var: refToVar getVar;
   var.data.getTag VarRef = [
     refToVar isSchema [
-      "can not write to virtual" block compilerError
+      "can not write to virtual" @processor block compilerError
     ] [
       pointee: VarRef var.data.get;
       pointee.mutable ~ [
@@ -1907,7 +1923,7 @@ setRef: [
         refToVar @block push
         @block defaultSet
       ] [
-        "rewrite value works only with temporary values" block compilerError
+        "rewrite value works only with temporary values" @processor block compilerError
       ] if
     ] when
   ] if
@@ -2020,7 +2036,6 @@ copyVarFromParent: [TRUE  FALSE dynamic @block copyVarImpl];
 {
   dynamicStoraged: Cond;
 
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -2032,7 +2047,6 @@ copyVarFromParent: [TRUE  FALSE dynamic @block copyVarImpl];
 } () {convention: cdecl;} [
   copy dynamicStoraged:;
 
-  processorResult:;
   processor:;
   block:;
   multiParserResult:;
@@ -2127,13 +2141,13 @@ copyVarFromParent: [TRUE  FALSE dynamic @block copyVarImpl];
 
 makeShadows: [
   block:;
-  multiParserResult @block @processor @processorResult
+  multiParserResult @block @processor
   FALSE makeShadowsImpl
 ];
 
 makeShadowsDynamic: [
   block:;
-  multiParserResult @block @processor @processorResult
+  multiParserResult @block @processor
   TRUE  makeShadowsImpl
 ];
 
@@ -2147,14 +2161,12 @@ addStackUnderflowInfo: [
 
 {
   forMatching: Cond;
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
   result: RefToVar Ref;
 } () {convention: cdecl;} [
   copy forMatching:;
-  processorResult:;
   processor:;
   block:;
   multiParserResult:;
@@ -2162,7 +2174,7 @@ addStackUnderflowInfo: [
   result:;
 
   block.stack.dataSize 0 = [
-    entryRef: 0 block getStackEntry;
+    entryRef: 0 @processor block getStackEntry;
     compilable [
       entry: entryRef copy;
       entry staticityOfVar Weak = [
@@ -2222,13 +2234,13 @@ addStackUnderflowInfo: [
 pop: [
   block:;
   result: RefToVar;
-  @result multiParserResult @block @processor @processorResult FALSE popImpl
+  @result multiParserResult @block @processor FALSE popImpl
   @result
 ];
 
 popForMatching: [
   result: RefToVar;
-  @result multiParserResult @block @processor @processorResult TRUE popImpl
+  @result multiParserResult @block @processor TRUE popImpl
   result
 ];
 
@@ -2260,28 +2272,35 @@ pushName: [
 
 addUnfoundedName: [
   copy nameInfo:;
-  fr: nameInfo block.matchingInfo.unfoundedNames.find;
-  fr.success ~ [nameInfo TRUE @block.@matchingInfo.@unfoundedNames.insert] when
+  file:;
+
+  newItem: UnfoundedName;
+  nameInfo @newItem.@nameInfo set
+  file     @newItem.@file.set
+
+  fr: newItem block.matchingInfo.unfoundedNames.find;
+  fr.success ~ [newItem TRUE @block.@matchingInfo.@unfoundedNames.insert] when
   block.state NodeStateNew = [
-    fr: nameInfo block.buildingMatchingInfo.unfoundedNames.find;
-    fr.success ~ [nameInfo TRUE @block.@buildingMatchingInfo.@unfoundedNames.insert] when
+    fr: newItem block.buildingMatchingInfo.unfoundedNames.find;
+    fr.success ~ [newItem TRUE @block.@buildingMatchingInfo.@unfoundedNames.insert] when
   ] when
 ];
 
 checkFailedName: [
   gnr:;
   copy nameInfo:;
+  file:;
 
   gnr.refToVar.assigned ~ [
-    nameInfo addUnfoundedName
+    file nameInfo addUnfoundedName
   ] when
 ];
 
 processNameNode: [
   data:;
   gnr: data.nameInfo @block getName;
-  data.nameInfo gnr checkFailedName
-  cnr: @gnr 0 dynamic @block captureName;
+  block.position.file data.nameInfo gnr checkFailedName
+  cnr: @gnr 0 dynamic @block block.position.file captureName;
   refToVar: cnr.refToVar copy;
 
   compilable [
@@ -2292,14 +2311,14 @@ processNameNode: [
 processNameReadNode: [
   data:;
   gnr: data.nameInfo @block getName;
-  data.nameInfo gnr checkFailedName
-  cnr: @gnr 0 dynamic @block captureName;
+  block.position.file data.nameInfo gnr checkFailedName
+  cnr: @gnr 0 dynamic @block block.position.file captureName;
   refToVar: cnr.refToVar;
 
   compilable [
     var: refToVar getVar;
     var.data.getTag VarBuiltin = [
-      "can't use @name for builtins, use [name] instead" block compilerError
+      "can't use @name for builtins, use [name] instead" @processor block compilerError
     ] [
       var.data.getTag VarImport = [
         FALSE dynamic RefToVar refToVar 1 data.nameInfo pushName
@@ -2313,8 +2332,8 @@ processNameReadNode: [
 processNameWriteNode: [
   data:;
   gnr: data.nameInfo @block getName;
-  data.nameInfo gnr checkFailedName
-  cnr: @gnr 0 dynamic @block captureName;
+  block.position.file data.nameInfo gnr checkFailedName
+  cnr: @gnr 0 dynamic @block block.position.file captureName;
   refToVar: cnr.refToVar;
 
   compilable [refToVar setRef] when
@@ -2348,12 +2367,12 @@ processMember: [
 
   compilable [
     fieldError: [
-      (refToStruct block getMplType " has no field " nameInfo processor.nameManager.getText) assembleString block compilerError
+      (refToStruct @processor block getMplType " has no field " nameInfo processor.nameManager.getText) assembleString @processor block compilerError
     ];
 
     refToStruct isSchema [
       read -1 = [
-        "can not write to field of struct schema" block compilerError
+        "can not write to field of struct schema" @processor block compilerError
       ] [
         structVar: refToStruct getVar;
         pointee: VarRef structVar.data.get;
@@ -2371,7 +2390,7 @@ processMember: [
             fieldError
           ] if
         ] [
-          "not a combined" block compilerError
+          "not a combined" @processor block compilerError
         ] if
       ] if
     ] [
@@ -2385,7 +2404,7 @@ processMember: [
           fieldError
         ] if
       ] [
-        "not a combined" block compilerError
+        "not a combined" @processor block compilerError
       ] if
     ] if
   ] when
@@ -2494,13 +2513,13 @@ callInit: [
               fieldRef getVar.data.getTag VarCode = [
                 current fieldRef @initName callCallableField
                 compilable [block.state NodeStateNoOutput = ~] && [block.stack.dataSize stackSize = ~] && [
-                  ("Struct " current block getMplType "'s INIT method dont save stack") assembleString block compilerError
+                  ("Struct " current @processor block getMplType "'s INIT method dont save stack") assembleString @processor block compilerError
                 ] when
               ] [
-                ("Struct " current block getMplType "'s INIT method is not a CODE") assembleString block compilerError
+                ("Struct " current @processor block getMplType "'s INIT method is not a CODE") assembleString @processor block compilerError
               ] if
             ] [
-              ("Struct " current block getMplType " is automatic, but has not INIT field") assembleString block compilerError
+              ("Struct " current @processor block getMplType " is automatic, but has not INIT field") assembleString @processor block compilerError
             ] if
           ] when
         ] when
@@ -2545,19 +2564,19 @@ callAssign: [
 
               fieldRef getVar.data.getTag VarCode = [
                 curDst isVirtual [
-                  "unable to copy virtual autostruct" block compilerError
+                  "unable to copy virtual autostruct" @processor block compilerError
                 ] [
                   curSrc @block push
                   curDst fieldRef @assignName callCallableField
                   compilable [block.state NodeStateNoOutput = ~] && [block.stack.dataSize stackSize = ~] && [
-                    ("Struct " curSrc block getMplType "'s ASSIGN method dont save stack") assembleString block compilerError
+                    ("Struct " curSrc @processor block getMplType "'s ASSIGN method dont save stack") assembleString @processor block compilerError
                   ] when
                 ] if
               ] [
-                ("Struct " curSrc block getMplType "'s ASSIGN method is not a CODE") assembleString block compilerError
+                ("Struct " curSrc @processor block getMplType "'s ASSIGN method is not a CODE") assembleString @processor block compilerError
               ] if
             ] [
-              ("Struct " curSrc block getMplType " is automatic, but has not ASSIGN field") assembleString block compilerError
+              ("Struct " curSrc @processor block getMplType " is automatic, but has not ASSIGN field") assembleString @processor block compilerError
             ] if
           ] [
             structSrc: VarStruct curSrcVar.data.get.get;
@@ -2605,10 +2624,10 @@ callDie: [
             fieldRef getVar.data.getTag VarCode = [
               last fieldRef @dieName callCallableField
               compilable [block.state NodeStateNoOutput = ~] && [block.stack.dataSize stackSize = ~] && [
-                ("Struct " last block getMplType "'s DIE method dont save stack") assembleString block compilerError
+                ("Struct " last @processor block getMplType "'s DIE method dont save stack") assembleString @processor block compilerError
               ] when
             ] [
-              ("Struct " last block getMplType "'s DIE method is not a CODE") assembleString block compilerError
+              ("Struct " last @processor block getMplType "'s DIE method is not a CODE") assembleString @processor block compilerError
             ] if
           ] when
 
@@ -2637,14 +2656,12 @@ killStruct: [
 ];
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
   indexOfAstNode: Int32;
   astNode: AstNode Cref;
 } () {} [
-  processorResult:;
   processor:;
   block:;
   multiParserResult:;
@@ -2692,7 +2709,7 @@ killStruct: [
 
 processNode: [
   token: tokenIndex: ;;
-  token tokenIndex multiParserResult @block @processor @processorResult processNodeImpl
+  token tokenIndex multiParserResult @block @processor processNodeImpl
 ];
 
 addNamesFromModule: [
@@ -2865,7 +2882,7 @@ unregCodeNodeNames: [
 ];
 
 checkPreStackDepth: [
-  newMinStackDepth: block getStackDepth block.stack.dataSize -;
+  newMinStackDepth: @processor block getStackDepth block.stack.dataSize -;
   preCountedStackDepth: block.minStackDepth copy;
   i: preCountedStackDepth copy;
   [
@@ -3201,7 +3218,6 @@ makeCompilerPosition: [
 ];
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -3209,7 +3225,6 @@ makeCompilerPosition: [
   compilerPositionInfo: CompilerPositionInfo Cref;
   functionName: StringView Cref;
 } () {convention: cdecl;} [
-  processorResult:;
   processor:;
   block:;
   multiParserResult:;
@@ -3218,9 +3233,9 @@ makeCompilerPosition: [
   compilerPositionInfo:;
   functionName:;
 
-  block.nextLabelIsVirtual  ["unused virtual specifier"  block compilerError] when
-  block.nextLabelIsOverload ["unused overload specifier" block compilerError] when
-  block.nextLabelIsSchema   ["unused schema specifier"   block compilerError] when
+  block.nextLabelIsVirtual  ["unused virtual specifier"  @processor block compilerError] when
+  block.nextLabelIsOverload ["unused overload specifier" @processor block compilerError] when
+  block.nextLabelIsSchema   ["unused schema specifier"   @processor block compilerError] when
 
   block.nodeCase NodeCaseList   = [finalizeListNode] when
   block.nodeCase NodeCaseObject = [finalizeObjectNode] when
@@ -3363,7 +3378,7 @@ makeCompilerPosition: [
       block.candidatesToDie [
         refToVar:;
         refToVar isAutoStruct [
-          refToVar @processorResult @processor multiParserResult compilerPositionInfo CFunctionSignature createDtorForGlobalVar
+          refToVar @processor multiParserResult compilerPositionInfo CFunctionSignature createDtorForGlobalVar
         ] when
       ] each
     ] [
@@ -3399,7 +3414,7 @@ makeCompilerPosition: [
   String @block.@signature set
 
   inputCountMismatch: [
-    ("In signature there are " forcedSignature.inputs.getSize " inputs, but really here " block.buildingMatchingInfo.inputs.getSize " inputs") assembleString block compilerError
+    ("In signature there are " forcedSignature.inputs.getSize " inputs, but really here " block.buildingMatchingInfo.inputs.getSize " inputs") assembleString @processor block compilerError
   ];
 
   hasForcedSignature [
@@ -3438,7 +3453,7 @@ makeCompilerPosition: [
             ] if;
 
             needToCopy [current.refToVar argAbleToCopy ~] && [isRealFunction copy] && [
-              "getting huge agrument by copy; mpl's export function can not have this signature" block compilerError
+              "getting huge agrument by copy; mpl's export function can not have this signature" @processor block compilerError
             ] when
 
             needToCopy [
@@ -3464,7 +3479,7 @@ makeCompilerPosition: [
 
   block.parent 0 =
   [block.stack.dataSize 0 >] && [
-    "module can not have inputs or outputs" block compilerError
+    "module can not have inputs or outputs" @processor block compilerError
   ] when
 
   @block.@outputs.clear
@@ -3485,7 +3500,7 @@ makeCompilerPosition: [
         isDeclaration [output isTinyArg [hasRet ~] &&] ||;
 
         passAsRet ~ [isRealFunction copy] && [
-          "returning two arguments or non-primitive object; mpl's function can not have this signature" block compilerError
+          "returning two arguments or non-primitive object; mpl's function can not have this signature" @processor block compilerError
         ] when
 
         compilable [
@@ -3526,7 +3541,7 @@ makeCompilerPosition: [
       current.refToVar.assigned [
         current.argCase ArgRef = [
           isRealFunction [
-            ("real function can not have local capture; name=" current.nameInfo processor.nameManager.getText "; type=" current.refToVar block getMplType) assembleString block compilerError
+            ("real function can not have local capture; name=" current.nameInfo processor.nameManager.getText "; type=" current.refToVar @processor block getMplType) assembleString @processor block compilerError
           ] when
 
           current.refToVar FALSE addRefArg
@@ -3552,7 +3567,7 @@ makeCompilerPosition: [
         ", ..." @argumentList.cat
       ] if
     ] [
-      "export function cannot be variadic" block compilerError
+      "export function cannot be variadic" @processor block compilerError
     ] if
   ] when
 
@@ -3611,14 +3626,32 @@ makeCompilerPosition: [
     block.fromModuleNames @info addNames
     info @block createComment
 
+    #info: String;
+    #"captureNames: " @info.cat
+    #block.captureNames @info addNames
+    #info @block createComment
+
     info: String;
     "captureNames: " @info.cat
-    block.captureNames @info addNames
+    block.matchingInfo.captures [
+      c:;
+      (c.nameInfo processor.nameManager.getText "(" c.nameOverloadDepth "), ") @info.catMany
+    ] each
+
     info @block createComment
 
     info: String;
     "fieldCaptureNames: " @info.cat
     block.fieldCaptureNames @info addNames
+    info @block createComment
+
+    info: String;
+    "failedCaptures: " @info.cat
+    block.matchingInfo.unfoundedNames [
+      un: .key;
+      (un.nameInfo processor.nameManager.getText ", ") @info.catMany
+    ] each
+
     info @block createComment
   ] when
 
@@ -3704,7 +3737,7 @@ makeCompilerPosition: [
   ];
 
   #generate function header
-  noname [processorResult.findModuleFail copy] || [
+  noname [processor.result.findModuleFail copy] || [
     block.nodeCase NodeCaseDtor = [
       "@"          @block.@irName.cat
       functionName @block.@irName.cat
@@ -3738,7 +3771,7 @@ makeCompilerPosition: [
               ] when
             ] each
           ] [
-            ("Wrong function name encoding:" functionName) assembleString block compilerError
+            ("Wrong function name encoding:" functionName) assembleString @processor block compilerError
           ] if
         ] when
       ] if
@@ -3770,10 +3803,10 @@ makeCompilerPosition: [
         prevNode: fr.value @processor.@blocks.at.get;
         prevNode.state NodeStateCompiled = [
           prevNode.signature block.signature = ~ [
-            ("node " functionName " was defined with another signature") assembleString block compilerError
+            ("node " functionName " was defined with another signature") assembleString @processor block compilerError
           ] [
             prevNode.mplConvention block.mplConvention = ~ [
-              ("node " functionName " was defined with another convention") assembleString block compilerError
+              ("node " functionName " was defined with another convention") assembleString @processor block compilerError
             ] [
               block.nodeCase NodeCaseDeclaration = [
                 TRUE @block.@emptyDeclaration set
@@ -3782,7 +3815,7 @@ makeCompilerPosition: [
                   TRUE @prevNode.@emptyDeclaration set
                   block.id @fr.@value set
                 ] [
-                  "dublicated func implementation" block compilerError
+                  "dublicated func implementation" @processor block compilerError
                 ] if
               ] if
             ] if
@@ -3829,7 +3862,7 @@ makeCompilerPosition: [
 ] "finalizeCodeNodeImpl" exportFunction
 
 finalizeCodeNode: [
-  compilerPositionInfo forcedSignature multiParserResult @block @processor @processorResult finalizeCodeNodeImpl
+  compilerPositionInfo forcedSignature multiParserResult @block @processor finalizeCodeNodeImpl
 ];
 
 addIndexArrayToProcess: [
@@ -3861,7 +3894,6 @@ nodeHasCode: [
   file: File Cref;
   indexArray: IndexArray Cref;
   processor: Processor Ref;
-  processorResult: ProcessorResult Ref;
   nodeCase: NodeCaseCode;
   parentIndex: Int32;
   functionName: StringView Cref;
@@ -3872,7 +3904,6 @@ nodeHasCode: [
   file:;
   indexArray:;
   processor:;
-  processorResult:;
   copy nodeCase:;
   copy parentIndex:;
   functionName:;
@@ -3887,7 +3918,7 @@ nodeHasCode: [
   nodeCase                        @codeNode.@nodeCase set
   parentIndex                     @codeNode.@parent set
   @compilerPositionInfo           @codeNode.@position set
-  block getStackDepth             @codeNode.@minStackDepth set
+  @processor block getStackDepth  @codeNode.@minStackDepth set
   processor.varCount              @codeNode.@variableCountDelta set
   processor.exportDepth           @codeNode.@exportDepth set
 
@@ -3897,13 +3928,13 @@ nodeHasCode: [
   ] when
 
   processor.depthOfRecursion processor.options.recursionDepthLimit > [
-    TRUE dynamic @processorResult.@passErrorThroughPRE set
-    ("Recursion depth limit (" processor.options.recursionDepthLimit ") exceeded. It can be changed using -recursion_depth_limit option.") assembleString block compilerError
+    TRUE dynamic @processor.@result.@passErrorThroughPRE set
+    ("Recursion depth limit (" processor.options.recursionDepthLimit ") exceeded. It can be changed using -recursion_depth_limit option.") assembleString @processor block compilerError
   ] when
 
   processor.depthOfPre processor.options.preRecursionDepthLimit > [
-    TRUE dynamic @processorResult.@passErrorThroughPRE set
-    ("PRE recursion depth limit (" processor.options.preRecursionDepthLimit  ") exceeded. It can be changed using -pre_recursion_depth_limit option.") assembleString block compilerError
+    TRUE dynamic @processor.@result.@passErrorThroughPRE set
+    ("PRE recursion depth limit (" processor.options.preRecursionDepthLimit  ") exceeded. It can be changed using -pre_recursion_depth_limit option.") assembleString @processor block compilerError
   ] when
 
   #add to match table
@@ -3954,7 +3985,7 @@ nodeHasCode: [
     ] if
 
     recursionTries 1 + @recursionTries set
-    recursionTries 64 > ["recursion processing loop length too big" block compilerError] when
+    recursionTries 64 > ["recursion processing loop length too big" @processor block compilerError] when
 
     compilable [
       block.recursionState NodeRecursionStateNo > [block.state NodeStateCompiled = ~] &&
@@ -3967,7 +3998,7 @@ nodeHasCode: [
 
   processor.varCount codeNode.variableCountDelta - @codeNode.@variableCountDelta set
 
-  processorResult.findModuleFail [
+  processor.result.findModuleFail [
     moduleName: block.moduleName;
     moduleName.size 0 > [
       fr: moduleName @processor.@modules.find;

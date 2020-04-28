@@ -64,6 +64,7 @@ Capture: [{
   captureCase:       NameCaseInvalid;
   nameInfo:          -1 dynamic;
   nameOverloadDepth: -1 dynamic;
+  file:              ["File.FileSchema" use FileSchema] Mref;
 }];
 
 CFunctionSignature: [{
@@ -86,6 +87,7 @@ FieldCapture: [{
   captureCase:       NameCaseInvalid;
   nameInfo:          -1 dynamic;
   nameOverloadDepth: -1 dynamic;
+  file:              ["File.FileSchema" use FileSchema] Mref;
 }];
 
 makeInstruction: [{
@@ -98,13 +100,23 @@ makeInstruction: [{
 
 Instruction: [0 0 makeInstruction];
 
+UnfoundedName: [{
+  nameInfo: Int32;
+  file: ["File.FileSchema" use FileSchema] Mref;
+
+  equal: [other:; nameInfo other.nameInfo = [file other.file is] &&];
+  hash: [
+    address: file storageAddress; address 32n32 rshift address + Nat32 cast nameInfo Nat32 cast +
+  ];
+}];
+
 MatchingInfo: [{
   inputs: Argument Array;
   preInputs: RefToVar Array;
   captures: Capture Array;
   fieldCaptures: FieldCapture Array;
   hasStackUnderflow: FALSE dynamic;
-  unfoundedNames: Int32 Cond HashTable; #nameInfos
+  unfoundedNames: UnfoundedName Cond HashTable; #nameInfos
 }];
 
 NameWithOverload: [{

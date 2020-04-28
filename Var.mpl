@@ -1,15 +1,9 @@
+"control" use
+
 "Array.Array" use
 "String.String" use
 "Owner.Owner" use
 "Variant.Variant" use
-"control.Cond" use
-"control.Nat8" use
-"control.Int32" use
-"control.Int64" use
-"control.Nat64" use
-"control.Natx" use
-"control.Real64" use
-
 "Mref.Mref" use
 
 Dirty:   [0n8 dynamic];
@@ -110,7 +104,7 @@ RefToVar: [{
 Variable: [{
   VARIABLE: ();
 
-  host:                              [@BlockSchema] Mref;
+  host:                              ["Block.BlockSchema" use @BlockSchema] Mref;
   mplNameId:                         -1 dynamic;
   irNameId:                          -1 dynamic;
   mplSchemaId:                       -1 dynamic;

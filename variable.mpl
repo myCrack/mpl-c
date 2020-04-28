@@ -1,3 +1,5 @@
+"control" use
+
 "Array.Array" use
 "HashTable.hash" use
 "String.String" use
@@ -10,7 +12,6 @@
 "String.print" use
 "String.splitString" use
 "String.toString" use
-"control" use
 "conventions.cdecl" use
 
 "Block.Block" use
@@ -65,37 +66,37 @@ makeNameInfo: [{
 
 NameInfo: [String makeNameInfo];
 
-compilable: [processorResult.success copy];
+compilable: [processor.result.success copy];
 
-callBuiltin:           [block:; multiParserResult @block @processor @processorResult callBuiltinImpl];
-processFuncPtr:        [multiParserResult @block @processor @processorResult processFuncPtrImpl];
+callBuiltin:           [block:; multiParserResult @block @processor callBuiltinImpl];
+processFuncPtr:        [multiParserResult @block @processor processFuncPtrImpl];
 
 processPre: [
   preAstNodeIndex: file:;;
-  preAstNodeIndex file multiParserResult @block @processor @processorResult processPreImpl
+  preAstNodeIndex file multiParserResult @block @processor processPreImpl
 ];
 
 processCall: [
   callAstNodeIndex: file: name:;;;
-  callAstNodeIndex file name multiParserResult @block @processor @processorResult processCallImpl
+  callAstNodeIndex file name multiParserResult @block @processor processCallImpl
 ];
 
 processExportFunction: [
   signature: astNode: file: name: asLambda: block:;;;;;;
-  signature astNode file name asLambda multiParserResult @block @processor @processorResult processExportFunctionImpl
+  signature astNode file name asLambda multiParserResult @block @processor processExportFunctionImpl
 ];
 
-processImportFunction: [multiParserResult @block @processor @processorResult processImportFunctionImpl];
-compareEntriesRec:     [currentMatchingNode @nestedToCur @curToNested @comparingMessage multiParserResult block @processor @processorResult compareEntriesRecImpl];
-makeVariableType:      [block:; block @processor @processorResult makeVariableTypeImpl];
-compilerError:         [block:; makeStringView block @processor @processorResult compilerErrorImpl];
-generateDebugTypeId:   [block:; block @processor @processorResult generateDebugTypeIdImpl];
-generateIrTypeId:      [block:; block @processor @processorResult generateIrTypeIdImpl];
+processImportFunction: [multiParserResult @block @processor processImportFunctionImpl];
+compareEntriesRec:     [currentMatchingNode @nestedToCur @curToNested @comparingMessage multiParserResult block @processor compareEntriesRecImpl];
+makeVariableType:      [processor: block:;; block @processor makeVariableTypeImpl];
+compilerError:         [processor: block:;; makeStringView block @processor compilerErrorImpl];
+generateDebugTypeId:   [processor: block:;; block @processor generateDebugTypeIdImpl];
+generateIrTypeId:      [processor: block:;; block @processor generateIrTypeIdImpl];
 
 getMplType: [
-  block:;
+  processor: block: ;;
   result: String;
-  @result block @processor @processorResult getMplTypeImpl
+  @result block @processor getMplTypeImpl
   @result
 ];
 
@@ -106,7 +107,6 @@ getMplType: [
   file: File Cref;
   indexArray: IndexArray Cref;
   processor: Processor Ref;
-  processorResult: ProcessorResult Ref;
   nodeCase: NodeCaseCode;
   parentIndex: 0;
   functionName: StringView Cref;
@@ -117,12 +117,10 @@ getMplType: [
   compilerPositionInfo: CompilerPositionInfo Cref;
   multiParserResult: MultiParserResult Cref;
   processor: Processor Ref;
-  processorResult: ProcessorResult Ref;
   refToVar: RefToVar Cref;
 } () {convention: cdecl;} "createDtorForGlobalVar" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -133,7 +131,6 @@ getMplType: [
 } () {convention: cdecl;} "processCallByIndexArrayImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -141,7 +138,6 @@ getMplType: [
 } () {convention: cdecl;} "callBuiltinImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -149,7 +145,6 @@ getMplType: [
 } () {convention: cdecl;} "processFuncPtrImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -158,7 +153,6 @@ getMplType: [
 } Cond {convention: cdecl;} "processPreImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -168,7 +162,6 @@ getMplType: [
 } () {convention: cdecl;} "processCallImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -180,7 +173,6 @@ getMplType: [
 } Int32 {convention: cdecl;} "processExportFunctionImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -190,7 +182,6 @@ getMplType: [
 } Natx {convention: cdecl;} "processImportFunctionImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   multiParserResult: MultiParserResult Cref;
@@ -204,7 +195,6 @@ getMplType: [
 } Cond {convention: cdecl;} "compareEntriesRecImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   refToVar: RefToVar Cref;
@@ -212,7 +202,6 @@ getMplType: [
 
 {
   forMatching: Cond;
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -222,7 +211,6 @@ getMplType: [
 {
   dynamicStoraged: Cond;
 
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Ref;
   multiParserResult: MultiParserResult Cref;
@@ -234,28 +222,24 @@ getMplType: [
 } () {convention: cdecl;} "makeShadowsImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   message: StringView Cref;
 } () {convention: cdecl;} "compilerErrorImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   refToVar: RefToVar Cref;
 } Int32 {} "generateDebugTypeIdImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   refToVar: RefToVar Cref;
 } Int32 {} "generateIrTypeIdImpl" importFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   resultMPL: String Ref;
@@ -288,7 +272,7 @@ getDebugType: [
       "..." makeStringView @splitted.@chars.pushBack
     ] when
   ] [
-    ("Wrong dbgType name encoding" splitted.chars assembleString) assembleString block compilerError
+    ("Wrong dbgType name encoding" splitted.chars assembleString) assembleString @processor block compilerError
   ] if
 
   result: (dbgType hash ".") assembleString;
@@ -461,11 +445,11 @@ getSingleDataStorageSize: [
     VarReal64  [8nx]
     VarRef     [processor.options.pointerSize 8nx /]
     VarString  [
-      "strings dont have storageSize and alignment" block compilerError
+      "strings dont have storageSize and alignment" @processor block compilerError
       0nx
     ]
     VarImport  [
-      "functions dont have storageSize and alignment" block compilerError
+      "functions dont have storageSize and alignment" @processor block compilerError
       0nx
     ]
     [0nx]
@@ -574,7 +558,7 @@ getNonrecursiveDataIRType: [
         var.data.getTag VarCode = [var.data.getTag VarBuiltin =] ||  [
           "ERROR" toString @result set
         ] [
-          "Unknown nonrecursive struct" block compilerError
+          "Unknown nonrecursive struct" @processor block compilerError
         ] if
       ] if
     ] if
@@ -602,7 +586,7 @@ getNonrecursiveDataMPLType: [
           var.data.getTag VarImport = [
             ("F" VarImport var.data.get block getFuncMplType) assembleString @result set
           ] [
-            "Unknown nonrecursive struct" block compilerError
+            "Unknown nonrecursive struct" @processor block compilerError
           ] if
         ] if
       ] if
@@ -631,7 +615,7 @@ getNonrecursiveDataDBGType: [
           var.data.getTag VarImport = [
             ("F" VarImport var.data.get getFuncDbgType) assembleString @result set
           ] [
-            "Unknown nonrecursive struct" block compilerError
+            "Unknown nonrecursive struct" @processor block compilerError
           ] if
         ] if
       ] if
@@ -730,7 +714,7 @@ unglobalize: [
   var.global [
     FALSE @var.@global set
     -1 dynamic @var.@globalId set
-    @refToVar block makeVariableIRName
+    @refToVar @processor block makeVariableIRName
   ] when
 ];
 
@@ -896,7 +880,7 @@ getFuncMplType: [
     [
       i args.getSize < [
         current: i args.at;
-        current block getMplType @result.cat
+        current @processor block getMplType @result.cat
         i 1 + args.getSize < [
           "," @result.cat
         ] when
@@ -947,7 +931,7 @@ getFuncDbgType: [
 ];
 
 makeDbgTypeId: [
-  refToVar: block:;;
+  refToVar: block: ;;
   refToVar isVirtualType ~ [
     varSchema: refToVar getMplSchema;
     varSchema.dbgTypeDeclarationId -1 = [
@@ -1016,12 +1000,10 @@ getPlainConstantIR: [
 ];
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   refToVar: RefToVar Ref;
 } () {} [
-  processorResult:;
   processor:;
   block:;
   refToVar:;
@@ -1079,25 +1061,23 @@ getPlainConstantIR: [
     @refToVar block makeStructStorageSize
   ] when
 
-  var makeVariableSchema getVariableSchemaId @var.!mplSchemaId
+  @processor var makeVariableSchema getVariableSchemaId @var.!mplSchemaId
   varSchema: refToVar getMplSchema;
   varSchema.irTypeId -1 = [
-    refToVar block generateIrTypeId @varSchema.!irTypeId
+    refToVar @processor block generateIrTypeId @varSchema.!irTypeId
   ] when
 
   processor.options.debug [varSchema.dbgTypeId -1 =] && [
-    refToVar block generateDebugTypeId @varSchema.!dbgTypeId
+    refToVar @processor block generateDebugTypeId @varSchema.!dbgTypeId
     refToVar block makeDbgTypeId
   ] when
 ] "makeVariableTypeImpl" exportFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   refToVar: RefToVar Cref;
 } Int32 {} [
-  processorResult:;
   processor:;
   block:;
   refToVar:;
@@ -1135,12 +1115,10 @@ getPlainConstantIR: [
 ] "generateDebugTypeIdImpl" exportFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   refToVar: RefToVar Cref;
 } Int32 {} [
-  processorResult:;
   processor:;
   block:;
   refToVar:;
@@ -1195,13 +1173,11 @@ getPlainConstantIR: [
 ] "generateIrTypeIdImpl" exportFunction
 
 {
-  processorResult: ProcessorResult Ref;
   processor: Processor Ref;
   block: Block Cref;
   resultMPL: String Ref;
   refToVar: RefToVar Cref;
 } () {} [
-  processorResult:;
   processor:;
   block:;
   resultMPL:;
@@ -1216,7 +1192,7 @@ getPlainConstantIR: [
     var.data.getTag VarRef = [
       branch: VarRef var.data.get;
       pointee: branch getVar;
-      branch block getMplType @resultMPL.cat
+      branch @processor block getMplType @resultMPL.cat
       branch.mutable [
         "R" @resultMPL.cat
       ] [
@@ -1232,7 +1208,7 @@ getPlainConstantIR: [
             curField: i branch.fields.at;
             (
               curField.nameInfo processor.nameManager.getText ":"
-              curField.refToVar block getMplType ";") @resultMPL.catMany
+              curField.refToVar @processor block getMplType ";") @resultMPL.catMany
             i 1 + @i set TRUE
           ] &&
         ] loop
@@ -1279,7 +1255,7 @@ checkValue: [
     VarInt32 [value 0x7FFFFFFFi64 > [value 0x80000000i64 neg <] ||]
     VarIntX  [processor.options.pointerSize 32nx = [value 0x7FFFFFFFi64 > [value 0x80000000i64 neg <] ||] &&]
     [FALSE]
-  ) case ["number constant overflow" block compilerError] when
+  ) case ["number constant overflow" @processor block compilerError] when
   @value
 ];
 
@@ -1374,7 +1350,7 @@ getStaticStructIR: [
 
 # require captures "processor" and "codeNode"
 generateVariableIRNameWith: [
-  hostOfVariable: temporaryRegister: block:;;;
+  hostOfVariable: temporaryRegister: block: ;;;
   temporaryRegister ~ [block.parent 0 =] && [
     ("@global." processor.globalVarCount) assembleString makeStringId
     processor.globalVarCount 1 + @processor.@globalVarCount set
@@ -1388,7 +1364,7 @@ generateVariableIRName: [FALSE generateVariableIRNameWith];
 generateRegisterIRName: [block:; @block TRUE block generateVariableIRNameWith];
 
 makeVariableIRName: [
-  refToVar: block:;;
+  refToVar: processor: block: ;;;
   var: @refToVar getVar;
   @var.host refToVar isGlobal ~ block generateVariableIRNameWith @var.@irNameId set
 ];
@@ -1428,7 +1404,7 @@ findFieldWithOverloadDepth: [
       ] &&
     ] loop
   ] [
-    (refToVar block getMplType " is not combined") assembleString block compilerError
+    (refToVar @processor block getMplType " is not combined") assembleString @processor block compilerError
   ] if
 
   result

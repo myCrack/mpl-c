@@ -1,17 +1,12 @@
+"control" use
+
 "String.addLog" use
 "String.print" use
 "String.printList" use
 "String.toString" use
-"control.&&" use
-"control.assert" use
-"control.cond" use
-"control.exit" use
-"control.print" use
-"control.printf" use
-"control.when" use
 
-"Var.RefToVar" use
 "irWriter.createCopyToExists" use
+"Var.RefToVar" use
 
 failProcForProcessor: [
   failProc: [print " - fail while handling fail" print];
@@ -31,7 +26,7 @@ failProcForProcessor: [
   ] loop
 
   "\nWhile compiling:\n" print
-  block defaultPrintStackTrace
+  @processor block defaultPrintStackTrace
 
   2 exit
 ];
@@ -55,12 +50,12 @@ defaultCall: [
       [VarString =] [
         (
           [compilable]
-          [refToVar staticityOfVar Weak < ["name must be a static string" block compilerError] when]
+          [refToVar staticityOfVar Weak < ["name must be a static string" @processor block compilerError] when]
           [
             nameInfo: VarString var.data.get makeStringView findNameInfo;
             getNameResult: nameInfo @block getName;
-            nameInfo getNameResult checkFailedName
-            captureNameResult: @getNameResult 0 @block captureName;
+            block.position.file nameInfo getNameResult checkFailedName
+            captureNameResult: @getNameResult 0 dynamic @block block.position.file captureName;
             refToName: captureNameResult.refToVar copy;
           ]
           [
@@ -72,13 +67,14 @@ defaultCall: [
         TRUE dynamic RefToVar refToVar "call" makeStringView callCallableStruct # call struct with INVALID object
       ]
       [
-        "not callable" block compilerError
+        "not callable" @processor block compilerError
       ]
     ) cond
   ] when
 ];
 
 defaultSet: [
+
   block:;
   refToDst: @block pop;
   refToSrc: @block pop;
@@ -88,29 +84,29 @@ defaultSet: [
 
     refToDst refToSrc variablesAreSame [
       refToSrc getVar.data.getTag VarImport = [
-        "functions cannot be copied" block compilerError
+        "functions cannot be copied" @processor block compilerError
       ] [
         refToSrc getVar.data.getTag VarString = [
-          "builtin-strings cannot be copied" block compilerError
+          "builtin-strings cannot be copied" @processor block compilerError
         ] [
           refToDst.mutable [
             [refToDst staticityOfVar Weak = ~] "Destination is weak!" assert
             @refToSrc refToDst @block createCopyToExists
           ] [
-            "destination is immutable" block compilerError
+            "destination is immutable" @processor block compilerError
           ] if
         ] if
       ] if
     ] [
       refToDst.mutable ~ [
-        "destination is immutable" block compilerError
+        "destination is immutable" @processor block compilerError
       ] [
         lambdaCastResult: refToSrc @refToDst @block tryImplicitLambdaCast;
         lambdaCastResult.success [
           newSrc: @lambdaCastResult.@refToVar TRUE @block createRef;
           @newSrc refToDst @block createCopyToExists
         ] [
-          ("types mismatch, src is " refToSrc block getMplType "," LF "dst is " refToDst block getMplType) assembleString block compilerError
+          ("types mismatch, src is " refToSrc @processor block getMplType "," LF "dst is " refToDst @processor block getMplType) assembleString @processor block compilerError
         ] if
       ] if
     ] if
@@ -130,7 +126,7 @@ defaultMakeConstWith: [
   refToVar: @block pop;
   compilable [
     check [refToVar getVar.temporary copy] && [
-      "temporary objects cannot be set const" block compilerError
+      "temporary objects cannot be set const" @processor block compilerError
     ] [
       FALSE @refToVar.setMutable
       refToVar @block push
@@ -142,12 +138,12 @@ defaultUseOrIncludeModule: [
   asUse: block:;;
   (
     [compilable]
-    [block.parent 0 = ~ ["module can be used only in top block" block compilerError] when]
+    [block.parent 0 = ~ ["module can be used only in top block" @processor block compilerError] when]
     [refToName: @block pop;]
-    [refToName staticityOfVar Weak < ["name must be static string" block compilerError] when]
+    [refToName staticityOfVar Weak < ["name must be static string" @processor block compilerError] when]
     [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["name must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["name must be static string" @processor block compilerError] when
     ] [
       string: VarString varName.data.get;
       ("use or include module " string) addLog
@@ -156,20 +152,20 @@ defaultUseOrIncludeModule: [
       fr.success [fr.value 0 < ~] && [
         #insert variables here
       ] [
-        TRUE dynamic @processorResult.@findModuleFail set
-        string @processorResult.@errorInfo.@missedModule set
-        ("module not found: " string) assembleString block compilerError
+        TRUE dynamic @processor.@result.@findModuleFail set
+        string @processor.@result.@errorInfo.@missedModule set
+        ("module not found: " string) assembleString @processor block compilerError
       ] if
     ]
   ) sequence
 ];
 
 getStackEntryWith: [
-  depth: check: block:;; copy;
+  depth: check: block: ;; copy;
   result: RefToVar @block isConst [Cref] [Ref] uif; #ref to 0nx
   currentBlock: @block; [
     currentBlock.root [
-      check ["stack underflow" block compilerError] when
+      check ["stack underflow" @processor block compilerError] when
       FALSE
     ] [
       depth currentBlock.stack.dataSize < [
@@ -186,11 +182,11 @@ getStackEntryWith: [
   @result
 ];
 
-getStackEntry:          [depth: block:;; depth TRUE  @block getStackEntryWith];
-getStackEntryUnchecked: [depth: block:;; depth FALSE block  getStackEntryWith];
+getStackEntry:          [depth: processor: block:;; copy; depth TRUE  @block getStackEntryWith];
+getStackEntryUnchecked: [depth: processor: block:;; copy; depth FALSE block  getStackEntryWith];
 
 getStackDepth: [
-  block:;
+  processor: block:;;
   depth: 0 dynamic;
   inputsCount: 0 dynamic;
   [
@@ -208,21 +204,21 @@ getStackDepth: [
 ];
 
 defaultPrintStack: [
-  block:;
-  ("stack:" LF "depth=" block getStackDepth LF) printList
+  processor: block:;;
+  ("stack:" LF "depth=" @processor block getStackDepth LF) printList
 
   i: 0 dynamic;
   [
-    i block getStackDepth < [
-      entry: i block getStackEntryUnchecked;
-      (entry block getMplType entry.mutable ["R"] ["C"] if entry getVar.temporary ["T"] [""] if LF) printList
+    i @processor block getStackDepth < [
+      entry: i @processor block getStackEntryUnchecked;
+      (entry @processor block getMplType entry.mutable ["R"] ["C"] if entry getVar.temporary ["T"] [""] if LF) printList
       i 1 + @i set TRUE
     ] &&
   ] loop
 ];
 
 defaultPrintStackTrace: [
-  block:;
+  processor: block:;;
   currentBlock: block;
   [
     currentBlock.root [
@@ -240,7 +236,7 @@ defaultPrintStackTrace: [
     ] if
   ] loop
 
-  block defaultPrintStack
+  @processor block defaultPrintStack
 ];
 
 findNameInfo: [@processor.@nameManager.createName];

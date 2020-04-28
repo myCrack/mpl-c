@@ -100,6 +100,7 @@ WayInfo: [
 
 Processor: [{
   options: ProcessorOptions;
+  result: ProcessorResult;
 
   files: File Owner Array;
   #fileStack: File AsRef Array;

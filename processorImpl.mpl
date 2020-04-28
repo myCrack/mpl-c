@@ -2,7 +2,6 @@
 
 "String.String" use
 
-#"AstNodeType.MultiParserResult" use
 "builtins.initBuiltins" use
 "codeNode.addBlock" use
 "codeNode.addBlock" use
@@ -25,7 +24,6 @@
   nameManager:;
   multiParserResult:;
 
-  processorResult: ProcessorResult;
   processor: Processor;
 
   unitId @processor.@unitId set
@@ -50,7 +48,7 @@
   addBlock
   TRUE dynamic @processor.@blocks.last.get.@root set
 
-  @processorResult @processor initBuiltins
+  @processor initBuiltins
 
   s1: String;
   s2: String;
@@ -100,22 +98,22 @@
       1    @rootPositionInfo.!line
       1    @rootPositionInfo.!column
 
-      processorResult.globalErrorInfo.getSize @cachedGlobalErrorInfoSize set
-      topNodeIndex: StringView 0 NodeCaseCode @processorResult @processor fileNode file multiParserResult rootPositionInfo CFunctionSignature astNodeToCodeNode;
+      processor.result.globalErrorInfo.getSize @cachedGlobalErrorInfoSize set
+      topNodeIndex: StringView 0 NodeCaseCode @processor fileNode file multiParserResult rootPositionInfo CFunctionSignature astNodeToCodeNode;
 
-      processorResult.findModuleFail [
+      processor.result.findModuleFail [
         # cant compile this file now, add him to queue
-        ("postpone compilation of \"" file.name "\" because \"" processorResult.errorInfo.missedModule "\" is not compiled yet") addLog
-        fr: processorResult.errorInfo.missedModule makeStringView @dependedFiles.find;
+        ("postpone compilation of \"" file.name "\" because \"" processor.result.errorInfo.missedModule "\" is not compiled yet") addLog
+        fr: processor.result.errorInfo.missedModule makeStringView @dependedFiles.find;
         fr.success [
           n @fr.@value.pushBack
         ] [
           a: IndexArray;
           n @a.pushBack
-          @processorResult.@errorInfo.@missedModule @a move @dependedFiles.insert
+          @processor.result.@errorInfo.@missedModule @a move @dependedFiles.insert
         ] if
 
-        cachedGlobalErrorInfoSize @processorResult clearProcessorResult
+        cachedGlobalErrorInfoSize @processor.@result clearProcessorResult
       ] [
         moduleName: file.name;
         ("compiled file " moduleName) addLog
@@ -134,6 +132,7 @@
             [
               i fr.value.dataSize < [
                 numberOfDependent: fr.value.dataSize 1 - i - fr.value.at;
+                (numberOfDependent processor.files.at.get.name " is dependent from it, try to recompile") addLog
                 numberOfDependent @unfinishedFiles.pushBack
                 i 1 + @i set TRUE
               ] &&
@@ -160,24 +159,24 @@
         n: unfinishedFiles.last copy;
         @unfinishedFiles.popBack
         n runFile
-        processorResult.success copy
+        processor.result.success copy
       ] &&
     ] loop
 
-    processorResult.success ~ [
-      @processorResult.@errorInfo move @processorResult.@globalErrorInfo.pushBack
+    processor.result.success ~ [
+      @processor.@result.@errorInfo move @processor.@result.@globalErrorInfo.pushBack
     ] when
 
-    processorResult.globalErrorInfo.getSize 0 > [
-      FALSE @processorResult.@success set
+    processor.result.globalErrorInfo.getSize 0 > [
+      FALSE @processor.@result.@success set
     ] when
 
-    processorResult.success [
+    processor.result.success [
       processor.options.debug [
         lastFile correctUnitInfo
       ] when
 
-      0 @processorResult clearProcessorResult
+      0 @processor.@result clearProcessorResult
 
       dependedFiles.getSize 0 > [
         hasError: FALSE dynamic;
@@ -188,30 +187,30 @@
           pair.value.dataSize 0 > [
             fr: pair.key processor.modules.find;
             fr.success ~ [
-              ("missing module \"" @pair.@key "\" used in file: \"" pair.value.last processor.options.fileNames.at "\"" LF) assembleString @processorResult.@errorInfo.@message.cat
+              ("missing module \"" @pair.@key "\" used in file: \"" pair.value.last processor.options.fileNames.at "\"" LF) assembleString @processor.@result.@errorInfo.@message.cat
               TRUE @hasErrorMessage set
             ] when
             TRUE @hasError set
-            FALSE @processorResult.@success set
+            FALSE @processor.@result.@success set
           ] when
         ] each
 
         hasError [hasErrorMessage ~] && [
-          String @processorResult.@errorInfo.@message set
-          "problem with finding modules" @processorResult.@errorInfo.@message.cat
+          String @processor.@result.@errorInfo.@message set
+          "problem with finding modules" @processor.@result.@errorInfo.@message.cat
 
-          LF @processorResult.@errorInfo.@message.cat
+          LF @processor.@result.@errorInfo.@message.cat
           dependedFiles [
             # queue is empty, but has uncompiled files
             pair:;
             pair.value.dataSize 0 > [
-              ("need module: " @pair.@key "; used in file: " pair.value.last processor.options.fileNames.at LF) assembleString @processorResult.@errorInfo.@message.cat
+              ("need module: " @pair.@key "; used in file: " pair.value.last processor.options.fileNames.at LF) assembleString @processor.@result.@errorInfo.@message.cat
             ] when
           ] each
         ] when
 
-        processorResult.success ~ [
-          @processorResult.@errorInfo move @processorResult.@globalErrorInfo.pushBack
+        processor.result.success ~ [
+          @processor.@result.@errorInfo move @processor.@result.@globalErrorInfo.pushBack
         ] when
       ] when
     ] when
@@ -221,7 +220,7 @@
   ("all nodes generated" makeStringView) addLog
   [compilable ~ [processor.recursiveNodesStack.getSize 0 =] ||] "Recursive stack is not empty!" assert
 
-  processorResult.success [
+  processor.result.success [
     ("nameCount=" processor.nameManager.names.dataSize
       "; irNameCount=" processor.nameBuffer.dataSize) addLog
 
@@ -236,8 +235,8 @@
     i: 0 dynamic;
     [
       i processor.prolog.dataSize < [
-        i @processor.@prolog.at @processorResult.@program.cat
-        LF  @processorResult.@program.cat
+        i @processor.@prolog.at @processor.@result.@program.cat
+        LF  @processor.@result.@program.cat
         i 1 + @i set TRUE
       ] &&
     ] loop
@@ -247,44 +246,44 @@
       i processor.blocks.dataSize < [
         block: i @processor.@blocks.at.get;
         block nodeHasCode [
-          LF makeStringView @processorResult.@program.cat
+          LF makeStringView @processor.@result.@program.cat
 
-          block.header makeStringView @processorResult.@program.cat
+          block.header makeStringView @processor.@result.@program.cat
 
           block.nodeCase NodeCaseDeclaration = ~ [
-            " {" @processorResult.@program.cat
-            LF   @processorResult.@program.cat
+            " {" @processor.@result.@program.cat
+            LF   @processor.@result.@program.cat
 
             block.program [
               curInstruction:;
               curInstruction.enabled [
-                block.programTemplate.getStringView curInstruction.codeOffset curInstruction.codeSize view @processorResult.@program.cat
-                LF @processorResult.@program.cat
+                block.programTemplate.getStringView curInstruction.codeOffset curInstruction.codeSize view @processor.@result.@program.cat
+                LF @processor.@result.@program.cat
               ] [
               ] if
             ] each
-            "}" @processorResult.@program.cat
+            "}" @processor.@result.@program.cat
           ] when
-          LF @processorResult.@program.cat
+          LF @processor.@result.@program.cat
         ] when
         i 1 + @i set TRUE
       ] &&
     ] loop
 
-    LF @processorResult.@program.cat
+    LF @processor.@result.@program.cat
 
     processor.debugInfo.strings [
       s:;
       s.size 0 = ~ [
-        s @processorResult.@program.cat
-        LF @processorResult.@program.cat
+        s @processor.@result.@program.cat
+        LF @processor.@result.@program.cat
       ] when
     ] each
   ] when
 
-  processorResult.success ~ [
-    processorResult.globalErrorInfo.getSize [
-      current: i processorResult.globalErrorInfo @;
+  processor.result.success ~ [
+    processor.result.globalErrorInfo.getSize [
+      current: i processor.result.globalErrorInfo @;
       i 0 > [LF @result.cat] when
       current.position.getSize 0 = [
         ("error, "  current.message LF) [@result.cat] each
@@ -302,7 +301,7 @@
       ] if
     ] times
   ] [
-    @processorResult.@program move @program set
+    @processor.@result.@program move @program set
   ] if
 ] "process" exportFunction
 
@@ -311,14 +310,12 @@
   compilerPositionInfo: CompilerPositionInfo Cref;
   multiParserResult: MultiParserResult Cref;
   processor: Processor Ref;
-  processorResult: ProcessorResult Ref;
   refToVar: RefToVar Cref;
 } () {convention: cdecl;} [
   forcedSignature:;
   compilerPositionInfo:;
   multiParserResult:;
   processor:;
-  processorResult:;
   refToVar:;
 
   addBlock

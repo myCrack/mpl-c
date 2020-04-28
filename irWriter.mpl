@@ -1,10 +1,7 @@
+"control" use
+
 "String.String" use
 "String.toString" use
-"control.&&" use
-"control.Nat8" use
-"control.Natx" use
-"control.assert" use
-"control.isNil" use
 
 "Block.Instruction" use
 "Block.makeInstruction" use
@@ -175,7 +172,7 @@ createStaticGEP: [
 createFailWithMessage: [
   message: block:;;
   gnr: processor.failProcNameInfo @block getName;
-  cnr: @gnr 0 @block captureName;
+  cnr: @gnr 0 dynamic @block block.position.file captureName;
   failProcRefToVar: cnr.refToVar copy;
   message toString @block makeVarString @block push
 
@@ -295,7 +292,7 @@ createCheckedCopyToNewWith: [
           srcRef callInit
           @srcRef fullUntemporize
         ] [
-          "movable variable is not mutable" block compilerError
+          "movable variable is not mutable" @processor block compilerError
         ] if
       ] [
         prevMut: dstRef.mutable;
@@ -319,7 +316,7 @@ createCopyToNew: [
   newRefToVar: block:;;
   newRefToVar isVirtual [
     oldRefToVar:;
-    "unable to copy virtual autostruct" block compilerError
+    "unable to copy virtual autostruct" @processor block compilerError
   ] [
     @newRefToVar @block createAllocIR @block createCheckedCopyToNew
   ] if
@@ -361,7 +358,7 @@ createCopyToExists: [
       ] [
         processor.options.verboseIR ["set; call ASSIGN" @block createComment] when
         srcRef isVirtual [
-          "unable to copy virtual autostruct" block compilerError
+          "unable to copy virtual autostruct" @processor block compilerError
         ] [
           srcRef dstRef callAssign
         ] if

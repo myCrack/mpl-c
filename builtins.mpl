@@ -1,4 +1,5 @@
 "control" use
+"builtinImpl" use
 
 "String.print" use
 "String.toString" use
@@ -7,7 +8,6 @@
 "Block.Block" use
 "Block.NameCaseBuiltin" use
 "astNodeType.MultiParserResult" use
-"builtinImpl" use
 "defaultImpl.failProcForProcessor" use
 "processor.Processor" use
 "processor.ProcessorResult" use
@@ -121,7 +121,6 @@ addBuiltin: [
 
 initBuiltins: [
   processor:;
-  processorResult:;
   codeNode: 0 @processor.@blocks.at.get;
   block: @codeNode;
   failProc: @failProcForProcessor;
@@ -131,8 +130,7 @@ initBuiltins: [
   ] times
 ];
 
-{processorResult: ProcessorResult Ref; processor: Processor Ref; block: Block Ref; multiParserResult: MultiParserResult Cref; index: Int32;} () {convention: cdecl;} [
-  processorResult:;
+{processor: Processor Ref; block: Block Ref; multiParserResult: MultiParserResult Cref; index: Int32;} () {convention: cdecl;} [
   processor:;
   block:;
   multiParserResult:;
@@ -140,5 +138,5 @@ initBuiltins: [
   copy index:;
 
   builtinFunc: index builtins @ .@impl;
-  multiParserResult @block @processor @processorResult @builtinFunc call
+  multiParserResult @block @processor @builtinFunc call
 ] "callBuiltinImpl" exportFunction

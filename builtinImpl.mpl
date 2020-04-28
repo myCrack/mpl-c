@@ -1,19 +1,18 @@
 "control" use
 
+"astNodeType.MultiParserResult" use
 "Block.Block" use
-"codeNode.compilable" use
-"codeNode.compilerError" use
 "codeNode.pop" use
-"processor.ProcessorResult" use
 "processor.Processor" use
 "processSubNodes.processIf" use
+"variable.compilable" use
+"variable.compilerError" use
 
 declareBuiltin: [
   virtual declareBuiltinName:;
   virtual declareBuiltinBody:;
 
-  {processorResult: ProcessorResult Ref; processor: Processor Ref; block: Block Ref; multiParserResult: MultiParserResult Cref;} () {} [
-    processorResult:;
+  {processor: Processor Ref; block: Block Ref; multiParserResult: MultiParserResult Cref;} () {} [
     processor:;
     block:;
     multiParserResult:;
@@ -40,14 +39,14 @@ mplBuiltinProcessAtList: [
         [
           pointee: VarRef structVar.data.get;
           pointeeVar: pointee getVar;
-          pointeeVar.data.getTag VarStruct = ~ ["not a combined" block compilerError] when
+          pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
         ]
-        [indexVar.data.getTag VarInt32 = ~ ["index must be Int32" block compilerError] when ]
-        [refToIndex staticityOfVar Weak < [ "index must be static" block compilerError] when ]
+        [indexVar.data.getTag VarInt32 = ~ ["index must be Int32" @processor block compilerError] when ]
+        [refToIndex staticityOfVar Weak < [ "index must be static" @processor block compilerError] when ]
         [
           index: VarInt32 indexVar.data.get 0 cast;
           struct: VarStruct pointeeVar.data.get.get;
-          index 0 < [index struct.fields.getSize < ~] || ["index is out of bounds" block compilerError] when
+          index 0 < [index struct.fields.getSize < ~] || ["index is out of bounds" @processor block compilerError] when
         ] [
           field: index struct.fields.at.refToVar;
           field VarRef TRUE dynamic TRUE dynamic TRUE dynamic @block createVariableWithVirtual @result set
@@ -58,8 +57,8 @@ mplBuiltinProcessAtList: [
     ] [
       (
         [compilable]
-        [structVar.data.getTag VarStruct = ~ [ "not a combined" block compilerError] when]
-        [indexVar.data.getTag VarInt32 = ~ ["index must be Int32" block compilerError] when]
+        [structVar.data.getTag VarStruct = ~ [ "not a combined" @processor block compilerError] when]
+        [indexVar.data.getTag VarInt32 = ~ ["index must be Int32" @processor block compilerError] when]
         [
           struct: VarStruct structVar.data.get.get;
           refToIndex staticityOfVar Weak < [
@@ -70,7 +69,7 @@ mplBuiltinProcessAtList: [
                 realStructVar: structVar;
                 realStruct: struct;
                 refToStruct staticityOfVar Virtual < ~ [
-                  "can't get dynamic index in virtual struct" block compilerError
+                  "can't get dynamic index in virtual struct" @processor block compilerError
                 ] when
 
                 @refToIndex makeVarRealCaptured
@@ -86,7 +85,7 @@ mplBuiltinProcessAtList: [
                 refToStruct.mutable @fieldRef.setMutable
                 @fieldRef fullUntemporize
                 fieldRef staticityOfVar Virtual < ~ [
-                  "dynamic index in combined of virtuals" block compilerError
+                  "dynamic index in combined of virtuals" @processor block compilerError
                 ] [
                   fieldRef @block makeVarTreeDynamicStoraged
                   @fieldRef block unglobalize
@@ -100,10 +99,10 @@ mplBuiltinProcessAtList: [
                   refToStruct @block makeVarTreeDirty
                 ] when
               ] [
-                "struct is empty" block compilerError
+                "struct is empty" @processor block compilerError
               ] if
             ] [
-              "dynamic index in non-homogeneous combined" block compilerError
+              "dynamic index in non-homogeneous combined" @processor block compilerError
             ] if
           ] [
             index: VarInt32 indexVar.data.get 0 cast;
@@ -131,10 +130,10 @@ mplNumberBinaryOp: [
   compilable [
     var1: arg1 getVar;
     var2: arg2 getVar;
-    var1.data.getTag firstTag < [var1.data.getTag lastTag < ~] || ["first argument invalid" block compilerError] [
-      var2.data.getTag firstTag < [var2.data.getTag lastTag < ~] || ["second argument invalid" block compilerError] [
+    var1.data.getTag firstTag < [var1.data.getTag lastTag < ~] || ["first argument invalid" @processor block compilerError] [
+      var2.data.getTag firstTag < [var2.data.getTag lastTag < ~] || ["second argument invalid" @processor block compilerError] [
         arg1 arg2 variablesAreSame ~ [
-          ("arguments have different schemas, left is " arg1 block getMplType ", right is " arg2 block getMplType) assembleString block compilerError
+          ("arguments have different schemas, left is " arg1 @processor block getMplType ", right is " arg2 @processor block getMplType) assembleString @processor block compilerError
         ] when
       ] if
     ] if
@@ -185,7 +184,7 @@ mplNumberBuiltinOp: [
 
   compilable [
     var: arg getVar;
-    arg isReal ~ ["argument invalid" block compilerError] when
+    arg isReal ~ ["argument invalid" @processor block compilerError] when
 
     compilable [
       arg staticityOfVar Dynamic > [
@@ -242,7 +241,7 @@ mplNumberUnaryOp: [
 
   compilable [
     var: arg getVar;
-    var.data.getTag firstTag < [var.data.getTag lastTag < ~] || ["argument invalid" block compilerError] when
+    var.data.getTag firstTag < [var.data.getTag lastTag < ~] || ["argument invalid" @processor block compilerError] when
 
     compilable [
       arg staticityOfVar Dynamic > [
@@ -286,8 +285,8 @@ mplShiftBinaryOp: [
   compilable [
     var1: arg1 getVar;
     var2: arg2 getVar;
-    arg1 isAnyInt ~ ["first argument invalid" block compilerError] [
-      arg2 isNat ~ ["second argument invalid" block compilerError] when
+    arg1 isAnyInt ~ ["first argument invalid" @processor block compilerError] [
+      arg2 isNat ~ ["second argument invalid" @processor block compilerError] when
     ] if
 
     compilable [
@@ -302,7 +301,7 @@ mplShiftBinaryOp: [
             value1: tag1 var1.data.get copy;
             value2: tag2 var2.data.get copy;
             resultType: tag1 copy;
-            value2 63n64 > ["shift value must be less than 64" block compilerError] when
+            value2 63n64 > ["shift value must be less than 64" @processor block compilerError] when
 
             compilable [
               value1 value2 @opFunc call resultType cutValue resultType @block createVariable
@@ -339,12 +338,12 @@ parseFieldToSignatureCaptureArray: [
   refToStruct:;
   result: RefToVar Array;
   varStruct: refToStruct getVar;
-  varStruct.data.getTag VarStruct = ~ ["argument list must be a struct" block compilerError] when
+  varStruct.data.getTag VarStruct = ~ ["argument list must be a struct" @processor block compilerError] when
 
   compilable [
     VarStruct varStruct.data.get.get.fields [
       refToVar: .refToVar;
-      refToVar isVirtual ["input cannot be virtual" block compilerError] when
+      refToVar isVirtual ["input cannot be virtual" @processor block compilerError] when
       refToVar @result.pushBack
     ] each
   ] when
@@ -359,7 +358,7 @@ parseSignature: [
     [options: @block pop;]
     [
       optionsVar: options getVar;
-      optionsVar.data.getTag VarStruct = ~ ["options must be a struct" block compilerError] when
+      optionsVar.data.getTag VarStruct = ~ ["options must be a struct" @processor block compilerError] when
     ] [
       optionsStruct: VarStruct optionsVar.data.get.get;
       hasConvention: FALSE dynamic;
@@ -371,8 +370,8 @@ parseSignature: [
             variadicVar: variadicRefToVar getVar;
             (
               [compilable]
-              [variadicVar.data.getTag VarCond = ~ ["value must be Cond" block compilerError] when]
-              [variadicRefToVar staticityOfVar Weak < ["value must be Static" block compilerError] when]
+              [variadicVar.data.getTag VarCond = ~ ["value must be Cond" @processor block compilerError] when]
+              [variadicRefToVar staticityOfVar Weak < ["value must be Static" @processor block compilerError] when]
               [VarCond variadicVar.data.get @result.@variadic set]
             ) sequence
           ]
@@ -381,14 +380,14 @@ parseSignature: [
             conventionVarRef: conventionRefToVarRef getVar;
             (
               [compilable]
-              [conventionVarRef.data.getTag VarRef = ~ ["value must be String Ref" block compilerError] when]
-              [conventionRefToVarRef staticityOfVar Weak < ["value must be Static" block compilerError] when]
+              [conventionVarRef.data.getTag VarRef = ~ ["value must be String Ref" @processor block compilerError] when]
+              [conventionRefToVarRef staticityOfVar Weak < ["value must be Static" @processor block compilerError] when]
               [
                 conventionRefToVar: VarRef conventionVarRef.data.get;
                 conventionVar: conventionRefToVar getVar;
-                conventionVar.data.getTag VarString = ~ ["value must be String Ref" block compilerError] when
+                conventionVar.data.getTag VarString = ~ ["value must be String Ref" @processor block compilerError] when
               ]
-              [conventionRefToVar staticityOfVar Weak < ["value must be Static" block compilerError] when]
+              [conventionRefToVar staticityOfVar Weak < ["value must be Static" @processor block compilerError] when]
               [
                 string: VarString conventionVar.data.get;
                 string @result.@convention set
@@ -396,7 +395,7 @@ parseSignature: [
               ]
             ) sequence
           ] [
-            ("unknown option: " f.nameInfo processor.nameManager.getText) assembleString block compilerError
+            ("unknown option: " f.nameInfo processor.nameManager.getText) assembleString @processor block compilerError
           ]
         ) case
       ] each
@@ -410,7 +409,7 @@ parseSignature: [
       compilable [
         return isVirtual [
           returnVar: return getVar;
-          returnVar.data.getTag VarStruct = ~ [(return block getMplType " can not be a return type") assembleString block compilerError] when
+          returnVar.data.getTag VarStruct = ~ [(return @processor block getMplType " can not be a return type") assembleString @processor block compilerError] when
         ] [
           #todo: detect temporality
           returnVar: return getVar;
@@ -454,16 +453,16 @@ staticityOfBinResult: [
   (
     [compilable]
     [refToStr2: @block pop;]
-    [refToStr2 staticityOfVar Weak < ["must be static string" block compilerError] when]
+    [refToStr2 staticityOfVar Weak < ["must be static string" @processor block compilerError] when]
     [
       varStr2: refToStr2 getVar;
-      varStr2.data.getTag VarString = ~ ["must be static string" block compilerError] when
+      varStr2.data.getTag VarString = ~ ["must be static string" @processor block compilerError] when
     ]
     [refToStr1: @block pop;]
-    [refToStr1 staticityOfVar Weak < ["must be static string" block compilerError] when]
+    [refToStr1 staticityOfVar Weak < ["must be static string" @processor block compilerError] when]
     [
       varStr1: refToStr1 getVar;
-      varStr1.data.getTag VarString = ~ ["must be static string" block compilerError] when
+      varStr1.data.getTag VarString = ~ ["must be static string" @processor block compilerError] when
     ]
     [(VarString varStr1.data.get VarString varStr2.data.get) assembleString @block makeVarString @block push]
   ) sequence
@@ -484,7 +483,7 @@ staticityOfBinResult: [
 [
   VarNat8 VarReal64 1 + [a2:; a1:; a2 isReal ["fdiv" makeStringView][a2 isNat ["udiv" makeStringView] ["sdiv" makeStringView] if] if] [/] [copy] [
     y:; x:;
-    y y - y = ["division by zero" block compilerError] when
+    y y - y = ["division by zero" @processor block compilerError] when
   ] mplNumberBinaryOp
 ] "mplBuiltinDiv" @declareBuiltin ucall
 
@@ -507,10 +506,10 @@ staticityOfBinResult: [
     var1: arg1 getVar;
     var2: arg2 getVar;
 
-    arg1 comparable ~ [ "first argument is not comparable" block compilerError ] [
-      arg2 comparable ~ [ "second argument is not comparable" block compilerError ] [
+    arg1 comparable ~ [ "first argument is not comparable" @processor block compilerError ] [
+      arg2 comparable ~ [ "second argument is not comparable" @processor block compilerError ] [
         arg1 arg2 variablesAreSame ~ [
-          ("arguments have different schemas, left is " arg1 block getMplType ", right is " arg2 block getMplType) assembleString block compilerError
+          ("arguments have different schemas, left is " arg1 @processor block getMplType ", right is " arg2 @processor block getMplType) assembleString @processor block compilerError
         ] when
       ] if
     ] if
@@ -609,10 +608,10 @@ staticityOfBinResult: [
   compilable [
     var1: arg1 getVar;
     var2: arg2 getVar;
-    arg1 isReal ~ ["first argument invalid" block compilerError] [
-      arg2 isReal ~ ["second argument invalid" block compilerError] [
+    arg1 isReal ~ ["first argument invalid" @processor block compilerError] [
+      arg2 isReal ~ ["second argument invalid" @processor block compilerError] [
         arg1 arg2 variablesAreSame ~ [
-          ("arguments have different schemas, left is " arg1 block getMplType ", right is " arg2 block getMplType) assembleString block compilerError
+          ("arguments have different schemas, left is " arg1 @processor block getMplType ", right is " arg2 @processor block getMplType) assembleString @processor block compilerError
         ] when
       ] if
     ] if
@@ -690,7 +689,7 @@ staticityOfBinResult: [
       ] if
 
       schemaOfResult isVirtual [
-        "pointee is virtual, cannot cast" block compilerError
+        "pointee is virtual, cannot cast" @processor block compilerError
       ] [
         refToDst: schemaOfResult VarRef @block createVariable;
         Dirty @refToDst getVar.@staticity set
@@ -698,7 +697,7 @@ staticityOfBinResult: [
         @refToDst derefAndPush
       ] if
     ] [
-      "address must be a NatX" block compilerError
+      "address must be a NatX" @processor block compilerError
     ] if
   ] when
 ] "mplBuiltinAddressToReference" @declareBuiltin ucall
@@ -735,13 +734,13 @@ staticityOfBinResult: [
   compilable [
     @refToElement fullUntemporize
     varCount: refToCount getVar;
-    varCount.data.getTag VarInt32 = ~ ["count must be Int32" block compilerError] when
+    varCount.data.getTag VarInt32 = ~ ["count must be Int32" @processor block compilerError] when
     compilable [
-      refToCount staticityOfVar Dynamic > ~ ["count must be static" block compilerError] when
+      refToCount staticityOfVar Dynamic > ~ ["count must be static" @processor block compilerError] when
       compilable [
         count: VarInt32 varCount.data.get 0 cast;
         count 0 < [
-          "count must not be negative" block compilerError
+          "count must not be negative" @processor block compilerError
         ] when
 
         compilable [
@@ -770,7 +769,7 @@ staticityOfBinResult: [
             i resultStruct.fields.dataSize < [
               field: i @resultStruct.@fields.at;
               field.refToVar isVirtual [
-                field.refToVar isAutoStruct ["unable to copy virtual autostruct" block compilerError] when
+                field.refToVar isAutoStruct ["unable to copy virtual autostruct" @processor block compilerError] when
               ] [
                 @field.@refToVar block unglobalize
                 block.program.dataSize @field.@refToVar getVar.@allocationInstructionIndex set
@@ -800,11 +799,11 @@ staticityOfBinResult: [
     [compilable]
     [refToName: @block pop;]
     [
-      refToName staticityOfVar Weak < ["method name must be a static string" block compilerError] when
+      refToName staticityOfVar Weak < ["method name must be a static string" @processor block compilerError] when
     ]
     [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["method name must be a static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["method name must be a static string" @processor block compilerError] when
     ]
     [
       fieldNameInfo: VarString varName.data.get makeStringView findNameInfo;
@@ -906,7 +905,7 @@ staticityOfBinResult: [
         ] if
       ] when
     ] [
-      "can cast only numbers" block compilerError
+      "can cast only numbers" @processor block compilerError
     ] if
   ] when
 ] "mplBuiltinCast" @declareBuiltin ucall
@@ -927,7 +926,7 @@ staticityOfBinResult: [
     ]
     [
       gnr: newBlock.varNameInfo @block getName;
-      cnr: @gnr 0 @block captureName;
+      cnr: @gnr 0 dynamic @block block.position.file captureName;
       refToVar: cnr.refToVar copy;
 
       refToVar @block push
@@ -947,17 +946,17 @@ staticityOfBinResult: [
     refToVar isVirtual ~ [@refToVar makeVarRealCaptured] when
 
     refToVar getVar.temporary [
-      "temporary objects cannot be copied" block compilerError
+      "temporary objects cannot be copied" @processor block compilerError
     ] [
       refToVar getVar.data.getTag VarImport = [
-        "functions cannot be copied" block compilerError
+        "functions cannot be copied" @processor block compilerError
       ] [
         refToVar getVar.data.getTag VarString = [
-          "builtin-strings cannot be copied" block compilerError
+          "builtin-strings cannot be copied" @processor block compilerError
         ] [
           result: refToVar @block copyVarToNew;
           result isVirtual [
-            result isAutoStruct ["unable to copy virtual autostruct" block compilerError] when
+            result isAutoStruct ["unable to copy virtual autostruct" @processor block compilerError] when
           ] [
             TRUE @result.setMutable
             @refToVar @result @block createCopyToNew
@@ -981,11 +980,11 @@ staticityOfBinResult: [
     [compilable]
     [refToName: @block pop;]
     [
-      refToName staticityOfVar Weak < ["name must be static string" block compilerError] when
+      refToName staticityOfVar Weak < ["name must be static string" @processor block compilerError] when
     ]
     [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["name must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["name must be static string" @processor block compilerError] when
     ]
     [
       VarString varName.data.get makeStringView findNameInfo @block pop @block createNamedVariable
@@ -1004,17 +1003,17 @@ staticityOfBinResult: [
 [
   (
     [compilable]
-    [block.parent 0 = ~ ["export must be global" block compilerError] when]
+    [block.parent 0 = ~ ["export must be global" @processor block compilerError] when]
     [refToName: @block pop;]
-    [refToName staticityOfVar Weak < ["function name must be static string" block compilerError] when]
+    [refToName staticityOfVar Weak < ["function name must be static string" @processor block compilerError] when]
     [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["function name must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["function name must be static string" @processor block compilerError] when
     ]
     [refToBody: @block pop;]
     [
       varBody: refToBody getVar;
-      varBody.data.getTag VarCode = ~ ["must be a code" block compilerError] when
+      varBody.data.getTag VarCode = ~ ["must be a code" @processor block compilerError] when
     ]
     [signature: parseSignature;]
     [
@@ -1027,15 +1026,15 @@ staticityOfBinResult: [
 [
   (
     [compilable]
-    [block.parent 0 = ~ ["export must be global" block compilerError] when]
+    [block.parent 0 = ~ ["export must be global" @processor block compilerError] when]
     [refToName: @block pop;]
     [refToVar: @block pop;]
-    [refToName staticityOfVar Weak < ["variable name must be static string" block compilerError] when]
+    [refToName staticityOfVar Weak < ["variable name must be static string" @processor block compilerError] when]
     [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["variable name must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["variable name must be static string" @processor block compilerError] when
     ] [
-      refToVar isVirtual ["cannot export virtual var" block compilerError] when
+      refToVar isVirtual ["cannot export virtual var" @processor block compilerError] when
     ] [
       refToVar getVar.temporary ~ [
         @refToVar TRUE dynamic @block createRef @refToVar set
@@ -1084,12 +1083,12 @@ staticityOfBinResult: [
     refToVar isSchema [
       pointee: VarRef var.data.get;
       pointeeVar: pointee getVar;
-      pointeeVar.data.getTag VarStruct = ~ ["not a combined" block compilerError] when
+      pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
       compilable [
         VarStruct pointeeVar.data.get.get.fields.dataSize 0i64 cast VarInt32 @block createVariable Static @block makeStaticity @block createPlainIR @block push
       ] when
     ] [
-      var.data.getTag VarStruct = ~ ["not a combined" block compilerError] when
+      var.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
       compilable [
         VarStruct var.data.get.get.fields.dataSize 0i64 cast VarInt32 @block createVariable Static @block makeStaticity @block createPlainIR @block push
       ] when
@@ -1103,19 +1102,19 @@ staticityOfBinResult: [
     [refToName: @block pop;]
     [refToStruct: @block pop;]
     [
-      refToName staticityOfVar Weak < ["name must be static string" block compilerError] when
+      refToName staticityOfVar Weak < ["name must be static string" @processor block compilerError] when
     ]
     [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["name must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["name must be static string" @processor block compilerError] when
     ]
     [
-      refToStruct getVar.data.getTag VarStruct = ~ ["not a combined " block compilerError] when
+      refToStruct getVar.data.getTag VarStruct = ~ ["not a combined " @processor block compilerError] when
     ] [
       string: VarString varName.data.get;
       fr: string makeStringView findNameInfo refToStruct findField;
     ] [
-      fr.success ~ [(refToStruct block getMplType " has no field " string) assembleString block compilerError] when
+      fr.success ~ [(refToStruct @processor block getMplType " has no field " string) assembleString @processor block compilerError] when
     ] [
       fr.index Int64 cast VarInt32 @block createVariable Static @block makeStaticity @block createPlainIR @block push
     ]
@@ -1127,24 +1126,24 @@ staticityOfBinResult: [
   refToVar: @block pop;
   compilable [
     varCount: refToCount getVar;
-    varCount.data.getTag VarInt32 = ~ ["index must be Int32" block compilerError] when
+    varCount.data.getTag VarInt32 = ~ ["index must be Int32" @processor block compilerError] when
     compilable [
-      refToCount staticityOfVar Dynamic > ~ ["index must be static" block compilerError] when
+      refToCount staticityOfVar Dynamic > ~ ["index must be static" @processor block compilerError] when
       compilable [
         count: VarInt32 varCount.data.get 0 cast;
         var: refToVar getVar;
         refToVar isSchema [
           pointee: VarRef var.data.get;
           pointeeVar: pointee getVar;
-          pointeeVar.data.getTag VarStruct = ~ ["not a combined" block compilerError] when
+          pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
           compilable [
             count VarStruct pointeeVar.data.get.get.fields.at.nameInfo processor.nameManager.getText @block makeVarString @block push
           ] when
         ] [
-          var.data.getTag VarStruct = ~ ["not a combined" block compilerError] when
+          var.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
           compilable [
             struct: VarStruct var.data.get.get;
-            count 0 < [count struct.fields.getSize < ~] || ["index is out of bounds" block compilerError] when
+            count 0 < [count struct.fields.getSize < ~] || ["index is out of bounds" @processor block compilerError] when
             compilable [
               count struct.fields.at.nameInfo processor.nameManager.getText @block makeVarString @block push
             ] when
@@ -1221,11 +1220,11 @@ staticityOfBinResult: [
     [refToName: @block pop;]
     [refToStruct: @block pop;]
     [
-      refToName staticityOfVar Weak < ["name must be static string" block compilerError] when
+      refToName staticityOfVar Weak < ["name must be static string" @processor block compilerError] when
     ]
     [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["name must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["name must be static string" @processor block compilerError] when
     ]
     [
       refToStruct getVar.data.getTag VarStruct = [
@@ -1251,9 +1250,9 @@ staticityOfBinResult: [
     varThen: then getVar;
     varCond: condition getVar;
 
-    varElse.data.getTag VarCode = ~ ["branch else must be a [CODE]" block compilerError] when
-    varThen.data.getTag VarCode = ~ ["branch then must be a [CODE]" block compilerError] when
-    varCond.data.getTag VarCond = ~ [("condition has a wrong type " condition block getMplType) assembleString block compilerError] when
+    varElse.data.getTag VarCode = ~ ["branch else must be a [CODE]" @processor block compilerError] when
+    varThen.data.getTag VarCode = ~ ["branch then must be a [CODE]" @processor block compilerError] when
+    varCond.data.getTag VarCond = ~ [("condition has a wrong type " condition @processor block getMplType) assembleString @processor block compilerError] when
 
     compilable [
       condition staticityOfVar Weak > [
@@ -1278,12 +1277,12 @@ staticityOfBinResult: [
 [
   (
     [compilable]
-    [block.parent 0 = ~ ["import must be global" block compilerError] when]
+    [block.parent 0 = ~ ["import must be global" @processor block compilerError] when]
     [refToName: @block pop;]
-    [refToName staticityOfVar Weak < ["function name must be static string" block compilerError] when]
+    [refToName staticityOfVar Weak < ["function name must be static string" @processor block compilerError] when]
     [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["function name must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["function name must be static string" @processor block compilerError] when
     ]
     [signature: parseSignature;]
     [newBlock: signature VarString varName.data.get makeStringView FALSE dynamic processImportFunction Block addressToReference;]
@@ -1291,19 +1290,19 @@ staticityOfBinResult: [
 ] "mplBuiltinImportFunction" @declareBuiltin ucall
 
 [
-  block.parent 0 = ~ ["import must be global" block compilerError] when
+  block.parent 0 = ~ ["import must be global" @processor block compilerError] when
   compilable [
     refToName: @block pop;
     refToType: @block pop;
     compilable [
-      refToName staticityOfVar Weak < ["variable name must be static string" block compilerError] when
+      refToName staticityOfVar Weak < ["variable name must be static string" @processor block compilerError] when
       compilable [
         varName: refToName getVar;
-        varName.data.getTag VarString = ~ ["variable name must be static string" block compilerError] when
+        varName.data.getTag VarString = ~ ["variable name must be static string" @processor block compilerError] when
         compilable [
           varType: refToType getVar;
           refToType isVirtual [
-            "variable cant be virtual" block compilerError
+            "variable cant be virtual" @processor block compilerError
           ] [
             varType.temporary ~ [
               @refToType TRUE dynamic @block createRef @refToType set
@@ -1365,7 +1364,7 @@ staticityOfBinResult: [
         cmpResult 1 = VarCond @block createVariable Static @block makeStaticity @block createPlainIR @block push
       ] if
     ] [
-      ("different arguments, left: " refToVar1 block getMplType ", right: " refToVar2 block getMplType) assembleString block compilerError
+      ("different arguments, left: " refToVar1 @processor block getMplType ", right: " refToVar2 @processor block getMplType) assembleString @processor block compilerError
     ] if
   ] when
 ] "mplBuiltinIs" @declareBuiltin ucall
@@ -1412,7 +1411,7 @@ staticityOfBinResult: [
     [compilable]
     [
       varBody: body getVar;
-      varBody.data.getTag VarCode = ~ ["body must be [CODE]" block compilerError] when
+      varBody.data.getTag VarCode = ~ ["body must be [CODE]" @processor block compilerError] when
     ] [
       astNode: VarCode varBody.data.get.index @multiParserResult.@memory.at;
       astNode VarCode varBody.data.get.file processLoop
@@ -1441,7 +1440,7 @@ staticityOfBinResult: [
 [
   VarNat8 VarIntX 1 + [a2:; a1:; a2 isNat ["urem" makeStringView] ["srem" makeStringView] if] [mod] [copy] [
     y:; x:;
-    y y - y = ["division by zero" block compilerError] when
+    y y - y = ["division by zero" @processor block compilerError] when
   ] mplNumberBinaryOp
 ] "mplBuiltinMod" @declareBuiltin ucall
 
@@ -1460,7 +1459,7 @@ staticityOfBinResult: [
         refToVar @block push
       ] if
     ] [
-      "moved can be only mutable variables" block compilerError
+      "moved can be only mutable variables" @processor block compilerError
     ] if
   ] when
 ] "mplBuiltinMove" @declareBuiltin ucall
@@ -1469,7 +1468,7 @@ staticityOfBinResult: [
   refToCond: @block pop;
   compilable [
     condVar: refToCond getVar;
-    condVar.data.getTag VarCond = ~ [refToCond staticityOfVar Dynamic > ~] || ["not a static Cond" block compilerError] when
+    condVar.data.getTag VarCond = ~ [refToCond staticityOfVar Dynamic > ~] || ["not a static Cond" @processor block compilerError] when
     compilable [
       refToVar: @block pop;
       compilable [
@@ -1486,7 +1485,7 @@ staticityOfBinResult: [
               refToVar @block push
             ] if
           ] [
-            "moved can be only mutable variables" block compilerError
+            "moved can be only mutable variables" @processor block compilerError
           ] if
         ] [
           refToVar @block push
@@ -1524,10 +1523,10 @@ staticityOfBinResult: [
 [
   refToName: @block pop;
   compilable [
-    refToName staticityOfVar Weak < ["name must be static string" block compilerError] when
+    refToName staticityOfVar Weak < ["name must be static string" @processor block compilerError] when
     compilable [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["name must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["name must be static string" @processor block compilerError] when
       compilable [
         VarString varName.data.get print LF print
       ] when
@@ -1536,11 +1535,11 @@ staticityOfBinResult: [
 ] "mplBuiltinPrintCompilerMessage" @declareBuiltin ucall
 
 [
-  block defaultPrintStack
+  @processor block defaultPrintStack
 ] "mplBuiltinPrintStack" @declareBuiltin ucall
 
 [
-  block defaultPrintStackTrace
+  @processor block defaultPrintStackTrace
 ] "mplBuiltinPrintStackTrace" @declareBuiltin ucall
 
 [
@@ -1552,12 +1551,12 @@ staticityOfBinResult: [
 [
   refToName: @block pop;
   compilable [
-    refToName staticityOfVar Weak < ["name must be static string" block compilerError] when
+    refToName staticityOfVar Weak < ["name must be static string" @processor block compilerError] when
     compilable [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["name must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["name must be static string" @processor block compilerError] when
       compilable [
-        VarString varName.data.get block compilerError
+        VarString varName.data.get @processor block compilerError
       ] when
     ] when
   ] when
@@ -1580,7 +1579,7 @@ staticityOfBinResult: [
 ] "mplBuiltinSame" @declareBuiltin ucall
 
 [
-  block.nextLabelIsSchema ["duplicate schema specifier" block compilerError] when
+  block.nextLabelIsSchema ["duplicate schema specifier" @processor block compilerError] when
   TRUE @block.@nextLabelIsSchema set
 ] "mplBuiltinSchema" @declareBuiltin ucall
 
@@ -1610,7 +1609,7 @@ staticityOfBinResult: [
   (
     [compilable]
     [refToVar: @block pop;]
-    [refToVar isVirtual ["variable is virtual, cannot get address" block compilerError] when]
+    [refToVar isVirtual ["variable is virtual, cannot get address" @processor block compilerError] when]
     [
       TRUE @refToVar getVar.@capturedAsMutable set #we need ref
       @refToVar makeVarRealCaptured
@@ -1652,7 +1651,7 @@ staticityOfBinResult: [
     [compilable]
     [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["argument must be string" block compilerError] when
+      varName.data.getTag VarString = ~ ["argument must be string" @processor block compilerError] when
     ]
     [
       refToName staticityOfVar Weak < [
@@ -1670,10 +1669,10 @@ staticityOfBinResult: [
 [
   refToName: @block pop;
   compilable [
-    refToName staticityOfVar Weak < ["name must be static string" block compilerError] when
+    refToName staticityOfVar Weak < ["name must be static string" @processor block compilerError] when
     compilable [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["name must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["name must be static string" @processor block compilerError] when
       compilable [
         string: VarString varName.data.get;
         struct: Struct;
@@ -1716,7 +1715,7 @@ staticityOfBinResult: [
 
             result @block push
           ] [
-            "wrong encoding in ctring" block compilerError
+            "wrong encoding in ctring" @processor block compilerError
           ] if
         ] when
       ] when
@@ -1730,14 +1729,14 @@ staticityOfBinResult: [
   compilable [
     varCode: code getVar;
 
-    varCode.data.getTag VarCode = ~ ["branch else must be a [CODE]" block compilerError] when
+    varCode.data.getTag VarCode = ~ ["branch else must be a [CODE]" @processor block compilerError] when
 
     compilable [
       codeIndex: VarCode varCode.data.get.index copy;
       astNode: codeIndex @multiParserResult.@memory.at;
       [astNode.data.getTag AstNodeType.Code =] "Not a code!" assert
       block.countOfUCall 1 + @block.@countOfUCall set
-      block.countOfUCall 65535 > ["ucall limit exceeded" block compilerError] when
+      block.countOfUCall 65535 > ["ucall limit exceeded" @processor block compilerError] when
       indexArray: AstNodeType.Code astNode.data.get;
       indexArray VarCode varCode.data.get.file addIndexArrayToProcess
     ] when
@@ -1754,9 +1753,9 @@ staticityOfBinResult: [
     varThen: then getVar;
     varCond: condition getVar;
 
-    varElse.data.getTag VarCode = ~ ["branch else must be a [CODE]" block compilerError] when
-    varThen.data.getTag VarCode = ~ ["branch then must be a [CODE]" block compilerError] when
-    varCond.data.getTag VarCond = ~ ["condition has a wrong type" block compilerError] when
+    varElse.data.getTag VarCode = ~ ["branch else must be a [CODE]" @processor block compilerError] when
+    varThen.data.getTag VarCode = ~ ["branch then must be a [CODE]" @processor block compilerError] when
+    varCond.data.getTag VarCond = ~ ["condition has a wrong type" @processor block compilerError] when
 
     compilable [
       condition staticityOfVar Weak > [
@@ -1765,11 +1764,11 @@ staticityOfBinResult: [
         astNode: code.index @multiParserResult.@memory.at;
         [astNode.data.getTag AstNodeType.Code =] "Not a code!" assert
         block.countOfUCall 1 + @block.@countOfUCall set
-        block.countOfUCall 65535 > ["ucall limit exceeded" block compilerError] when
+        block.countOfUCall 65535 > ["ucall limit exceeded" @processor block compilerError] when
         indexArray: AstNodeType.Code astNode.data.get;
         indexArray code.file addIndexArrayToProcess
       ] [
-        "condition must be static" block compilerError
+        "condition must be static" @processor block compilerError
       ] if
     ] when
   ] when
@@ -1779,14 +1778,14 @@ staticityOfBinResult: [
   (
     [compilable]
     [refToName: @block pop;]
-    [refToName staticityOfVar Weak < ["path must be static string" block compilerError] when]
+    [refToName staticityOfVar Weak < ["path must be static string" @processor block compilerError] when]
     [
       varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["path must be static string" block compilerError] when
+      varName.data.getTag VarString = ~ ["path must be static string" @processor block compilerError] when
     ] [
       string: VarString varName.data.get;
       filename: string stripExtension;
-      filename "" = ["invalid filename" block compilerError] when
+      filename "" = ["invalid filename" @processor block compilerError] when
     ] [
       name: string extractExtension;
       fr: filename processor.modules.find;
@@ -1807,11 +1806,11 @@ staticityOfBinResult: [
           ] when
         ] each
 
-        labelCount 0 = [("no names match \"" name "\"") assembleString block compilerError] when
+        labelCount 0 = [("no names match \"" name "\"") assembleString @processor block compilerError] when
       ] [
-        TRUE dynamic @processorResult.@findModuleFail set
-        filename toString @processorResult.@errorInfo.@missedModule set
-        ("module not found: " filename) assembleString block compilerError
+        TRUE dynamic @processor.@result.@findModuleFail set
+        filename toString @processor.@result.@errorInfo.@missedModule set
+        ("module not found: " filename) assembleString @processor block compilerError
       ] if
     ]
   ) sequence
@@ -1820,12 +1819,12 @@ staticityOfBinResult: [
 [TRUE dynamic @block defaultUseOrIncludeModule] "mplBuiltinUseModule" @declareBuiltin ucall
 
 [
-  block.nextLabelIsVirtual ["duplicate virtual specifier" block compilerError] when
+  block.nextLabelIsVirtual ["duplicate virtual specifier" @processor block compilerError] when
   TRUE @block.@nextLabelIsVirtual set
 ] "mplBuiltinVirtual" @declareBuiltin ucall
 
 [
-  block.nextLabelIsOverload ["duplicate overload specifier" block compilerError] when
+  block.nextLabelIsOverload ["duplicate overload specifier" @processor block compilerError] when
   TRUE @block.@nextLabelIsOverload set
 ] "mplBuiltinOverload" @declareBuiltin ucall
 

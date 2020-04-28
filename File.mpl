@@ -1,14 +1,13 @@
-"String.String" use
-"control.Int32" use
+"control" use
 
-"Block.BlockSchema" use
+"String.String" use
 "Mref.Mref" use
 
 File: [{
   name: String;
   text: String;
   debugId: Int32;
-  rootBlock: [BlockSchema] Mref;
+  rootBlock: ["Block.BlockSchema" use BlockSchema] Mref;
 }];
 
 schema FileSchema: File;

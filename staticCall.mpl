@@ -1,4 +1,4 @@
-"control.assert" use
+"control" use
 
 staticCall: [
   staticCallBody:;

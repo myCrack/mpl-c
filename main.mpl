@@ -341,7 +341,7 @@ processIntegerOption: [
               loadStringResult: filename loadString;
               loadStringResult.success [
                 ("Loaded string from " filename) addLog
-                ("HASH=" loadStringResult.data) addLog
+                ("HASH=" loadStringResult.data hash) addLog
                 filename loadStringResult.data addToProcess
               ] [
                 "Unable to load string:" print filename print LF print

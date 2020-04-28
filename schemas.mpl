@@ -1,15 +1,35 @@
+"control" use
+
 "Array.Array" use
 "String.hash" use
+"String.String" use
 "Variant.Variant" use
-"control.Cond" use
-"control.Int32" use
-"control.Nat32" use
-"control.bind" use
-"control.enum" use
-"control.pfunc" use
+
+"Var.VarInvalid" use
+"Var.VarCond"    use
+"Var.VarNat8"    use
+"Var.VarNat16"   use
+"Var.VarNat32"   use
+"Var.VarNat64"   use
+"Var.VarNatX"    use
+"Var.VarInt8"    use
+"Var.VarInt16"   use
+"Var.VarInt32"   use
+"Var.VarInt64"   use
+"Var.VarIntX"    use
+"Var.VarReal32"  use
+"Var.VarReal64"  use
+"Var.VarCode"    use
+"Var.VarBuiltin" use
+"Var.VarImport"  use
+"Var.VarString"  use
+"Var.VarRef"     use
+"Var.VarStruct"  use
+"Var.VarEnd"     use
 
 makeVariableSchema: [
-  var:;
+  processor: var:;;
+
   varSchema: VariableSchema;
   var.data.getTag (
     VarImport [
