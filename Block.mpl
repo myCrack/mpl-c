@@ -1,8 +1,8 @@
+"control" use
+
 "Array.Array" use
 "HashTable.HashTable" use
 "String.String" use
-"control.Cond" use
-"control.Int32" use
 
 "Mref.Mref" use
 "Var.RefToVar" use

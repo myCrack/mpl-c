@@ -2,11 +2,42 @@
 
 "Array.Array" use
 "String.assembleString" use
+"String.makeStringView" use
 "String.toString" use
+"String.String" use
 
 "irWriter.appendInstruction" use
-"irWriter.getStringImplementation" use
+"irWriter.getIrName" use
+"irWriter.getIrType" use
+"irWriter.getMplSchema" use
 "pathUtils.simplifyPath" use
+"Var.getStorageSize" use
+"Var.getStringImplementation" use
+"Var.getVar" use
+"Var.isVirtual" use
+"Var.isVirtualType" use
+"Var.isPlain" use
+"Var.VarBuiltin" use
+"Var.VarCode" use
+"Var.VarEnd" use
+"Var.VarImport" use
+"Var.VarCond" use
+"Var.VarInt16" use
+"Var.VarInt32" use
+"Var.VarInt64" use
+"Var.VarInt8" use
+"Var.VarIntX" use
+"Var.VarNat16" use
+"Var.VarNat32" use
+"Var.VarNat64" use
+"Var.VarNat8" use
+"Var.VarNatX" use
+"Var.VarInvalid" use
+"Var.VarReal32" use
+"Var.VarReal64" use
+"Var.VarRef" use
+"Var.VarString" use
+"Var.VarStruct" use
 
 addDebugProlog: [
   "declare void @llvm.dbg.declare(metadata, metadata, metadata)" toString @processor.@debugInfo.@strings.pushBack
@@ -79,7 +110,8 @@ addLinkerOptionsDebugInfo: [
 ];
 
 getPlainTypeDebugDeclaration: [
-  var: getVar;
+  refToVar: processor: ;;
+  var: refToVar getVar;
   var.data.getTag VarCond = [processor.debugInfo.unit 2 +] [
     var.data.getTag VarInt8 = [processor.debugInfo.unit 3 +] [
       var.data.getTag VarInt16 = [processor.debugInfo.unit 4 +] [
@@ -116,19 +148,19 @@ getPointerTypeDebugDeclaration: [
   refToVar:;
   compileOnce
   var: refToVar getVar;
-  debugDeclarationIndex: refToVar getMplSchema.dbgTypeDeclarationId copy;
+  debugDeclarationIndex: refToVar @processor getMplSchema.dbgTypeDeclarationId copy;
   [debugDeclarationIndex -1 = ~] "Pointee has no type debug info!" assert
   "DW_TAG_pointer_type" makeStringView debugDeclarationIndex processor.options.pointerSize 0ix cast 0 cast addDerivedTypeInfo
 ];
 
 addMemberInfo: [
-  offset: field: fieldNumber: block:;;;;
+  offset: field: fieldNumber: processor: block: ;;;;;
 
-  debugDeclarationIndex: field.refToVar getMplSchema.dbgTypeDeclarationId copy;
+  debugDeclarationIndex: field.refToVar @processor getMplSchema.dbgTypeDeclarationId copy;
   [debugDeclarationIndex -1 = ~] "Field has not debug info about type!" assert
 
-  fsize: field.refToVar block getStorageSize 0ix cast 0 cast;
-  falignment: field.refToVar block getAlignment 0ix cast 0 cast;
+  fsize: field.refToVar @processor block getStorageSize 0ix cast 0 cast;
+  falignment: field.refToVar @processor block getAlignment 0ix cast 0 cast;
   offset falignment + 1 - 0n32 cast falignment 1 - 0n32 cast ~ and 0 cast @offset set
 
   index: processor.debugInfo.lastId copy;
@@ -154,14 +186,14 @@ addMemberInfo: [
 ];
 
 getTypeDebugDeclaration: [
-  refToVar: block:;;
+  refToVar: processor: block: ;;;
   var: refToVar getVar;
   refToVar isVirtualType [
     [FALSE] "virtual type has not debug declaration" assert
     -1
   ] [
     refToVar isPlain [var.data.getTag VarString =] || [
-      refToVar getPlainTypeDebugDeclaration
+      refToVar processor getPlainTypeDebugDeclaration
     ] [
       var.data.getTag VarRef = [
         pointee: VarRef var.data.get;
@@ -179,7 +211,7 @@ getTypeDebugDeclaration: [
               f struct.fields.dataSize < [
                 field: f struct.fields.at;
                 field.refToVar isVirtual ~ [
-                  memberInfo: @offset field f block addMemberInfo;
+                  memberInfo: @offset field f @processor block addMemberInfo;
                   memberInfo @members.pushBack
                 ] when
                 f 1 + @f set TRUE
@@ -208,7 +240,7 @@ getTypeDebugDeclaration: [
             processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
 
             ("!" index " = distinct !DICompositeType(tag: DW_TAG_structure_type, file: !" block.position.file.debugId
-              ", name: \"" refToVar block getDebugType "\", line: " block.position.line ", size: " refToVar block getStorageSize 0ix cast 0 cast 8 * ", elements: !" index 1 -
+              ", name: \"" refToVar @processor block getDebugType "\", line: " block.position.line ", size: " refToVar @processor block getStorageSize 0ix cast 0 cast 8 * ", elements: !" index 1 -
               ")") assembleString @processor.@debugInfo.@strings.pushBack
             index block.funcDbgIndex @processor.@debugInfo.@locationIds.insert
             index
@@ -223,9 +255,9 @@ getTypeDebugDeclaration: [
 ];
 
 addVariableDebugInfo: [
-  nameInfo: refToVar: block:;;;
+  nameInfo: refToVar: processor: block: ;;;;
   refToVar isVirtualType ~ [
-    debugDeclarationIndex: refToVar getMplSchema.dbgTypeDeclarationId copy;
+    debugDeclarationIndex: refToVar @processor getMplSchema.dbgTypeDeclarationId copy;
     [debugDeclarationIndex -1 = ~] "There is no debug declaration for this type!" assert
     index: processor.debugInfo.lastId copy;
     processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
@@ -241,9 +273,9 @@ addVariableDebugInfo: [
 ];
 
 addGlobalVariableDebugInfo: [
-  nameInfo: refToVar: block:;;;
+  nameInfo: refToVar: processor: block:;;;;
   refToVar isVirtualType ~ [
-    debugDeclarationIndex: refToVar getMplSchema.dbgTypeDeclarationId copy;
+    debugDeclarationIndex: refToVar @processor getMplSchema.dbgTypeDeclarationId copy;
     [debugDeclarationIndex -1 = ~] "There is no debug declaration for this type!" assert
 
     index: processor.debugInfo.lastId copy;
@@ -252,7 +284,7 @@ addGlobalVariableDebugInfo: [
 
     index: processor.debugInfo.lastId copy;
     processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
-    ("!" index " = !DIGlobalVariable(name: \"" nameInfo processor.nameManager.getText "\", linkageName: \"" refToVar getIrName
+    ("!" index " = !DIGlobalVariable(name: \"" nameInfo processor.nameManager.getText "\", linkageName: \"" refToVar @processor getIrName
       "\", scope: !" processor.debugInfo.unit ", file: !" block.position.file.debugId
       ", line: " block.position.line ", type: !" debugDeclarationIndex ", isLocal: false, isDefinition: true)") assembleString @processor.@debugInfo.@strings.pushBack
 
@@ -265,10 +297,10 @@ addGlobalVariableDebugInfo: [
 ];
 
 addVariableMetadata: [
-  nameInfo: refToVar: block:;;;
+  nameInfo: refToVar: processor: block: ;;;;
   refToVar isVirtualType ~ [
-    localVariableDebugIndex: nameInfo refToVar block addVariableDebugInfo;
-    ("  call void @llvm.dbg.declare(metadata " refToVar getIrType "* " refToVar getIrName ", metadata !" localVariableDebugIndex ", metadata !" processor.debugInfo.unit 1 + ")") @block appendInstruction
+    localVariableDebugIndex: nameInfo refToVar @processor block addVariableDebugInfo;
+    ("  call void @llvm.dbg.declare(metadata " refToVar @processor getIrType "* " refToVar @processor getIrName ", metadata !" localVariableDebugIndex ", metadata !" processor.debugInfo.unit 1 + ")") @block appendInstruction
   ] when
 ];
 
@@ -315,7 +347,6 @@ addFileDebugInfo: [
 ];
 
 addFuncSubroutineInfo: [
-  compileOnce
   block:;
 
   index: processor.debugInfo.lastId copy;
@@ -333,10 +364,7 @@ addFuncSubroutineInfo: [
 
 addFuncDebugInfo: [
   compileOnce
-  copy funcDebugIndex:;
-  funcIRName:;
-  funcName:;
-  position:;
+  position: funcName: funcIRName: funcDebugIndex: processor: ;;;;;
 
   subroutineIndex: block addFuncSubroutineInfo;
   funcImplementation: funcName makeStringView getStringImplementation;
@@ -350,8 +378,7 @@ addFuncDebugInfo: [
 
 addDebugLocation: [
   compileOnce
-  copy funcDbgIndex:;
-  position:;
+  position: funcDbgIndex: processor: ;;;
 
   index: processor.debugInfo.lastId copy;
   processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
@@ -363,6 +390,8 @@ addDebugLocation: [
 ];
 
 addDebugReserve: [
+  processor:;
+
   index: processor.debugInfo.lastId copy;
   processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
   String @processor.@debugInfo.@strings.pushBack

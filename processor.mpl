@@ -7,6 +7,7 @@
 "String.StringView" use
 "memory.debugMemory" use
 
+"astNodeType.MultiParserResult" use
 "Block.CompilerPositionInfo" use
 "Block.Block" use
 "Block.NameCaseInvalid" use
@@ -15,7 +16,6 @@
 "Var.RefToVar" use
 "Var.Variable" use
 "astNodeType.IndexArray" use
-"irWriter.IRArgument" use
 "schemas.VariableSchema" use
 
 StringArray: [String Array];
@@ -98,8 +98,15 @@ WayInfo: [
   -1 dynamic -1 dynamic StringView makeWayInfo
 ];
 
+IRArgument: [{
+  irTypeId: 0;
+  irNameId: 0;
+  byRef: TRUE;
+}];
+
 Processor: [{
   options: ProcessorOptions;
+  multiParserResult: MultiParserResult Cref;
   result: ProcessorResult;
 
   files: File Owner Array;

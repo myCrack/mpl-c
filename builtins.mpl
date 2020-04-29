@@ -7,13 +7,12 @@
 
 "Block.Block" use
 "Block.NameCaseBuiltin" use
-"astNodeType.MultiParserResult" use
+"Var.getVar" use
 "defaultImpl.failProcForProcessor" use
 "processor.Processor" use
 "processor.ProcessorResult" use
 "variable.NameInfo" use
 "variable.getMplType" use
-"variable.getVar" use
 
 builtins: (
   {name: "!"                       ; impl: @mplBuiltinExclamation             ;}
@@ -130,13 +129,12 @@ initBuiltins: [
   ] times
 ];
 
-{processor: Processor Ref; block: Block Ref; multiParserResult: MultiParserResult Cref; index: Int32;} () {convention: cdecl;} [
+{processor: Processor Ref; block: Block Ref; index: Int32;} () {convention: cdecl;} [
   processor:;
   block:;
-  multiParserResult:;
   failProc: @failProcForProcessor;
   copy index:;
 
   builtinFunc: index builtins @ .@impl;
-  multiParserResult @block @processor @builtinFunc call
+  @block @processor @builtinFunc call
 ] "callBuiltinImpl" exportFunction

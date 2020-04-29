@@ -1,11 +1,19 @@
 "control" use
 
+"conventions.cdecl" use
+
 "String.addLog" use
 "String.print" use
 "String.printList" use
 "String.toString" use
+"String.StringView" use
+"String.makeStringView" use
 
+"irWriter.compilerError" use
 "irWriter.createCopyToExists" use
+"Block.Block" use
+"processor.Processor" use
+"Var.getVar" use
 "Var.RefToVar" use
 
 failProcForProcessor: [
@@ -32,13 +40,13 @@ failProcForProcessor: [
 ];
 
 defaultFailProc: [
-  text: @block pop;
+  text: @processor @block pop;
 ];
 
 defaultCall: [
   block:;
-  refToVar: @block pop;
-  compilable [
+  refToVar: @processor @block pop;
+  processor compilable [
     var: refToVar getVar;
     var.data.getTag  (
       [VarCode =] [
@@ -49,7 +57,7 @@ defaultCall: [
       ]
       [VarString =] [
         (
-          [compilable]
+          [processor compilable]
           [refToVar staticityOfVar Weak < ["name must be a static string" @processor block compilerError] when]
           [
             nameInfo: VarString var.data.get makeStringView findNameInfo;
@@ -74,11 +82,12 @@ defaultCall: [
 ];
 
 defaultSet: [
+  "variable.compilerError" use
 
   block:;
-  refToDst: @block pop;
-  refToSrc: @block pop;
-  compilable [
+  refToDst: @processor @block pop;
+  refToSrc: @processor @block pop;
+  processor compilable [
     @refToSrc makeVarRealCaptured
     @refToDst makeVarRealCaptured
 
@@ -91,7 +100,7 @@ defaultSet: [
         ] [
           refToDst.mutable [
             [refToDst staticityOfVar Weak = ~] "Destination is weak!" assert
-            @refToSrc refToDst @block createCopyToExists
+            @refToSrc refToDst @processor @block createCopyToExists
           ] [
             "destination is immutable" @processor block compilerError
           ] if
@@ -103,8 +112,8 @@ defaultSet: [
       ] [
         lambdaCastResult: refToSrc @refToDst @block tryImplicitLambdaCast;
         lambdaCastResult.success [
-          newSrc: @lambdaCastResult.@refToVar TRUE @block createRef;
-          @newSrc refToDst @block createCopyToExists
+          newSrc: @lambdaCastResult.@refToVar TRUE @processor @block createRef;
+          @newSrc refToDst @processor @block createCopyToExists
         ] [
           ("types mismatch, src is " refToSrc @processor block getMplType "," LF "dst is " refToDst @processor block getMplType) assembleString @processor block compilerError
         ] if
@@ -115,16 +124,16 @@ defaultSet: [
 
 defaultRef: [
   mutable: block:;;
-  refToVar: @block pop;
-  compilable [
-    @refToVar mutable @block createRef @block push
+  refToVar: @processor @block pop;
+  processor compilable [
+    @refToVar mutable @processor @block createRef @block push
   ] when
 ];
 
 defaultMakeConstWith: [
   check: block:;;
-  refToVar: @block pop;
-  compilable [
+  refToVar: @processor @block pop;
+  processor compilable [
     check [refToVar getVar.temporary copy] && [
       "temporary objects cannot be set const" @processor block compilerError
     ] [
@@ -137,9 +146,9 @@ defaultMakeConstWith: [
 defaultUseOrIncludeModule: [
   asUse: block:;;
   (
-    [compilable]
+    [processor compilable]
     [block.parent 0 = ~ ["module can be used only in top block" @processor block compilerError] when]
-    [refToName: @block pop;]
+    [refToName: @processor @block pop;]
     [refToName staticityOfVar Weak < ["name must be static string" @processor block compilerError] when]
     [
       varName: refToName getVar;
@@ -204,6 +213,8 @@ getStackDepth: [
 ];
 
 defaultPrintStack: [
+  "variable.getMplType" use
+
   processor: block:;;
   ("stack:" LF "depth=" @processor block getStackDepth LF) printList
 

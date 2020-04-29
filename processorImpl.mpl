@@ -2,6 +2,7 @@
 
 "String.String" use
 
+"astNodeType.MultiParserResult" use
 "builtins.initBuiltins" use
 "codeNode.addBlock" use
 "codeNode.addBlock" use
@@ -29,6 +30,7 @@
   unitId @processor.@unitId set
   @nameManager move @processor.@nameManager set
   @options @processor.@options set
+  multiParserResult @processor.!multiParserResult
 
   ""           findNameInfo @processor.@emptyNameInfo set
   "CALL"       findNameInfo @processor.@callNameInfo set
@@ -92,14 +94,14 @@
       n:;
       file: n @processor.@files.at.get;
       file !lastFile
-      fileNode: n multiParserResult.nodes.at;
+      fileNode: n processor.multiParserResult.nodes.at;
       rootPositionInfo: CompilerPositionInfo;
       file @rootPositionInfo.@file.set
       1    @rootPositionInfo.!line
       1    @rootPositionInfo.!column
 
       processor.result.globalErrorInfo.getSize @cachedGlobalErrorInfoSize set
-      topNodeIndex: StringView 0 NodeCaseCode @processor fileNode file multiParserResult rootPositionInfo CFunctionSignature astNodeToCodeNode;
+      topNodeIndex: StringView 0 NodeCaseCode @processor fileNode file rootPositionInfo CFunctionSignature astNodeToCodeNode;
 
       processor.result.findModuleFail [
         # cant compile this file now, add him to queue
@@ -148,8 +150,8 @@
     unfinishedFiles: IndexArray;
     n: 0 dynamic;
     [
-      n multiParserResult.nodes.dataSize < [
-        multiParserResult.nodes.dataSize 1 - n - @unfinishedFiles.pushBack
+      n processor.multiParserResult.nodes.dataSize < [
+        processor.multiParserResult.nodes.dataSize 1 - n - @unfinishedFiles.pushBack
         n 1 + @n set TRUE
       ] &&
     ] loop
@@ -218,7 +220,7 @@
 
 
   ("all nodes generated" makeStringView) addLog
-  [compilable ~ [processor.recursiveNodesStack.getSize 0 =] ||] "Recursive stack is not empty!" assert
+  [processor compilable ~ [processor.recursiveNodesStack.getSize 0 =] ||] "Recursive stack is not empty!" assert
 
   processor.result.success [
     ("nameCount=" processor.nameManager.names.dataSize
@@ -308,13 +310,11 @@
 {
   signature: CFunctionSignature Cref;
   compilerPositionInfo: CompilerPositionInfo Cref;
-  multiParserResult: MultiParserResult Cref;
   processor: Processor Ref;
   refToVar: RefToVar Cref;
 } () {convention: cdecl;} [
   forcedSignature:;
   compilerPositionInfo:;
-  multiParserResult:;
   processor:;
   refToVar:;
 
@@ -328,7 +328,7 @@
   @compilerPositionInfo @codeNode.@position set
 
   processor.options.debug [
-    addDebugReserve @codeNode.@funcDbgIndex set
+    @processor addDebugReserve @codeNode.@funcDbgIndex set
   ] when
 
   begin: RefToVar;

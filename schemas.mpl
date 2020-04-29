@@ -5,30 +5,34 @@
 "String.String" use
 "Variant.Variant" use
 
-"Var.VarInvalid" use
-"Var.VarCond"    use
-"Var.VarNat8"    use
-"Var.VarNat16"   use
-"Var.VarNat32"   use
-"Var.VarNat64"   use
-"Var.VarNatX"    use
-"Var.VarInt8"    use
-"Var.VarInt16"   use
-"Var.VarInt32"   use
-"Var.VarInt64"   use
-"Var.VarIntX"    use
-"Var.VarReal32"  use
-"Var.VarReal64"  use
-"Var.VarCode"    use
-"Var.VarBuiltin" use
-"Var.VarImport"  use
-"Var.VarString"  use
-"Var.VarRef"     use
-"Var.VarStruct"  use
-"Var.VarEnd"     use
+"Var.getVar"          use
+"Var.isVirtual"       use
+"Var.getVirtualValue" use
+"Var.VarInvalid"      use
+"Var.VarCond"         use
+"Var.VarNat8"         use
+"Var.VarNat16"        use
+"Var.VarNat32"        use
+"Var.VarNat64"        use
+"Var.VarNatX"         use
+"Var.VarInt8"         use
+"Var.VarInt16"        use
+"Var.VarInt32"        use
+"Var.VarInt64"        use
+"Var.VarIntX"         use
+"Var.VarReal32"       use
+"Var.VarReal64"       use
+"Var.VarCode"         use
+"Var.VarBuiltin"      use
+"Var.VarImport"       use
+"Var.VarString"       use
+"Var.VarRef"          use
+"Var.VarStruct"       use
+"Var.VarEnd"          use
 
 makeVariableSchema: [
-  processor: var:;;
+  refToVar: processor: ;;
+  var: refToVar getVar;
 
   varSchema: VariableSchema;
   var.data.getTag (
@@ -80,7 +84,7 @@ makeVariableSchema: [
   ) case
 
   refToVar isVirtual [
-    schemaId: varSchema getVariableSchemaId;
+    schemaId: varSchema @processor getVariableSchemaId;
     VariableSchemaTags.VIRTUAL_VALUE_SCHEMA @varSchema.@data.setTag
     virtualValueSchema: VariableSchemaTags.VIRTUAL_VALUE_SCHEMA @varSchema.@data.get;
     schemaId copy @virtualValueSchema.!schemaId
@@ -91,6 +95,7 @@ makeVariableSchema: [
 ];
 
 getVariableSchemaId: [
+  processor:;
   varSchemaIsMoved: isMoved;
   varSchema:;
   findResult: varSchema processor.schemaTable.find;
@@ -135,6 +140,14 @@ VariableSchema: [{
         ]
       ) case
     ] if
+  ];
+
+  hash: [
+    variableSchema: data;
+    seed: 0n32;
+    @seed variableSchema.getTag hashCombine
+    variableSchema [value:; @seed value hashSchema] visit
+    @seed
   ];
 }];
 
@@ -210,14 +223,6 @@ twoWith: [
   @y predicate and
 ];
 
-hash: ["VARIABLE_SCHEMA" has] [
-  variableSchema: .data;
-  seed: 0n32;
-  @seed variableSchema.getTag hashCombine
-  variableSchema [value:; @seed value hashSchema] visit
-  @seed
-] pfunc;
-
 hashSchema: ["FIELD_SCHEMA" has] [
   fieldSchema:;
   seed:;
@@ -245,7 +250,7 @@ hashSchema: ["FUNCTION_SCHEMA" has] [
     @seed value hashCombine
   ] each
 
-  @seed functionSchema.convention hash hashCombine
+  @seed functionSchema.convention.hash hashCombine
   @seed functionSchema.variadic hashCombine
 ] pfunc;
 
@@ -253,7 +258,7 @@ hashSchema: ["VIRTUAL_VALUE_SCHEMA" has] [
   virtualValueSchema:;
   seed:;
   @seed virtualValueSchema.schemaId hashCombine
-  @seed virtualValueSchema.vitrualValue hash hashCombine
+  @seed virtualValueSchema.vitrualValue.hash hashCombine
 ] pfunc;
 
 hashSchema: ["STRUCT_SCHEMA" has] [

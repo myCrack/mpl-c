@@ -1,5 +1,8 @@
 "control" use
 
+"String.addLog" use
+"String.makeStringView" use
+
 staticCall: [
   staticCallBody:;
   copy staticCallLast:;   # required to be static
