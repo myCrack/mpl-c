@@ -7,12 +7,12 @@
 
 "Block.Block" use
 "Block.NameCaseBuiltin" use
+"declarations.getMplType" use
+"defaultImpl.FailProcForProcessor" use
 "Var.getVar" use
-"defaultImpl.failProcForProcessor" use
 "processor.Processor" use
 "processor.ProcessorResult" use
 "variable.NameInfo" use
-"variable.getMplType" use
 
 builtins: (
   {name: "!"                       ; impl: @mplBuiltinExclamation             ;}
@@ -109,32 +109,32 @@ addBuiltin: [
   name:;
 
   nameId: @name makeStringView @processor.@nameManager.createName;
-  bvar: @id VarBuiltin @block createVariable Virtual @block makeStaticity;
+  bvar: @id VarBuiltin @processor @block createVariable Virtual @processor @block makeStaticity;
 
   {
     addNameCase: NameCaseBuiltin;
     refToVar:    bvar copy;
     nameInfo:    nameId copy;
-  } addNameInfo
+  } @processor addNameInfo
 ];
 
 initBuiltins: [
   processor:;
   codeNode: 0 @processor.@blocks.at.get;
   block: @codeNode;
-  failProc: @failProcForProcessor;
+  overload failProc: @processor block FailProcForProcessor;
 
   builtins fieldCount dynamic [
     i builtins @ .name makeStringView i addBuiltin
   ] times
 ];
 
-{processor: Processor Ref; block: Block Ref; index: Int32;} () {convention: cdecl;} [
-  processor:;
+{block: Block Ref; processor: Processor Ref; index: Int32;} () {} [
   block:;
-  failProc: @failProcForProcessor;
+  processor:;
+  overload failProc: @processor block FailProcForProcessor;
   copy index:;
 
   builtinFunc: index builtins @ .@impl;
   @block @processor @builtinFunc call
-] "callBuiltinImpl" exportFunction
+] "callBuiltin" exportFunction

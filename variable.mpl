@@ -20,8 +20,10 @@
 "Block.NameCaseInvalid" use
 "Block.NodeCaseCode" use
 "File.File" use
+"Var.getAlignment" use
 "Var.getStringImplementation" use
 "Var.getSingleDataStorageSize" use
+"Var.getStructStorageSize" use
 "Var.getStorageSize" use
 "Var.getVar" use
 "Var.getVirtualValue" use
@@ -32,7 +34,9 @@
 "Var.isPlain" use
 "Var.isVirtual" use
 "Var.isVirtualType" use
+"Var.staticityOfVar" use
 "Var.makeStringId" use
+"Var.variablesAreSame" use
 "Var.RefToVar" use
 "Var.Schema" use
 "Var.VarBuiltin" use
@@ -58,9 +62,13 @@
 "Var.Virtual" use
 "astNodeType.AstNode" use
 "astNodeType.IndexArray" use
-"defaultImpl.failProcForProcessor" use
+"declarations.compilerError" use
+"declarations.getMplType" use
+"declarations.generateIrTypeId" use
+"declarations.generateDebugTypeId" use
+"defaultImpl.FailProcForProcessor" use
 "debugWriter.getTypeDebugDeclaration" use
-"irWriter.compilerError" use
+"debugWriter.getDbgType" use
 "irWriter.createTypeDeclaration" use
 "irWriter.getIrType" use
 "irWriter.getMplSchema" use
@@ -82,195 +90,8 @@ makeNameInfo: [{
 
 NameInfo: [String makeNameInfo];
 
-compilable: [processor:; processor.result.success copy];
-
-callBuiltin:           [block:; @block @processor callBuiltinImpl];
-processFuncPtr:        [@block @processor processFuncPtrImpl];
-
-processPre: [
-  preAstNodeIndex: file:;;
-  preAstNodeIndex file @block @processor processPreImpl
-];
-
-processCall: [
-  callAstNodeIndex: file: name:;;;
-  callAstNodeIndex file name @block @processor processCallImpl
-];
-
-processExportFunction: [
-  signature: astNode: file: name: asLambda: block:;;;;;;
-  signature astNode file name asLambda @block @processor processExportFunctionImpl
-];
-
-processImportFunction: [@block @processor processImportFunctionImpl];
-compareEntriesRec:     [currentMatchingNode @nestedToCur @curToNested @comparingMessage block @processor compareEntriesRecImpl];
-makeVariableType:      [processor: block:;; block @processor makeVariableTypeImpl];
-generateDebugTypeId:   [processor: block:;; block @processor generateDebugTypeIdImpl];
-generateIrTypeId:      [processor: block:;; block @processor generateIrTypeIdImpl];
-
-getMplType: [
-  processor: block: ;;
-  result: String;
-  @result block @processor getMplTypeImpl
-  @result
-];
-
-{
-  signature: CFunctionSignature Cref;
-  compilerPositionInfo: CompilerPositionInfo Cref;
-  file: File Cref;
-  indexArray: IndexArray Cref;
-  processor: Processor Ref;
-  nodeCase: NodeCaseCode;
-  parentIndex: 0;
-  functionName: StringView Cref;
-} 0 {convention: cdecl;} "astNodeToCodeNode" importFunction
-
-{
-  signature: CFunctionSignature Cref;
-  compilerPositionInfo: CompilerPositionInfo Cref;
-  processor: Processor Ref;
-  refToVar: RefToVar Cref;
-} () {convention: cdecl;} "createDtorForGlobalVar" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Ref;
-  positionInfo: CompilerPositionInfo Cref;
-  name: StringView Cref;
-  nodeCase: NodeCaseCode;
-  indexArray: IndexArray Cref;
-} () {convention: cdecl;} "processCallByIndexArrayImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Ref;
-  index: Int32;
-} () {convention: cdecl;} "callBuiltinImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Ref;
-  refToVar: RefToVar Cref;
-} () {convention: cdecl;} "processFuncPtrImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Ref;
-  file: File Cref;
-  preAstNodeIndex: Int32;
-} Cond {convention: cdecl;} "processPreImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Ref;
-  name: StringView Cref;
-  file: File Cref;
-  callAstNodeIndex: Int32;
-} () {convention: cdecl;} "processCallImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Ref;
-  asLambda: Cond;
-  name: StringView Cref;
-  file: File Cref;
-  astNode: AstNode Cref;
-  signature: CFunctionSignature Cref;
-} Int32 {convention: cdecl;} "processExportFunctionImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Ref;
-  asCodeRef: Cond;
-  name: StringView Cref;
-  signature: CFunctionSignature Cref;
-} Natx {convention: cdecl;} "processImportFunctionImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Cref;
-
-  comparingMessage: String Ref;
-  curToNested: RefToVarTable Ref;
-  nestedToCur: RefToVarTable Ref;
-  currentMatchingNode: Block Cref;
-  cacheEntry: RefToVar Cref;
-  stackEntry: RefToVar Cref;
-} Cond {convention: cdecl;} "compareEntriesRecImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Cref;
-  refToVar: RefToVar Cref;
-} () {convention: cdecl;} "makeVariableTypeImpl" importFunction
-
-{
-  forMatching: Cond;
-  processor: Processor Ref;
-  block: Block Ref;
-  result: RefToVar Ref;
-} () {convention: cdecl;} "popImpl" importFunction
-
-{
-  dynamicStoraged: Cond;
-
-  processor: Processor Ref;
-  block: Block Ref;
-
-  reason: Nat8;
-  end: RefToVar Ref;
-  begin: RefToVar Ref;
-  refToVar: RefToVar Cref;
-} () {convention: cdecl;} "makeShadowsImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Cref;
-  refToVar: RefToVar Cref;
-} Int32 {} "generateDebugTypeIdImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Cref;
-  refToVar: RefToVar Cref;
-} Int32 {} "generateIrTypeIdImpl" importFunction
-
-{
-  processor: Processor Ref;
-  block: Block Cref;
-  resultMPL: String Ref;
-  refToVar: RefToVar Cref;
-} () {}  "getMplTypeImpl" importFunction
-
 getMplName:  [getVar.mplNameId processor.nameManager.getText];
-
-getDbgType:  [@processor getMplSchema.dbgTypeId processor getNameById];
 getMplTypeId: [@processor getMplType makeStringId];
-
-getDebugType: [
-  refToVar: processor: block:;;;
-  dbgType: refToVar getDbgType;
-  splitted: dbgType splitString;
-  splitted.success [
-    splitted.chars.getSize 1024 > [
-      1024 @splitted.@chars.shrink
-      "..." makeStringView @splitted.@chars.pushBack
-    ] when
-  ] [
-    ("Wrong dbgType name encoding" splitted.chars assembleString) assembleString @processor block compilerError
-  ] if
-
-  result: (dbgType hash ".") assembleString;
-  splitted.chars @result.catMany
-  @result
-];
-
-staticityOfVar: [
-  refToVar:;
-  var: refToVar getVar;
-  var.staticity copy
-];
 
 maxStaticity: [
   copy s1:;
@@ -282,12 +103,6 @@ refsAreEqual: [
   refToVar1:;
   refToVar2:;
   refToVar1.var refToVar2.var is
-];
-
-variablesAreSame: [
-  refToVar1:;
-  refToVar2:;
-  refToVar1 getVar.mplSchemaId refToVar2 getVar.mplSchemaId = # id compare better than string compare!
 ];
 
 markAsAbleToDie: [
@@ -330,6 +145,19 @@ isStaticData: [
   ] [
     FALSE
   ] if
+];
+
+checkUnsizedData: [
+  refToVar: processor: block: ;;;
+  refToVar getVar.data.getTag (
+    VarString [
+      "strings dont have storageSize and alignment" @processor block compilerError
+    ]
+    VarImport [
+      "functions dont have storageSize and alignment" @processor block compilerError
+    ]
+    []
+  ) case
 ];
 
 getPlainDataIRType: [
@@ -480,15 +308,8 @@ getNonrecursiveDataDBGType: [
   ] if
 ];
 
-getStructStorageSize: [
-  refToVar: processor: ;;
-  var: refToVar getVar;
-  struct: VarStruct var.data.get.get;
-  struct.structStorageSize copy
-];
-
 makeStructStorageSize: [
-  refToVar: processor: block: ;;;
+  refToVar: processor: ;;
   result: 0nx;
   var: @refToVar getVar;
   struct: VarStruct @var.@data.get.get;
@@ -498,8 +319,8 @@ makeStructStorageSize: [
     j struct.fields.dataSize < [
       curField: j struct.fields.at;
       curField.refToVar isVirtual ~ [
-        curS: curField.refToVar @processor block getStorageSize;
-        curA: curField.refToVar @processor block getAlignment;
+        curS: curField.refToVar @processor getStorageSize;
+        curA: curField.refToVar @processor getAlignment;
         result curA + 1nx - curA 1nx - ~ and curS + @result set
         curA maxA > [curA @maxA set] when
       ] when
@@ -512,15 +333,8 @@ makeStructStorageSize: [
   result @struct.@structStorageSize set
 ];
 
-getStructAlignment: [
-  refToVar:;
-  var: refToVar getVar;
-  struct: VarStruct var.data.get.get;
-  struct.structAlignment copy
-];
-
 makeStructAlignment: [
-  refToVar: processor: block: ;;;
+  refToVar: processor: ;;
   result: 0nx;
   var: @refToVar getVar;
   struct: VarStruct @var.@data.get.get;
@@ -529,7 +343,7 @@ makeStructAlignment: [
     j struct.fields.dataSize < [
       curField: j struct.fields.at;
       curField.refToVar isVirtual ~ [
-        curA: curField.refToVar @processor block getAlignment;
+        curA: curField.refToVar @processor getAlignment;
         result curA < [curA @result set] when
       ] when
       j 1 + @j set TRUE
@@ -537,15 +351,6 @@ makeStructAlignment: [
   ] loop
 
   result @struct.@structAlignment set
-];
-
-getAlignment: [
-  refToVar: processor: block:;;;
-  refToVar isSingle [
-    refToVar @processor block getSingleDataStorageSize
-  ] [
-    refToVar getStructAlignment
-  ] if
 ];
 
 isGlobal: [
@@ -568,15 +373,6 @@ untemporize: [
   refToVar:;
   var: @refToVar getVar;
   FALSE @var.@temporary set
-];
-
-fullUntemporize: [
-  refToVar:;
-  var: @refToVar getVar;
-  FALSE @var.@temporary set
-  var.data.getTag VarStruct = [
-    FALSE VarStruct @var.@data.get.get.@forgotten set
-  ] when
 ];
 
 noMatterToCopy: [
@@ -657,9 +453,9 @@ getFuncDbgType: [
     [
       i args.getSize < [
         current: i args.at;
-        current getDbgType                                            @result.cat
+        current @processor getDbgType @result.cat
         i 1 + args.getSize < [
-          ","                                                         @result.cat
+          "," @result.cat
         ] when
         i 1 + @i set TRUE
       ] &&
@@ -687,14 +483,13 @@ makeDbgTypeId: [
 ];
 
 {
-  processor: Processor Ref;
   block: Block Cref;
+  processor: Processor Ref;
+
   refToVar: RefToVar Ref;
 } () {} [
-  processor:;
-  block:;
-  refToVar:;
-
+  refToVar: processor: block: ;;;
+  overload failProc: @processor block FailProcForProcessor;
 
   #fill info:
 
@@ -744,8 +539,8 @@ makeDbgTypeId: [
       ] when
     ] times
 
-    @refToVar @processor block makeStructAlignment
-    @refToVar @processor block makeStructStorageSize
+    @refToVar @processor makeStructAlignment
+    @refToVar @processor makeStructStorageSize
   ] when
 
   refToVar @processor makeVariableSchema @processor getVariableSchemaId @var.!mplSchemaId
@@ -758,16 +553,17 @@ makeDbgTypeId: [
     refToVar @processor block generateDebugTypeId @varSchema.!dbgTypeId
     refToVar @processor block makeDbgTypeId
   ] when
-] "makeVariableTypeImpl" exportFunction
+] "makeVariableType" exportFunction
 
 {
-  processor: Processor Ref;
   block: Block Cref;
+  processor: Processor Ref;
+
   refToVar: RefToVar Cref;
 } Int32 {} [
-  processor:;
-  block:;
-  refToVar:;
+  refToVar: processor: block: ;;;
+  overload failProc: @processor block FailProcForProcessor;
+
   var: refToVar getVar;
   resultDBG: String;
   var.data.getTag (
@@ -775,7 +571,7 @@ makeDbgTypeId: [
     [VarRef =] [
       branch: VarRef var.data.get;
       pointee: branch getVar;
-      branch getDbgType @resultDBG.cat
+      branch @processor getDbgType @resultDBG.cat
       "*" @resultDBG.cat
     ]
     [VarStruct =] [
@@ -785,7 +581,7 @@ makeDbgTypeId: [
         branch.fields [
           curField:;
           curField.refToVar isVirtual ~ [
-            (curField.nameInfo processor.nameManager.getText ":" curField.refToVar getDbgType ";") @resultDBG.catMany
+            (curField.nameInfo processor.nameManager.getText ":" curField.refToVar @processor getDbgType ";") @resultDBG.catMany
           ] [
             (curField.nameInfo processor.nameManager.getText ".") @resultDBG.catMany
           ] if
@@ -798,16 +594,16 @@ makeDbgTypeId: [
   ) cond
 
   @resultDBG @processor makeStringId
-] "generateDebugTypeIdImpl" exportFunction
+] "generateDebugTypeId" exportFunction
 
 {
-  processor: Processor Ref;
   block: Block Cref;
+  processor: Processor Ref;
+
   refToVar: RefToVar Cref;
 } Int32 {} [
-  processor:;
-  block:;
-  refToVar:;
+  refToVar: processor: block: ;;;
+
   var: refToVar getVar;
   resultIR: String;
 
@@ -855,19 +651,18 @@ makeDbgTypeId: [
   ] if
 
   irTypeId
-] "generateIrTypeIdImpl" exportFunction
+] "generateIrTypeId" exportFunction
 
 {
-  processor: Processor Ref;
   block: Block Cref;
+  processor: Processor Ref;
+
   resultMPL: String Ref;
   refToVar: RefToVar Cref;
 } () {} [
-  processor:;
-  block:;
-  resultMPL:;
+  refToVar: resultMPL: processor: block: ;;;;
+  overload failProc: @processor block FailProcForProcessor;
 
-  refToVar:;
   var: refToVar getVar;
 
   refToVar isNonrecursiveType [
@@ -927,6 +722,7 @@ cutValue: [
 ];
 
 checkValue: [
+  processor: block: ;;
   copy tag:;
   copy value:;
   tag (
@@ -1039,7 +835,7 @@ makeVariableIRName: [
 ];
 
 findFieldWithOverloadDepth: [
-  fieldNameInfo: refToVar: overloadDepth: processor: ; copy;;;
+  fieldNameInfo: refToVar: overloadDepth: processor: block: ;; copy;;;
 
   var: refToVar getVar;
 
@@ -1077,4 +873,4 @@ findFieldWithOverloadDepth: [
   result
 ];
 
-findField: [processor:; 0 dynamic @processor findFieldWithOverloadDepth];
+findField: [processor: block: ;; 0 dynamic @processor block findFieldWithOverloadDepth];

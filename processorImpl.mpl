@@ -6,8 +6,10 @@
 "builtins.initBuiltins" use
 "codeNode.addBlock" use
 "codeNode.addBlock" use
+"defaultImpl.FailProcForProcessor" use
 "NameManager.NameManager" use
 "processor.NameInfoEntry" use
+"processor.Processor" use
 "processor.ProcessorOptions" use
 
 {
@@ -17,7 +19,7 @@
   options: ProcessorOptions Cref;
   nameManager: NameInfoEntry NameManager Ref;
   multiParserResult: MultiParserResult Cref;
-} () {convention: cdecl;} [
+} () {} [
   program:;
   result:;
   copy unitId:;
@@ -32,22 +34,22 @@
   @options @processor.@options set
   multiParserResult @processor.!multiParserResult
 
-  ""           findNameInfo @processor.@emptyNameInfo set
-  "CALL"       findNameInfo @processor.@callNameInfo set
-  "PRE"        findNameInfo @processor.@preNameInfo set
-  "DIE"        findNameInfo @processor.@dieNameInfo set
-  "INIT"       findNameInfo @processor.@initNameInfo set
-  "ASSIGN"     findNameInfo @processor.@assignNameInfo set
-  "self"       findNameInfo @processor.@selfNameInfo set
-  "closure"    findNameInfo @processor.@closureNameInfo set
-  "inputs"     findNameInfo @processor.@inputsNameInfo set
-  "outputs"    findNameInfo @processor.@outputsNameInfo set
-  "captures"   findNameInfo @processor.@capturesNameInfo set
-  "variadic"   findNameInfo @processor.@variadicNameInfo set
-  "failProc"   findNameInfo @processor.@failProcNameInfo set
-  "convention" findNameInfo @processor.@conventionNameInfo set
+  ""           @processor findNameInfo @processor.@emptyNameInfo set
+  "CALL"       @processor findNameInfo @processor.@callNameInfo set
+  "PRE"        @processor findNameInfo @processor.@preNameInfo set
+  "DIE"        @processor findNameInfo @processor.@dieNameInfo set
+  "INIT"       @processor findNameInfo @processor.@initNameInfo set
+  "ASSIGN"     @processor findNameInfo @processor.@assignNameInfo set
+  "self"       @processor findNameInfo @processor.@selfNameInfo set
+  "closure"    @processor findNameInfo @processor.@closureNameInfo set
+  "inputs"     @processor findNameInfo @processor.@inputsNameInfo set
+  "outputs"    @processor findNameInfo @processor.@outputsNameInfo set
+  "captures"   @processor findNameInfo @processor.@capturesNameInfo set
+  "variadic"   @processor findNameInfo @processor.@variadicNameInfo set
+  "failProc"   @processor findNameInfo @processor.@failProcNameInfo set
+  "convention" @processor findNameInfo @processor.@conventionNameInfo set
 
-  addBlock
+  @processor addBlock
   TRUE dynamic @processor.@blocks.last.get.@root set
 
   @processor initBuiltins
@@ -55,17 +57,17 @@
   s1: String;
   s2: String;
   processor.options.pointerSize 32nx = [
-    "target datalayout = \"e-m:x-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32\"" makeStringView addStrToProlog
-    "target triple = \"i386-pc-windows-msvc18.0.0\"" makeStringView addStrToProlog
+    "target datalayout = \"e-m:x-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32\"" makeStringView @processor addStrToProlog
+    "target triple = \"i386-pc-windows-msvc18.0.0\"" makeStringView @processor addStrToProlog
   ] [
-    "target datalayout = \"e-m:w-i64:64-f80:128-n8:16:32:64-S128\"" makeStringView addStrToProlog
-    "target triple = \"x86_64-pc-windows\"" makeStringView addStrToProlog
+    "target datalayout = \"e-m:w-i64:64-f80:128-n8:16:32:64-S128\"" makeStringView @processor addStrToProlog
+    "target triple = \"x86_64-pc-windows\"" makeStringView @processor addStrToProlog
   ] if
 
-  "" makeStringView addStrToProlog
+  "" makeStringView @processor addStrToProlog
   ("mainPath is \"" makeStringView processor.options.mainPath makeStringView "\"" makeStringView) addLog
 
-  processor.options.callTrace [createCallTraceData] when
+  processor.options.callTrace [@processor createCallTraceData] when
 
   addLinkerOptionsDebugInfo
 
@@ -79,7 +81,7 @@
     @processor [processor:; addDebugProlog @processor.@debugInfo.@unit set] call
 
     processor.files.size [
-      i processor.files.at.get.name addFileDebugInfo i @processor.@files.at.get.!debugId
+      i processor.files.at.get.name @processor addFileDebugInfo i @processor.@files.at.get.!debugId
     ] times
   ] when
 
@@ -101,7 +103,7 @@
       1    @rootPositionInfo.!column
 
       processor.result.globalErrorInfo.getSize @cachedGlobalErrorInfoSize set
-      topNodeIndex: StringView 0 NodeCaseCode @processor fileNode file rootPositionInfo CFunctionSignature astNodeToCodeNode;
+      topNodeIndex: StringView 0 NodeCaseCode fileNode file rootPositionInfo CFunctionSignature @processor astNodeToCodeNode;
 
       processor.result.findModuleFail [
         # cant compile this file now, add him to queue
@@ -228,11 +230,11 @@
 
     ("max depth of recursion=" processor.maxDepthOfRecursion) addLog
 
-    processor.usedFloatBuiltins [createFloatBuiltins] when
-    processor.options.callTrace processor.options.threadModel 1 = and createCtors
-    createDtors
-    clearUnusedDebugInfo
-    addAliasesForUsedNodes
+    processor.usedFloatBuiltins [@processor createFloatBuiltins] when
+    processor.options.callTrace processor.options.threadModel 1 = and @processor createCtors
+    @processor createDtors
+    @processor clearUnusedDebugInfo
+    @processor addAliasesForUsedNodes
 
     i: 0 dynamic;
     [
@@ -308,20 +310,20 @@
 ] "process" exportFunction
 
 {
+  processor: Processor Ref;
   signature: CFunctionSignature Cref;
   compilerPositionInfo: CompilerPositionInfo Cref;
-  processor: Processor Ref;
   refToVar: RefToVar Cref;
-} () {convention: cdecl;} [
+} () {} [
+  processor:;
   forcedSignature:;
   compilerPositionInfo:;
-  processor:;
   refToVar:;
 
-  addBlock
+  @processor addBlock
   codeNode: @processor.@blocks.last.get;
   block: @codeNode;
-  failProc: @failProcForProcessor;
+  overload failProc: @processor block FailProcForProcessor;
 
   NodeCaseDtor @codeNode.@nodeCase set
   0 dynamic @codeNode.@parent set
@@ -333,7 +335,7 @@
 
   begin: RefToVar;
   end: RefToVar;
-  refToVar @begin @end ShadowReasonCapture @block makeShadows
+  refToVar @begin @end ShadowReasonCapture @processor @block makeShadows
 
   VarStruct refToVar getVar.data .get.get .unableToDie
   VarStruct @end     getVar.@data.get.get.@unableToDie set # fake becouse it is fake shadow

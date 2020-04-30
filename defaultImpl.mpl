@@ -3,67 +3,104 @@
 "conventions.cdecl" use
 
 "String.addLog" use
+"String.assembleString" use
 "String.print" use
 "String.printList" use
 "String.toString" use
 "String.StringView" use
 "String.makeStringView" use
 
-"irWriter.compilerError" use
+"declarations.defaultPrintStack" use
+"declarations.defaultPrintStackTrace" use
+"declarations.compilerError" use
+"declarations.createRefWith" use
+"declarations.getMplType" use
+"declarations.popWith" use
+"declarations.push" use
+"declarations.tryImplicitLambdaCast" use
 "irWriter.createCopyToExists" use
 "Block.Block" use
+"Block.NodeStateNew" use
 "processor.Processor" use
 "Var.getVar" use
 "Var.RefToVar" use
+"Var.variablesAreSame" use
+"Var.VarCode" use
+"Var.VarImport" use
+"Var.VarString" use
+"Var.Weak" use
+"Var.staticityOfVar" use
 
-failProcForProcessor: [
-  failProc: [print " - fail while handling fail" print];
-  print
+FailProcForProcessor: [{
+  processor: block: ;;
 
-  trace: getCallTrace;
-  [
-    trace.first trace.last is [
-      FALSE
-    ] [
-      () "\nin \00" printf
-      trace.last.name print
-      (trace.last.line copy trace.last.column copy) " at %i:%i\00" printf
-      trace.last.prev trace.last addressToReference @trace.!last
-      TRUE
-    ] if
-  ] loop
+  CALL: [
+    overload failProc: [print " - fail while handling fail" print];
+    print
 
-  "\nWhile compiling:\n" print
-  @processor block defaultPrintStackTrace
+    trace: getCallTrace;
+    [
+      trace.first trace.last is [
+        FALSE
+      ] [
+        () "\nin \00" printf
+        trace.last.name print
+        (trace.last.line copy trace.last.column copy) " at %i:%i\00" printf
+        trace.last.prev trace.last addressToReference @trace.!last
+        TRUE
+      ] if
+    ] loop
 
-  2 exit
+    "\nWhile compiling:\n" print
+    @processor block defaultPrintStackTrace
+
+    2 exit
+  ];
+} dynamic];
+
+pop: [
+  processor: block: ;;
+  result: RefToVar;
+  @result FALSE @processor @block popWith
+  @result
+];
+
+createRef:     [processor: block:;;  TRUE dynamic @processor @block createRefWith];
+createRefNoOp: [processor: block:;; FALSE dynamic @processor @block createRefWith];
+
+compilable: [processor:; processor.result.success copy];
+
+makeVarRealCaptured: [
+  refToVar:;
+  TRUE @refToVar getVar.@capturedAsRealValue set
 ];
 
 defaultFailProc: [
+  processor: block: ;;
   text: @processor @block pop;
 ];
 
 defaultCall: [
-  block:;
+  processor: block: ;;
   refToVar: @processor @block pop;
   processor compilable [
     var: refToVar getVar;
     var.data.getTag  (
       [VarCode =] [
-        VarCode var.data.get.index VarCode var.data.get.file "call" makeStringView processCall
+        VarCode var.data.get.index VarCode var.data.get.file "call" makeStringView @processor @block processCall
       ]
       [VarImport =] [
-        refToVar processFuncPtr
+        refToVar @processor @block processFuncPtr
       ]
       [VarString =] [
         (
           [processor compilable]
           [refToVar staticityOfVar Weak < ["name must be a static string" @processor block compilerError] when]
           [
-            nameInfo: VarString var.data.get makeStringView findNameInfo;
-            getNameResult: nameInfo @block getName;
+            nameInfo: VarString var.data.get makeStringView @processor findNameInfo;
+            getNameResult: nameInfo @processor @block getName;
             block.position.file nameInfo getNameResult checkFailedName
-            captureNameResult: @getNameResult 0 dynamic @block block.position.file captureName;
+            captureNameResult: @getNameResult 0 dynamic @processor @block block.position.file captureName;
             refToName: captureNameResult.refToVar copy;
           ]
           [
@@ -82,9 +119,7 @@ defaultCall: [
 ];
 
 defaultSet: [
-  "variable.compilerError" use
-
-  block:;
+  processor: block: ;;
   refToDst: @processor @block pop;
   refToSrc: @processor @block pop;
   processor compilable [
@@ -110,7 +145,7 @@ defaultSet: [
       refToDst.mutable ~ [
         "destination is immutable" @processor block compilerError
       ] [
-        lambdaCastResult: refToSrc @refToDst @block tryImplicitLambdaCast;
+        lambdaCastResult: refToSrc @refToDst @processor @block tryImplicitLambdaCast;
         lambdaCastResult.success [
           newSrc: @lambdaCastResult.@refToVar TRUE @processor @block createRef;
           @newSrc refToDst @processor @block createCopyToExists
@@ -123,7 +158,7 @@ defaultSet: [
 ];
 
 defaultRef: [
-  mutable: block:;;
+  mutable: processor: block: ;;;
   refToVar: @processor @block pop;
   processor compilable [
     @refToVar mutable @processor @block createRef @block push
@@ -131,7 +166,7 @@ defaultRef: [
 ];
 
 defaultMakeConstWith: [
-  check: block:;;
+  check: processor: block: ;;;
   refToVar: @processor @block pop;
   processor compilable [
     check [refToVar getVar.temporary copy] && [
@@ -144,7 +179,7 @@ defaultMakeConstWith: [
 ];
 
 defaultUseOrIncludeModule: [
-  asUse: block:;;
+  asUse: processor: block: ;;;
   (
     [processor compilable]
     [block.parent 0 = ~ ["module can be used only in top block" @processor block compilerError] when]
@@ -212,10 +247,12 @@ getStackDepth: [
   depth inputsCount -
 ];
 
-defaultPrintStack: [
-  "variable.getMplType" use
-
+{
+  block: Block Cref;
+  processor: Processor Ref;
+} () {} [
   processor: block:;;
+
   ("stack:" LF "depth=" @processor block getStackDepth LF) printList
 
   i: 0 dynamic;
@@ -226,9 +263,12 @@ defaultPrintStack: [
       i 1 + @i set TRUE
     ] &&
   ] loop
-];
+] "defaultPrintStack" exportFunction
 
-defaultPrintStackTrace: [
+{
+  block: Block Cref;
+  processor: Processor Ref;
+} () {} [
   processor: block:;;
   currentBlock: block;
   [
@@ -248,6 +288,17 @@ defaultPrintStackTrace: [
   ] loop
 
   @processor block defaultPrintStack
+] "defaultPrintStackTrace" exportFunction
+
+findNameInfo: [
+  processor:;
+  @processor.@nameManager.createName
 ];
 
-findNameInfo: [@processor.@nameManager.createName];
+addStackUnderflowInfo: [
+  block:;
+  TRUE @block.@buildingMatchingInfo.@hasStackUnderflow set
+  block.state NodeStateNew = [
+    TRUE @block.@matchingInfo.@hasStackUnderflow set
+  ] when
+];

@@ -420,7 +420,7 @@ bitView: [
 ];
 
 getSingleDataStorageSize: [
-  refToVar: processor: block: ;;;
+  refToVar: processor: ;;
   var: refToVar getVar;
   var.data.getTag (
     VarCond    [1nx]
@@ -438,23 +438,45 @@ getSingleDataStorageSize: [
     VarReal64  [8nx]
     VarRef     [processor.options.pointerSize 8nx /]
     VarString  [
-      "strings dont have storageSize and alignment" @processor block compilerError
       0nx
     ]
     VarImport  [
-      "functions dont have storageSize and alignment" @processor block compilerError
       0nx
     ]
     [0nx]
   ) case
 ];
 
+getStructStorageSize: [
+  refToVar: processor: ;;
+  var: refToVar getVar;
+  struct: VarStruct var.data.get.get;
+  struct.structStorageSize copy
+];
+
+
 getStorageSize: [
-  refToVar: processor: block:;;;
+  refToVar: processor: ;;
   refToVar isSingle [
-    refToVar @processor block getSingleDataStorageSize
+    refToVar @processor getSingleDataStorageSize
   ] [
     refToVar @processor getStructStorageSize
+  ] if
+];
+
+getStructAlignment: [
+  refToVar: processor: ;;
+  var: refToVar getVar;
+  struct: VarStruct var.data.get.get;
+  struct.structAlignment copy
+];
+
+getAlignment: [
+  refToVar: processor: ;;
+  refToVar isSingle [
+    refToVar @processor getSingleDataStorageSize
+  ] [
+    refToVar @processor getStructAlignment
   ] if
 ];
 
@@ -485,4 +507,25 @@ isForgotten: [
   ] [
     FALSE
   ] if
+];
+
+variablesAreSame: [
+  refToVar1:;
+  refToVar2:;
+  refToVar1 getVar.mplSchemaId refToVar2 getVar.mplSchemaId = # id compare better than string compare!
+];
+
+staticityOfVar: [
+  refToVar:;
+  var: refToVar getVar;
+  var.staticity copy
+];
+
+fullUntemporize: [
+  refToVar:;
+  var: @refToVar getVar;
+  FALSE @var.@temporary set
+  var.data.getTag VarStruct = [
+    FALSE VarStruct @var.@data.get.get.@forgotten set
+  ] when
 ];

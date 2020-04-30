@@ -11,7 +11,6 @@
 "String.splitString" use
 "String.toString" use
 "ascii.ascii" use
-"conventions.cdecl" use
 
 "astNodeType.AstNode" use
 "astNodeType.AstNodeType" use
@@ -1196,7 +1195,7 @@ parseNode: [
 {
   text: StringView Cref;
   mainResult: ParserResult Ref;
-} () {convention: cdecl;} [
+} () {} [
   splittedString: splitString;
   mainResult:;
   splittedString.success [

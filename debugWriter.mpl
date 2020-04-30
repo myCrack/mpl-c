@@ -1,16 +1,21 @@
 "control" use
 
 "Array.Array" use
+"HashTable.hash" use
 "String.assembleString" use
 "String.makeStringView" use
 "String.toString" use
+"String.splitString" use
 "String.String" use
 
 "irWriter.appendInstruction" use
 "irWriter.getIrName" use
 "irWriter.getIrType" use
 "irWriter.getMplSchema" use
+"irWriter.getNameById" use
+"declarations.compilerError" use
 "pathUtils.simplifyPath" use
+"Var.getAlignment" use
 "Var.getStorageSize" use
 "Var.getStringImplementation" use
 "Var.getVar" use
@@ -69,22 +74,22 @@ addDebugProlog: [
   processor.debugInfo.strings.dataSize 1 - @processor.@debugInfo.@unitStringNumber set
   index #for unit
 
-  t: addExpression;
-  t: "cond" makeStringView 8 "DW_ATE_boolean" makeStringView addTypeInfo;
-  t: "i8" makeStringView 8 "DW_ATE_signed" makeStringView addTypeInfo;
-  t: "i16" makeStringView 16 "DW_ATE_signed" makeStringView addTypeInfo;
-  t: "i32" makeStringView 32 "DW_ATE_signed" makeStringView addTypeInfo;
-  t: "i64" makeStringView 64 "DW_ATE_signed" makeStringView addTypeInfo;
-  t: "ix" makeStringView processor.options.pointerSize 0ix cast 0 cast "DW_ATE_signed" makeStringView addTypeInfo;
-  t: "n8" makeStringView 8 "DW_ATE_unsigned" makeStringView addTypeInfo;
-  t: "n16" makeStringView 16 "DW_ATE_unsigned" makeStringView addTypeInfo;
-  t: "n32" makeStringView 32 "DW_ATE_unsigned" makeStringView addTypeInfo;
-  t: "n64" makeStringView 64 "DW_ATE_unsigned" makeStringView addTypeInfo;
-  t: "nx" makeStringView processor.options.pointerSize 0ix cast 0 cast "DW_ATE_unsigned" makeStringView addTypeInfo;
-  t: "r32" makeStringView 32 "DW_ATE_float" makeStringView addTypeInfo;
-  t: "r64" makeStringView 64 "DW_ATE_float" makeStringView addTypeInfo;
-  t: "string element" makeStringView 8 "DW_ATE_signed_char" makeStringView addTypeInfo;
-  t: "DW_TAG_pointer_type" makeStringView t processor.options.pointerSize 0ix cast 0 cast addDerivedTypeInfo;
+  t: @processor addExpression;
+  t: "cond" makeStringView 8 "DW_ATE_boolean" makeStringView @processor addTypeInfo;
+  t: "i8" makeStringView 8 "DW_ATE_signed" makeStringView @processor addTypeInfo;
+  t: "i16" makeStringView 16 "DW_ATE_signed" makeStringView @processor addTypeInfo;
+  t: "i32" makeStringView 32 "DW_ATE_signed" makeStringView @processor addTypeInfo;
+  t: "i64" makeStringView 64 "DW_ATE_signed" makeStringView @processor addTypeInfo;
+  t: "ix" makeStringView processor.options.pointerSize 0ix cast 0 cast "DW_ATE_signed" makeStringView @processor addTypeInfo;
+  t: "n8" makeStringView 8 "DW_ATE_unsigned" makeStringView @processor addTypeInfo;
+  t: "n16" makeStringView 16 "DW_ATE_unsigned" makeStringView @processor addTypeInfo;
+  t: "n32" makeStringView 32 "DW_ATE_unsigned" makeStringView @processor addTypeInfo;
+  t: "n64" makeStringView 64 "DW_ATE_unsigned" makeStringView @processor addTypeInfo;
+  t: "nx" makeStringView processor.options.pointerSize 0ix cast 0 cast "DW_ATE_unsigned" makeStringView @processor addTypeInfo;
+  t: "r32" makeStringView 32 "DW_ATE_float" makeStringView @processor addTypeInfo;
+  t: "r64" makeStringView 64 "DW_ATE_float" makeStringView @processor addTypeInfo;
+  t: "string element" makeStringView 8 "DW_ATE_signed_char" makeStringView @processor addTypeInfo;
+  t: "DW_TAG_pointer_type" makeStringView t processor.options.pointerSize 0ix cast 0 cast @processor addDerivedTypeInfo;
 ];
 
 addLinkerOptionsDebugInfo: [
@@ -145,12 +150,13 @@ getPlainTypeDebugDeclaration: [
 ];
 
 getPointerTypeDebugDeclaration: [
+  processor: ;
   refToVar:;
   compileOnce
   var: refToVar getVar;
   debugDeclarationIndex: refToVar @processor getMplSchema.dbgTypeDeclarationId copy;
   [debugDeclarationIndex -1 = ~] "Pointee has no type debug info!" assert
-  "DW_TAG_pointer_type" makeStringView debugDeclarationIndex processor.options.pointerSize 0ix cast 0 cast addDerivedTypeInfo
+  "DW_TAG_pointer_type" makeStringView debugDeclarationIndex processor.options.pointerSize 0ix cast 0 cast @processor addDerivedTypeInfo
 ];
 
 addMemberInfo: [
@@ -159,8 +165,8 @@ addMemberInfo: [
   debugDeclarationIndex: field.refToVar @processor getMplSchema.dbgTypeDeclarationId copy;
   [debugDeclarationIndex -1 = ~] "Field has not debug info about type!" assert
 
-  fsize: field.refToVar @processor block getStorageSize 0ix cast 0 cast;
-  falignment: field.refToVar @processor block getAlignment 0ix cast 0 cast;
+  fsize: field.refToVar @processor getStorageSize 0ix cast 0 cast;
+  falignment: field.refToVar @processor getAlignment 0ix cast 0 cast;
   offset falignment + 1 - 0n32 cast falignment 1 - 0n32 cast ~ and 0 cast @offset set
 
   index: processor.debugInfo.lastId copy;
@@ -187,20 +193,21 @@ addMemberInfo: [
 
 getTypeDebugDeclaration: [
   refToVar: processor: block: ;;;
+  compileOnce
   var: refToVar getVar;
   refToVar isVirtualType [
     [FALSE] "virtual type has not debug declaration" assert
     -1
   ] [
     refToVar isPlain [var.data.getTag VarString =] || [
-      refToVar processor getPlainTypeDebugDeclaration
+      refToVar @processor getPlainTypeDebugDeclaration
     ] [
       var.data.getTag VarRef = [
         pointee: VarRef var.data.get;
-        pointee getPointerTypeDebugDeclaration
+        pointee @processor getPointerTypeDebugDeclaration
       ] [
         var.data.getTag VarImport = [
-          block addFuncSubroutineInfo
+          @processor addFuncSubroutineInfo
         ] [
           var.data.getTag VarStruct = [
             struct: VarStruct var.data.get.get;
@@ -240,7 +247,7 @@ getTypeDebugDeclaration: [
             processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
 
             ("!" index " = distinct !DICompositeType(tag: DW_TAG_structure_type, file: !" block.position.file.debugId
-              ", name: \"" refToVar @processor block getDebugType "\", line: " block.position.line ", size: " refToVar @processor block getStorageSize 0ix cast 0 cast 8 * ", elements: !" index 1 -
+              ", name: \"" refToVar @processor block getDebugType "\", line: " block.position.line ", size: " refToVar @processor getStorageSize 0ix cast 0 cast 8 * ", elements: !" index 1 -
               ")") assembleString @processor.@debugInfo.@strings.pushBack
             index block.funcDbgIndex @processor.@debugInfo.@locationIds.insert
             index
@@ -252,6 +259,29 @@ getTypeDebugDeclaration: [
       ] if
     ] if
   ] if
+];
+
+getDebugType: [
+  refToVar: processor: block:;;;
+  dbgType: refToVar @processor getDbgType;
+  splitted: dbgType splitString;
+  splitted.success [
+    splitted.chars.getSize 1024 > [
+      1024 @splitted.@chars.shrink
+      "..." makeStringView @splitted.@chars.pushBack
+    ] when
+  ] [
+    ("Wrong dbgType name encoding" splitted.chars assembleString) assembleString @processor block compilerError
+  ] if
+
+  result: (dbgType hash ".") assembleString;
+  splitted.chars @result.catMany
+  @result
+];
+
+getDbgType:  [
+  refToVar: processor:;;
+  refToVar @processor getMplSchema.dbgTypeId @processor getNameById
 ];
 
 addVariableDebugInfo: [
@@ -305,6 +335,8 @@ addVariableMetadata: [
 ];
 
 addExpression: [
+  processor:;
+
   index: processor.debugInfo.lastId copy;
   processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
   ("!" index " = !DIExpression()") assembleString @processor.@debugInfo.@strings.pushBack
@@ -312,6 +344,8 @@ addExpression: [
 ];
 
 addTypeInfo: [
+  processor: ;
+
   encoding:;
   copy size:;
   name:;
@@ -324,6 +358,8 @@ addTypeInfo: [
 ];
 
 addDerivedTypeInfo: [
+  processor: ;
+
   copy size:;
   copy base:;
   tag:;
@@ -336,6 +372,8 @@ addDerivedTypeInfo: [
 
 addFileDebugInfo: [
   compileOnce
+  processor: ;
+
   fileName:;
   index: processor.debugInfo.lastId copy;
   processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
@@ -347,7 +385,8 @@ addFileDebugInfo: [
 ];
 
 addFuncSubroutineInfo: [
-  block:;
+  compileOnce
+  processor: ;
 
   index: processor.debugInfo.lastId copy;
   processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
@@ -366,7 +405,7 @@ addFuncDebugInfo: [
   compileOnce
   position: funcName: funcIRName: funcDebugIndex: processor: ;;;;;
 
-  subroutineIndex: block addFuncSubroutineInfo;
+  subroutineIndex: @processor addFuncSubroutineInfo;
   funcImplementation: funcName makeStringView getStringImplementation;
 
   (
@@ -399,6 +438,8 @@ addDebugReserve: [
 ];
 
 moveLastDebugString: [
+  processor:;
+
   copy index:;
   processor.debugInfo.strings.last
   index 4 + @processor.@debugInfo.@strings.at set
@@ -430,6 +471,8 @@ correctUnitInfo: [
 ];
 
 clearUnusedDebugInfo: [
+  processor:;
+
   processor.debugInfo.locationIds [
     pair:;
     locId: pair.key;

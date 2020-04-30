@@ -67,6 +67,7 @@
 "Var.Dirty" use
 "Var.Dynamic" use
 "Var.Field" use
+"Var.fullUntemporize" use
 "Var.getVar" use
 "Var.getPlainConstantIR" use
 "Var.isForgotten" use
@@ -80,6 +81,8 @@
 "Var.isVirtualType" use
 "Var.makeStringId" use
 "Var.markAsUnableToDie" use
+"Var.staticityOfVar" use
+"Var.variablesAreSame" use
 "Var.RefToVar" use
 "Var.Schema" use
 "Var.ShadowReasonCapture" use
@@ -114,23 +117,47 @@
 "astNodeType.AstNode" use
 "astNodeType.AstNodeType" use
 "astNodeType.IndexArray" use
+"declarations.callBuiltin" use
+"declarations.compareEntriesRec" use
+"declarations.compilerError" use
+"declarations.createDtorForGlobalVar" use
+"declarations.createRefWith" use
+"declarations.copyVar" use
+"declarations.copyVarFromChild" use
+"declarations.copyVarToNew" use
+"declarations.copyVarFromParent" use
+"declarations.defaultPrintStack" use
+"declarations.defaultPrintStackTrace" use
+"declarations.getMplType" use
+"declarations.makeShadows" use
+"declarations.makeShadowsDynamic" use
+"declarations.makeVariableType" use
+"declarations.popWith" use
+"declarations.processCall" use
+"declarations.processCallByIndexArray" use
+"declarations.processExportFunction" use
+"declarations.processFuncPtr" use
+"declarations.processPre" use
+"declarations.TryImplicitLambdaCastResult" use
 "debugWriter.addDebugLocation" use
 "debugWriter.addDebugReserve" use
 "debugWriter.addFuncDebugInfo" use
 "debugWriter.addGlobalVariableDebugInfo" use
 "debugWriter.addVariableMetadata" use
 "debugWriter.moveLastDebugString" use
+"defaultImpl.compilable" use
+"defaultImpl.createRef" use
 "defaultImpl.defaultMakeConstWith" use
-"defaultImpl.defaultPrintStackTrace" use
 "defaultImpl.defaultRef" use
 "defaultImpl.defaultSet" use
-"defaultImpl.failProcForProcessor" use
+"defaultImpl.FailProcForProcessor" use
 "defaultImpl.findNameInfo" use
 "defaultImpl.getStackDepth" use
 "defaultImpl.getStackEntry" use
+"defaultImpl.makeVarRealCaptured" use
+"defaultImpl.pop" use
 "irWriter.addStrToProlog" use
 "irWriter.appendInstruction" use
-"irWriter.compilerError" use
 "irWriter.createAllocIR" use
 "irWriter.createComment" use
 "irWriter.createCopyToNew" use
@@ -159,46 +186,31 @@
 "staticCall.staticCall" use
 "variable.NameInfo" use
 "variable.Overload" use
-"variable.callBuiltin" use
 "variable.checkValue" use
-"variable.compareEntriesRec" use
-"variable.compilable" use
-"variable.createDtorForGlobalVar" use
 "variable.findField" use
 "variable.findFieldWithOverloadDepth" use
-"variable.fullUntemporize" use
-"variable.getMplType" use
-"variable.getMplTypeImpl" use
 "variable.isGlobal" use
-"variable.makeShadowsImpl" use
 "variable.makeVariableIRName" use
-"variable.makeVariableType" use
 "variable.maxStaticity" use
 "variable.noMatterToCopy" use
-"variable.popImpl" use
-"variable.processCall" use
-"variable.processCallByIndexArrayImpl" use
-"variable.processExportFunction" use
-"variable.processFuncPtr" use
-"variable.processPre" use
-"variable.staticityOfVar" use
 "variable.unglobalize" use
 "variable.untemporize" use
-"variable.variablesAreSame" use
 
 addNameInfo: [
+  processor:;
   params:;
 
-  forOverload:   params "overload"      has [params.overload copy] [FALSE dynamic] if;
-  block:         params "block"         has [@params.@block] [@block] if;
-  mplFieldIndex: params "mplFieldIndex" has [params.mplFieldIndex copy] [-1 dynamic] if;
-  reg:           params "reg"           has [params.reg copy] [TRUE dynamic] if;
-  startPoint:    params "startPoint"    has [params.startPoint copy] [block.id copy] if;
-  overloadDepth: params "overloadDepth" has [params.overloadDepth copy] [0 dynamic] if;
-  file:          params "file"          has [params.file] [block.position.file] if;
-  addNameCase:   params.addNameCase copy dynamic;
-  refToVar:      params.refToVar copy dynamic;
-  nameInfo:      params.nameInfo copy dynamic;
+  forOverload:    params "overload"       has [params.overload copy] [FALSE dynamic] if;
+  block:          params "block"          has [@params.@block] [@block] if;
+  mplFieldIndex:  params "mplFieldIndex"  has [params.mplFieldIndex copy] [-1 dynamic] if;
+  reg:            params "reg"            has [params.reg copy] [TRUE dynamic] if;
+  startPoint:     params "startPoint"     has [params.startPoint copy] [block.id copy] if;
+  overloadDepth:  params "overloadDepth"  has [params.overloadDepth copy] [0 dynamic] if;
+  file:           params "file"           has [params.file] [block.position.file] if;
+  reallyAddLabel: params "reallyAddLabel" has [params.reallyAddLabel copy] [FALSE] if;
+  addNameCase:    params.addNameCase copy dynamic;
+  refToVar:       params.refToVar copy dynamic;
+  nameInfo:       params.nameInfo copy dynamic;
 
   [
     [addNameCase NameCaseFromModule = [refToVar noMatterToCopy] || [refToVar getVar.host block is] ||] "addNameInfo block mismatch!" assert
@@ -220,6 +232,9 @@ addNameInfo: [
         ] [
           addNameCase NameCaseFromModule = [
             nameWithOverload @block.@fromModuleNames.pushBack
+            reallyAddLabel [
+              nameWithOverload @block.@labelNames.pushBack
+            ] when
           ] [
             addNameCase NameCaseCapture = [addNameCase NameCaseSelfObjectCapture =] || [addNameCase NameCaseClosureObjectCapture =] || [
               nameWithOverload @block.@captureNames.pushBack
@@ -290,7 +305,7 @@ deleteNameInfo: [
 ];
 
 makeStaticity: [
-  refToVar: staticity: block:;;;
+  refToVar: staticity: processor: block:;;;;
   refToVar isVirtual ~ [
     var: @refToVar getVar;
     staticity @var.@staticity set
@@ -314,12 +329,12 @@ makeStorageStaticity: [
 ];
 
 createVariable: [
-  block:;
-  FALSE dynamic FALSE dynamic TRUE dynamic @block createVariableWithVirtual
+  processor: block:;;
+  FALSE dynamic FALSE dynamic TRUE dynamic @processor @block createVariableWithVirtual
 ];
 
 createVariableWithVirtual: [
-  block:;
+  processor: block: ;;
   copy makeType:;
   copy makeSchema:;
   copy makeVirtual:;
@@ -348,7 +363,6 @@ createVariableWithVirtual: [
   # now forget about v
 
   result: RefToVar;
-
   @processor.@variables.last.last @result.setVar
   @block @result getVar.@host.set
 
@@ -375,10 +389,14 @@ createVariableWithVirtual: [
   @result
 ];
 
-push: [
+{
+  block: Block Ref;
+  entry: RefToVar Cref;
+} () {} [
   entry: block:;;
+
   entry @block.@stack.pushBack
-];
+] "push" exportFunction
 
 getStackEntryForPreInput: [
   copy depth:;
@@ -387,29 +405,29 @@ getStackEntryForPreInput: [
     [entry getVar.host block is ~] "Pre input is just in inputs!" assert
     shadowBegin: RefToVar;
     shadowEnd: RefToVar;
-    entry @shadowBegin @shadowEnd ShadowReasonInput @block makeShadows
+    entry @shadowBegin @shadowEnd ShadowReasonInput @processor @block makeShadows
     shadowEnd
   ] [
     RefToVar
   ] if
 ];
 
-makeVarCode:   [VarCode   @block createVariable];
-makeVarInt8:   [VarInt8   checkValue VarInt8   @block createVariable @processor @block createPlainIR];
-makeVarInt16:  [VarInt16  checkValue VarInt16  @block createVariable @processor @block createPlainIR];
-makeVarInt32:  [VarInt32  checkValue VarInt32  @block createVariable @processor @block createPlainIR];
-makeVarInt64:  [VarInt64  checkValue VarInt64  @block createVariable @processor @block createPlainIR];
-makeVarIntX:   [VarIntX   checkValue VarIntX   @block createVariable @processor @block createPlainIR];
-makeVarNat8:   [VarNat8   checkValue VarNat8   @block createVariable @processor @block createPlainIR];
-makeVarNat16:  [VarNat16  checkValue VarNat16  @block createVariable @processor @block createPlainIR];
-makeVarNat32:  [VarNat32  checkValue VarNat32  @block createVariable @processor @block createPlainIR];
-makeVarNat64:  [VarNat64  checkValue VarNat64  @block createVariable @processor @block createPlainIR];
-makeVarNatX:   [VarNatX   checkValue VarNatX   @block createVariable @processor @block createPlainIR];
-makeVarReal32: [VarReal32 checkValue VarReal32 @block createVariable @processor @block createPlainIR];
-makeVarReal64: [VarReal64 checkValue VarReal64 @block createVariable @processor @block createPlainIR];
+makeVarCode:   [VarCode   @processor @block createVariable];
+makeVarInt8:   [VarInt8   @processor @block checkValue VarInt8   @processor @block createVariable @processor @block createPlainIR];
+makeVarInt16:  [VarInt16  @processor @block checkValue VarInt16  @processor @block createVariable @processor @block createPlainIR];
+makeVarInt32:  [VarInt32  @processor @block checkValue VarInt32  @processor @block createVariable @processor @block createPlainIR];
+makeVarInt64:  [VarInt64  @processor @block checkValue VarInt64  @processor @block createVariable @processor @block createPlainIR];
+makeVarIntX:   [VarIntX   @processor @block checkValue VarIntX   @processor @block createVariable @processor @block createPlainIR];
+makeVarNat8:   [VarNat8   @processor @block checkValue VarNat8   @processor @block createVariable @processor @block createPlainIR];
+makeVarNat16:  [VarNat16  @processor @block checkValue VarNat16  @processor @block createVariable @processor @block createPlainIR];
+makeVarNat32:  [VarNat32  @processor @block checkValue VarNat32  @processor @block createVariable @processor @block createPlainIR];
+makeVarNat64:  [VarNat64  @processor @block checkValue VarNat64  @processor @block createVariable @processor @block createPlainIR];
+makeVarNatX:   [VarNatX   @processor @block checkValue VarNatX   @processor @block createVariable @processor @block createPlainIR];
+makeVarReal32: [VarReal32 @processor @block checkValue VarReal32 @processor @block createVariable @processor @block createPlainIR];
+makeVarReal64: [VarReal64 @processor @block checkValue VarReal64 @processor @block createVariable @processor @block createPlainIR];
 
 makeVarString: [
-  text: block:;;
+  text: processor: block: ;;;
   string: text String same [@text] [text toString] uif;
   refToVar: RefToVar;
 
@@ -419,8 +437,8 @@ makeVarString: [
   ] [
     block: 0 @processor.@blocks.at.get;
 
-    string VarString @block createVariable @refToVar set
-    string.getStringView @refToVar createStringIR
+    string VarString @processor @block createVariable @refToVar set
+    string.getStringView @refToVar @processor createStringIR
     string refToVar @processor.@stringNames.insert
 
     @refToVar fullUntemporize
@@ -429,11 +447,11 @@ makeVarString: [
       addNameCase: NameCaseLocal;
       refToVar:    refToVar copy;
       nameInfo:    refToVar getVar.mplNameId;
-    } addNameInfo
+    } @processor addNameInfo
   ] if
 
-  gnr: refToVar getVar.mplNameId @block getName;
-  cnr: @gnr 0 dynamic @block block.position.file captureName;
+  gnr: refToVar getVar.mplNameId @processor @block getName;
+  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
 
   cnr.refToVar copy
 ];
@@ -465,16 +483,16 @@ getPointeeWith: [
 
       # create new var of dynamic dereference
       fromParent [
-        pointeeCopy: pointee @block copyOneVar;
+        pointeeCopy: pointee @processor @block copyOneVar;
         psBegin: RefToVar;
         psEnd:   RefToVar;
-        pointeeCopy @psBegin @psEnd ShadowReasonPointee @block makeShadowsDynamic
+        pointeeCopy @psBegin @psEnd ShadowReasonPointee @processor @block makeShadowsDynamic
         @psBegin @processor block unglobalize
         @psEnd   @processor block unglobalize
         dynamize ~ [psEnd @block makeVarTreeDynamicStoraged] when
         psEnd @pointee set
       ] [
-        pointeeCopy: pointee @block copyVar; # lost info that pointee is from parent # noMatterToCopy
+        pointeeCopy: pointee @processor @block copyVar; # lost info that pointee is from parent # noMatterToCopy
         @pointeeCopy @processor block unglobalize
         dynamize ~ [pointeeCopy @block makeVarTreeDynamicStoraged] when
         pointeeCopy @pointee set
@@ -499,12 +517,12 @@ getPointeeWith: [
           psBegin: RefToVar;
           psEnd:   RefToVar;
           pointeeOfShadow pointee = [
-            pointeeOfShadow @psBegin @psEnd ShadowReasonPointee @block makeShadows
+            pointeeOfShadow @psBegin @psEnd ShadowReasonPointee @processor @block makeShadows
             psBegin @pointeeOfShadow set
             psEnd @pointee set
           ] [
             #we changed ref, pointeeOFShadow is another pointer to another var!
-            pointee @psBegin @psEnd ShadowReasonPointee @block makeShadows
+            pointee @psBegin @psEnd ShadowReasonPointee @processor @block makeShadows
             psEnd @pointee set
           ] if
 
@@ -547,7 +565,7 @@ getPointeeNoDerefIR:     [FALSE FALSE @block getPointeeWith];
 getPointeeWhileDynamize: [block:; FALSE TRUE  @block getPointeeWith];
 
 getFieldForMatching: [
-  mplFieldIndex: refToVar: block:;;;
+  mplFieldIndex: refToVar: processor: block: ;;;;
 
   var: refToVar getVar;
   [var.data.getTag VarStruct =] "Not a combined!" assert
@@ -588,7 +606,7 @@ getField: [
     fieldRefToVar noMatterToCopy [fieldVar.host block is] || ~ [ # capture or argument
       var.shadowBegin.assigned ~ [
         [refToVar noMatterToCopy] "Field got from parent, but dont have shadow!" assert
-        fieldRefToVar @block copyVarFromChild @fieldRefToVar set
+        fieldRefToVar @processor @block copyVarFromChild @fieldRefToVar set
       ] [
         varShadow: @var.@shadowBegin getVar;
         [varShadow.data.getTag VarStruct =] "Shadow is not a combined!" assert
@@ -598,7 +616,7 @@ getField: [
 
         psBegin: RefToVar;
         psEnd: RefToVar;
-        fieldShadow @psBegin @psEnd ShadowReasonField @block makeShadows
+        fieldShadow @psBegin @psEnd ShadowReasonField @processor @block makeShadows
 
         psBegin @fieldShadow set
         psEnd @fieldRefToVar set
@@ -669,62 +687,30 @@ setOneVar: [
   refDst staticityOfVar Dirty > [
     staticity: refSrc staticityOfVar;
     staticity Weak = [refDst staticityOfVar @staticity set] when
-    @refDst staticity block makeStaticity drop
+    @refDst staticity @processor block makeStaticity drop
   ] [
     srcVar.data.getTag VarRef = [refSrc.mutable] && [VarRef srcVar.data.get.mutable] && [
       staticity: refSrc staticityOfVar;
       refSrc @block makeVarTreeDirty
-      @refSrc staticity block makeStaticity drop
+      @refSrc staticity @processor block makeStaticity drop
     ] when
   ] if
 ];
 
-setVar: [
-  copy refDst:;
-  refSrc:;
-  uncopiedSrc: RefToVar Array;
-  uncopiedDst: RefToVar AsRef Array;
-  compileOnce
+{
+  block: Block Ref;
+  processor: Processor Ref;
+  createOperation: Cond;
+  mutable: Cond;
+  refToVar: RefToVar Cref;
+  result: RefToVar Ref;
+} () {} [
+  result: refToVar: mutable: createOperation: processor: block: ;;;;;;
+  overload failProc: @processor block FailProcForProcessor;
 
-  refSrc @uncopiedSrc.pushBack
-  @refDst AsRef @uncopiedDst.pushBack
-
-  i: 0 dynamic;
-  [
-    i uncopiedSrc.dataSize < [
-      currentSrc: i uncopiedSrc.at copy;
-      currentDst: i @uncopiedDst.at.@data;
-      @currentSrc @currentDst i 0 = setOneVar
-
-      currentSrcVar: currentSrc getVar;
-      currentDstVar: currentDst getVar;
-      currentSrcVar.data.getTag VarStruct = [
-        branchSrc: VarStruct currentSrcVar.data.get.get;
-        branchDst: VarStruct currentDstVar.data.get.get;
-        f: 0 dynamic;
-        [
-          f branchSrc.fields.dataSize < [
-            fieldSrc: f @currentSrc @processor @block getField;
-            fieldDst: f @currentDst @processor @block getField;
-
-            fieldSrc @uncopiedSrc.pushBack
-            @fieldDst AsRef @uncopiedDst.pushBack
-
-            f 1 + @f set TRUE
-          ] &&
-        ] loop
-      ] when
-
-      i 1 + @i set TRUE
-    ] &&
-  ] loop
-];
-
-createRefWith: [
-  refToVar: mutable: createOperation: processor: block: ;;;;;
   refToVar isVirtual [
     @refToVar untemporize
-    refToVar copy #for dropping or getting callables for example
+    refToVar @result set #for dropping or getting callables for example
   ] [
     pointee: refToVar copy;
     var: @pointee getVar;
@@ -732,14 +718,11 @@ createRefWith: [
     @pointee fullUntemporize
 
     pointee.mutable [mutable copy] && @pointee.setMutable
-    newRefToVar: pointee VarRef @block createVariable;
+    newRefToVar: pointee VarRef @processor @block createVariable;
     createOperation [pointee @newRefToVar @processor @block createRefOperation] when
-    newRefToVar
+    newRefToVar @result set
   ] if
-];
-
-createRef:     [processor: block:;;  TRUE dynamic @processor @block createRefWith];
-createRefNoOp: [processor: block:;; FALSE dynamic @processor @block createRefWith];
+] "createRefWithImpl" exportFunction
 
 createCheckedStaticGEP: [
   fieldRef: index: refToStruct: processor: block: ;;;;;
@@ -764,7 +747,7 @@ makeVirtualVarReal: [
     unfinishedSrc: RefToVar Array;
     unfinishedDst: RefToVar Array;
 
-    result: refToVar @block copyOneVar;
+    result: refToVar @processor @block copyOneVar;
 
     result isVirtualType ~ [
       Static @result getVar.@staticity set
@@ -785,7 +768,7 @@ makeVirtualVarReal: [
 
           # noMatterToCopy
           lastSrc getVar.host block is ~ [varDst.shadowBegin.assigned ~] && [
-            shadowBegin: lastDst @block copyOneVar;
+            shadowBegin: lastDst @processor @block copyOneVar;
             shadowBeginVar: @shadowBegin getVar;
             lastDst @shadowBeginVar.@shadowEnd set
             shadowBegin @varDst.@shadowBegin set
@@ -804,7 +787,7 @@ makeVirtualVarReal: [
                   @dstField @processor block unglobalize
                 ] [
                   dstField: j @lastDst @processor @block getField;
-                  @dstField Virtual block makeStaticity r:;
+                  @dstField Virtual @processor block makeStaticity r:;
                   @dstField @processor block unglobalize
                 ] if
 
@@ -872,7 +855,7 @@ makeVirtualVarReal: [
 
 makeVarSchema: [
   refToVar:;
-  @refToVar Schema block makeStaticity drop
+  @refToVar Schema @processor block makeStaticity drop
 ];
 
 makeVarVirtual: [
@@ -917,13 +900,8 @@ makeVarVirtual: [
   ] loop
 
   processor compilable [
-    @refToVar Virtual block makeStaticity drop
+    @refToVar Virtual @processor block makeStaticity drop
   ] when
-];
-
-makeVarRealCaptured: [
-  refToVar:;
-  TRUE @refToVar getVar.@capturedAsRealValue set
 ];
 
 makeVarTreeDirty: [
@@ -964,7 +942,7 @@ makeVarTreeDirty: [
         ] if
 
         var.data.getTag VarImport = ~ var.data.getTag VarString = ~ and [
-          @lastRefToVar Dirty block makeStaticity @lastRefToVar set
+          @lastRefToVar Dirty @processor block makeStaticity @lastRefToVar set
         ] when
       ] when
 
@@ -989,7 +967,7 @@ makeVarDynamicOrDirty: [
   refToVar staticityOfVar Virtual = ["can't dynamize virtual value" @processor block compilerError] when
 
   @refToVar makePointeeDirtyIfRef
-  msr: @refToVar newStaticity @block makeStaticity;
+  msr: @refToVar newStaticity @processor @block makeStaticity;
 ];
 
 makeVarDynamic: [Dynamic makeVarDynamicOrDirty];
@@ -1034,9 +1012,9 @@ makeVarTreeDynamicWith: [
 
       dynamicStoraged [
         lastRefToVar  Dynamic makeStorageStaticity @lastRefToVar set
-        @lastRefToVar Dirty   block makeStaticity  @lastRefToVar set
+        @lastRefToVar Dirty   @processor block makeStaticity  @lastRefToVar set
       ] [
-        @lastRefToVar Dynamic block makeStaticity  @lastRefToVar set
+        @lastRefToVar Dynamic @processor block makeStaticity  @lastRefToVar set
       ] if
 
       processor compilable
@@ -1077,7 +1055,7 @@ createNamedVariable: [
       staticity Weak = [Dynamic @var.@staticity set] when
     ] [
       newRefToVar noMatterToCopy block.nextLabelIsVirtual or newRefToVar isUnallocable ~ and [
-        refToVar @block copyVarToNew @newRefToVar set
+        refToVar @processor @block copyVarToNew @newRefToVar set
       ] [
         TRUE @var.@capturedAsMutable set #we need ref
         @refToVar TRUE block.nextLabelIsSchema ~ @processor @block createRefWith @newRefToVar set
@@ -1102,7 +1080,7 @@ createNamedVariable: [
       refToVar:    newRefToVar copy;
       nameInfo:    nameInfo copy;
       overload:    block.nextLabelIsOverload copy;
-    } addNameInfo
+    } @processor addNameInfo
 
     processor compilable [processor.options.debug copy] && [newRefToVar isVirtual ~] && [
       newRefToVar isGlobal [
@@ -1144,59 +1122,52 @@ processCodeNode: [
   @codeInfo move makeVarCode @block push
 ];
 
-processCallByIndexArray: [
-  indexArray: nodeCase: name: positionInfo: ;;;;
-  indexArray nodeCase name positionInfo @block @processor processCallByIndexArrayImpl
-];
-
 processObjectNode: [
-  data:;
+  data: ;
   position: block.position copy;
   name: "objectInitializer" makeStringView;
-  data NodeCaseObject dynamic name position processCallByIndexArray
+  data NodeCaseObject dynamic name position @processor @block processCallByIndexArray
 ];
 
 processListNode: [
   data: ;
   position: block.position copy;
   name: "listInitializer" makeStringView;
-  data NodeCaseList dynamic name position processCallByIndexArray
+  data NodeCaseList dynamic name position @processor @block processCallByIndexArray
 ];
 
 {
   processor: Processor Ref;
   block: Block Cref;
   message: StringView Cref;
-} () {convention: cdecl;} [
+} () {} [
   processor:;
   block:;
   message:;
-  failProc: @failProcForProcessor;
-  [
-    compileOnce
-    processor.result.findModuleFail ~ [processor.depthOfPre 0 =] && [HAS_LOGS] && [
-      ("COMPILER ERROR") addLog
-      (message) addLog
-      @processor block defaultPrintStackTrace
-    ] when
+  overload failProc: @processor block FailProcForProcessor;
 
-    processor compilable [
-      FALSE dynamic @processor.@result.@success set
+  processor.result.findModuleFail ~ [processor.depthOfPre 0 =] && [HAS_LOGS] && [
+    ("COMPILER ERROR") addLog
+    (message) addLog
+    @processor block defaultPrintStackTrace
+  ] when
 
-      processor.depthOfPre 0 = [processor.result.passErrorThroughPRE copy] || [
-        message toString @processor.@result.@errorInfo.@message set
-        [
-          block.root [
-            FALSE
-          ] [
-            block.position @processor.@result.@errorInfo.@position.pushBack
-            block.parent processor.blocks.at.get !block
-            TRUE
-          ] if
-        ] loop
-      ] when
+  processor compilable [
+    FALSE dynamic @processor.@result.@success set
+
+    processor.depthOfPre 0 = [processor.result.passErrorThroughPRE copy] || [
+      message toString @processor.@result.@errorInfo.@message set
+      [
+        block.root [
+          FALSE
+        ] [
+          block.position @processor.@result.@errorInfo.@position.pushBack
+          block.parent processor.blocks.at.get !block
+          TRUE
+        ] if
+      ] loop
     ] when
-  ] call
+  ] when
 ] "compilerErrorImpl" exportFunction
 
 findLocalObject: [
@@ -1248,7 +1219,7 @@ findNameStackObject: [
 
 getNameAs: [
   file:;
-  block:;
+  processor: block: ;;
   copy overloadIndex:;
   copy forMatching:;
   matchingCapture:;
@@ -1332,25 +1303,25 @@ getNameAs: [
   @result
 ];
 
-getName: [block:; Capture FALSE dynamic -1 dynamic @block block.position.file getNameAs];
+getName: [processor: block:;; Capture FALSE dynamic -1 dynamic @processor @block block.position.file getNameAs];
 
 getNameForMatching: [
-  block: file: ;;
-  TRUE dynamic -1 dynamic @block file getNameAs
+  processor: block: file: ;;;
+  TRUE dynamic -1 dynamic @processor @block file getNameAs
 ];
 
 getNameWithOverloadIndex: [
-  overloadIndex: block: file: ;;;
-  Capture FALSE dynamic overloadIndex @block file getNameAs
+  overloadIndex: processor: block: file: ;;;;
+  Capture FALSE dynamic overloadIndex @processor @block file getNameAs
 ];
 
 getNameForMatchingWithOverloadIndex: [
-  overloadIndex: block: file: ;;;
-  TRUE dynamic overloadIndex @block file getNameAs
+  overloadIndex: processor: block: file: ;;;;
+  TRUE dynamic overloadIndex @processor @block file getNameAs
 ];
 
 captureName: [
-  getNameResult: overloadDepth: block: file: ;;;;
+  getNameResult: overloadDepth: processor: block: file: ;;;;;
 
   result: {
     refToVar: RefToVar;
@@ -1407,7 +1378,7 @@ captureName: [
         ] || [
           shadowBegin: RefToVar;
           shadowEnd: RefToVar;
-          refToVar @shadowBegin @shadowEnd ShadowReasonCapture @block makeShadows
+          refToVar @shadowBegin @shadowEnd ShadowReasonCapture @processor @block makeShadows
 
           newCapture: Capture;
           shadowEnd @newCapture.@refToVar set
@@ -1432,14 +1403,14 @@ captureName: [
           ] when
 
           processor.options.debug [shadowEnd isVirtual ~] && [shadowEnd isGlobal ~] && [
-            fakePointer: shadowEnd VarRef @block createVariable;
+            fakePointer: shadowEnd VarRef @processor @block createVariable;
             shadowEnd @fakePointer @processor @block createRefOperation
             nameInfo fakePointer @processor @block addVariableMetadata
             programSize: block.program.getSize;
             TRUE programSize 3 - @block.@program.at.@fakePointer set
             TRUE programSize 2 - @block.@program.at.@fakePointer set
             TRUE programSize 1 - @block.@program.at.@fakePointer set
-            @block addDebugLocationForLastInstruction
+            @processor @block addDebugLocationForLastInstruction
           ] when
 
           shadowEnd @result.@refToVar set
@@ -1482,7 +1453,7 @@ captureName: [
           overloadDepth: overloadDepth copy;
           addNameCase:   getNameResult.nameCase MemberCaseToObjectCaptureCase;
           refToVar:      cro.refToVar copy;
-        } addNameInfo
+        } @processor addNameInfo
       ] when # add name info for "self"/"closure" as Object; result is object
 
       needToCapture: getNameResult.startPoint block.id = ~ [
@@ -1501,7 +1472,7 @@ captureName: [
           overloadDepth: overloadDepth copy;
           addNameCase:   getNameResult.nameCase copy;
           refToVar:      result.refToVar copy;
-        } addNameInfo
+        } @processor addNameInfo
 
         newFieldCapture: FieldCapture;
         [overloadDepth 0 < ~] "name overload not initialized!" assert
@@ -1527,7 +1498,7 @@ captureName: [
           overloadDepth: overloadDepth copy;
           addNameCase:   NameCaseCapture;
           refToVar:      result.refToVar copy;
-        } addNameInfo
+        } @processor addNameInfo
       ] when
     ] if
 
@@ -1541,7 +1512,6 @@ captureName: [
   result
 ];
 
-
 isCallable: [
   refToVar:;
   var: refToVar getVar;
@@ -1549,7 +1519,7 @@ isCallable: [
   [var.data.getTag VarCode =] ||
   [var.data.getTag VarImport =] || [
     var.data.getTag VarStruct = [
-      processor.callNameInfo refToVar @processor findField.success copy
+      processor.callNameInfo refToVar @processor block findField.success copy
     ] &&
   ] ||
 ];
@@ -1575,7 +1545,7 @@ addFieldsNameInfos: [
         refToVar:      refToVar copy;
         file:          file;
         reg:           FALSE;
-      } addNameInfo
+      } @processor addNameInfo
 
       i 1 + @i set TRUE
     ] &&
@@ -1608,7 +1578,7 @@ regNamesClosure: [
       refToVar:      object copy;
       reg:           FALSE;
       file:          file;
-    } addNameInfo
+    } @processor addNameInfo
 
     object file NameCaseClosureMember addFieldsNameInfos
   ] when
@@ -1623,7 +1593,7 @@ regNamesSelf: [
       refToVar:      object copy;
       reg:           FALSE;
       file:          file;
-    } addNameInfo
+    } @processor addNameInfo
 
     object file NameCaseSelfMember addFieldsNameInfos
   ] when
@@ -1656,7 +1626,7 @@ callCallableStruct: [
 
   struct: VarStruct var.data.get.get;
 
-  fr: processor.callNameInfo refToVar @processor findField;
+  fr: processor.callNameInfo refToVar @processor block findField;
   [fr.success copy] "Struct is not callable!" assert
 
   codeField: fr.index struct.fields.at .refToVar;
@@ -1666,7 +1636,7 @@ callCallableStruct: [
 
     object file regNamesSelf
     refToVar file regNamesClosure
-    VarCode codeVar.data.get.index file name processCall
+    VarCode codeVar.data.get.index file name @processor @block processCall
     refToVar unregNamesClosure
     object unregNamesSelf
   ] [
@@ -1675,9 +1645,7 @@ callCallableStruct: [
 ];
 
 callCallableField: [
-  name:;
-  refToVar:;
-  object:;
+  object: refToVar: name: ;;;
   compileOnce
 
   var: refToVar getVar;
@@ -1685,7 +1653,7 @@ callCallableField: [
   file: VarCode var.data.get.file;
 
   object file regNamesClosure
-  code file @name processCall
+  code file @name @processor @block processCall
   object unregNamesClosure
 ];
 
@@ -1709,7 +1677,7 @@ callCallableStructWithPre: [
 
     struct: VarStruct var.data.get.get;
 
-    fr: processor.callNameInfo refToVar @processor findField;
+    fr: processor.callNameInfo refToVar @processor block findField;
     [fr.success copy] "Struct is not callable!" assert
 
     codeField: fr.index struct.fields.at .refToVar;
@@ -1717,12 +1685,12 @@ callCallableStructWithPre: [
     codeVar.data.getTag VarCode = [
 
       needPre: FALSE;
-      pfr: processor.preNameInfo refToVar @processor findField;
+      pfr: processor.preNameInfo refToVar @processor block findField;
       pfr.success [
         preField: pfr.index struct.fields.at .refToVar;
         preVar: preField getVar;
         preVar.data.getTag VarCode = [
-          VarCode preVar.data.get.index VarCode preVar.data.get.file processPre ~ @needPre set
+          VarCode preVar.data.get.index VarCode preVar.data.get.file @processor @block processPre ~ @needPre set
         ] [
           "PRE field must be a code" @processor block compilerError
         ] if
@@ -1732,7 +1700,7 @@ callCallableStructWithPre: [
         findInside [
           findFieldDepth 1 + !findFieldDepth
 
-          fr: nameInfo object findFieldDepth @processor findFieldWithOverloadDepth;
+          fr: nameInfo object findFieldDepth @processor block findFieldWithOverloadDepth;
           fr.success [
             fr.index @object @processor @block processStaticAt @refToVar set
           ] [
@@ -1740,7 +1708,7 @@ callCallableStructWithPre: [
             ("cant call overload for field with name: " name) assembleString @processor block compilerError
           ] if
         ] [
-          oldGnr: nameInfo overloadIndex @block block.position.file getNameWithOverloadIndex;
+          oldGnr: nameInfo overloadIndex @processor @block block.position.file getNameWithOverloadIndex;
           oldGnr.startPoint block.id = ~ [overloadDepth 1 + !overloadDepth] when
 
           overloadIndex block.position.file nameInfo processor.nameManager.findItem !overloadIndex
@@ -1750,9 +1718,9 @@ callCallableStructWithPre: [
           ] when
 
           processor compilable [
-            gnr: nameInfo overloadIndex @block block.position.file getNameWithOverloadIndex;
+            gnr: nameInfo overloadIndex @processor @block block.position.file getNameWithOverloadIndex;
             processor compilable [
-              cnr: @gnr overloadDepth @block block.position.file captureName;
+              cnr: @gnr overloadDepth @processor @block block.position.file captureName;
               cnr.object @object set
               cnr.refToVar @refToVar set
             ] when
@@ -1771,13 +1739,13 @@ callCallableStructWithPre: [
         findInside [
           object file regNamesSelf
           refToVar file regNamesClosure
-          VarCode codeVar.data.get.index file nameInfo processor.nameManager.getText processCall
+          VarCode codeVar.data.get.index file nameInfo processor.nameManager.getText @processor @block processCall
           refToVar unregNamesClosure
           object unregNamesSelf
         ] [
           object file regNamesSelf
           refToVar file regNamesClosure
-          VarCode codeVar.data.get.index file nameInfo processor.nameManager.getText processCall
+          VarCode codeVar.data.get.index file nameInfo processor.nameManager.getText @processor @block processCall
           refToVar unregNamesClosure
           object unregNamesSelf
         ] if
@@ -1799,23 +1767,23 @@ callCallable: [
 
   var: refToVar getVar;
   var.data.getTag VarBuiltin = [
-    VarBuiltin var.data.get @block callBuiltin
+    VarBuiltin var.data.get @processor @block callBuiltin
   ] [
     var.data.getTag VarCode = [
       file: VarCode var.data.get.file;
 
       field [
         object file regNamesSelf
-        VarCode var.data.get.index file @nameInfo processor.nameManager.getText processCall
+        VarCode var.data.get.index file @nameInfo processor.nameManager.getText @processor @block processCall
         object unregNamesSelf
       ] [
         object file regNamesSelf
-        VarCode var.data.get.index file @nameInfo processor.nameManager.getText processCall
+        VarCode var.data.get.index file @nameInfo processor.nameManager.getText @processor @block processCall
         object unregNamesSelf
       ] if
     ] [
       var.data.getTag VarImport = [
-        refToVar processFuncPtr
+        refToVar @processor @block processFuncPtr
       ] [
         var.data.getTag VarStruct = [
           @predicate call
@@ -1840,54 +1808,6 @@ derefAndPush: [
   @block getPossiblePointee @block push
 ];
 
-tryImplicitLambdaCast: [
-  refToSrc: refToDst: block:;;;
-
-  result: {
-    success: FALSE dynamic;
-    refToVar: RefToVar;
-  };
-
-  varSrc: refToSrc getVar;
-  varSrc.data.getTag VarCode = [refToDst isVirtual ~] && [
-    dstPointee: @refToDst @block getPossiblePointee;
-    dstPointeeVar: dstPointee getVar;
-
-    dstPointeeVar.data.getTag VarImport = [
-      declarationIndex: VarImport dstPointeeVar.data.get;
-      declarationNode: declarationIndex processor.blocks.at.get;
-      csignature: declarationNode.csignature;
-      implName: ("lambda." block.id "." block.lastLambdaName) assembleString;
-      astNode: VarCode refToSrc getVar.data.get.index processor.multiParserResult.memory.at;
-      implIndex: csignature astNode VarCode refToSrc getVar.data.get.file implName makeStringView TRUE dynamic @block processExportFunction;
-
-      processor compilable [
-        implNode: implIndex processor.blocks.at.get;
-        implNode.state NodeStateCompiled = ~ [
-          block.state NodeStateHasOutput > [NodeStateHasOutput @block.@state set] when
-          dstPointee @result.@refToVar set
-          TRUE dynamic @result.@success set
-        ] when
-
-        implNode.varNameInfo 0 < ~ [
-          gnr: implNode.varNameInfo @block getName;
-          processor compilable ~ [
-            [FALSE] "Name of new lambda is not visible!" assert
-          ] [
-            cnr: @gnr 0 dynamic @block block.position.file captureName;
-            cnr.refToVar @result.@refToVar set
-            TRUE dynamic @result.@success set
-          ] if
-        ] when
-      ] when
-
-      block.lastLambdaName 1 + @block.@lastLambdaName set
-    ] when
-  ] when
-
-  result
-];
-
 setRef: [
   compileOnce
   refToVar:; # destination
@@ -1898,7 +1818,7 @@ setRef: [
     ] [
       pointee: VarRef var.data.get;
       pointee.mutable ~ [
-        FALSE @block defaultMakeConstWith #source
+        FALSE @processor @block defaultMakeConstWith #source
       ] when
 
       processor compilable [
@@ -1906,13 +1826,13 @@ setRef: [
         processor compilable [
           src pointee variablesAreSame [
             src @block push
-            TRUE @block defaultRef #source
+            TRUE @processor @block defaultRef #source
             refToVar @block push
-            @block defaultSet
+            @processor @block defaultSet
           ] [
             src @block push
             refToVar @block push
-            @block defaultSet
+            @processor @block defaultSet
           ] if
         ] when
       ] when
@@ -1924,7 +1844,7 @@ setRef: [
       src getVar.temporary [
         src @block push
         refToVar @block push
-        @block defaultSet
+        @processor @block defaultSet
       ] [
         "rewrite value works only with temporary values" @processor block compilerError
       ] if
@@ -1933,7 +1853,7 @@ setRef: [
 ];
 
 copyOneVarWith: [
-  src: toNew: block:;;;
+  src: toNew: processor: block: ;;;;
   dst: RefToVar;
   srcVar: src getVar;
 
@@ -1946,8 +1866,8 @@ copyOneVarWith: [
     # manually copy only nececcary fields
     dstStruct: Struct;
     srcStruct.fields          @dstStruct.@fields set
-    @dstStruct move owner VarStruct src isVirtual src isSchema FALSE dynamic @block createVariableWithVirtual
-    src checkedStaticityOfVar block makeStaticity @dst set
+    @dstStruct move owner VarStruct src isVirtual src isSchema FALSE dynamic @processor @block createVariableWithVirtual
+    src checkedStaticityOfVar @processor block makeStaticity @dst set
     dstStructAc: VarStruct @dst getVar.@data.get.get;
     srcStruct.homogeneous       @dstStructAc.@homogeneous set
     srcStruct.fullVirtual       @dstStructAc.@fullVirtual set
@@ -1960,8 +1880,8 @@ copyOneVarWith: [
     srcVar.data.getTag VarInvalid VarEnd [
       copy tag:;
       tag VarStruct = ~ [
-        tag srcVar.data.get tag src isVirtual src isSchema FALSE dynamic @block createVariableWithVirtual
-        src checkedStaticityOfVar block makeStaticity
+        tag srcVar.data.get tag src isVirtual src isSchema FALSE dynamic @processor @block createVariableWithVirtual
+        src checkedStaticityOfVar @processor block makeStaticity
         @dst set
       ] when
     ] staticCall
@@ -1976,12 +1896,24 @@ copyOneVarWith: [
   dst
 ];
 
-copyVarImpl: [
-  refToVar: fromChildToParent: toNew: block:;;;;
+copyOneVar: [processor: block:;; FALSE dynamic @processor @block copyOneVarWith];
+
+{
+  block: Block Ref;
+  processor: Processor Ref;
+
+  toNew: Cond;
+  fromChildToParent: Cond;
+  refToVar: RefToVar Cref;
+  result: RefToVar Ref;
+} () {} [
+  refToVar: fromChildToParent: toNew: processor: block: ;;;;;
+  result:;
+
   fromChildToParent toNew or [refToVar noMatterToCopy refToVar isUnallocable or] && [
-    refToVar copy
+    refToVar @result set
   ] [
-    result: RefToVar;
+    RefToVar @result set
     uncopiedSrc: RefToVar Array;
     uncopiedDst: RefToVar AsRef Array;
 
@@ -1997,7 +1929,7 @@ copyVarImpl: [
         fromChildToParent toNew or [currentSrc noMatterToCopy] && [
           currentSrc @currentDst set
         ] [
-          currentSrc toNew @block copyOneVarWith @currentDst set
+          currentSrc toNew @processor @block copyOneVarWith @currentDst set
 
           currentSrcVar: currentSrc getVar;
           currentDstVar: @currentDst getVar;
@@ -2025,40 +1957,29 @@ copyVarImpl: [
       ] &&
     ] loop
 
-    @result
   ] if
-];
-
-copyOneVar: [block:; FALSE dynamic @block copyOneVarWith];
-
-copyVar:           [block:; FALSE FALSE dynamic @block copyVarImpl]; #fromchild is static arg
-copyVarFromChild:  [block:; TRUE  FALSE dynamic @block copyVarImpl];
-copyVarToNew:      [block:; FALSE TRUE  dynamic @block copyVarImpl];
-copyVarFromParent: [TRUE  FALSE dynamic @block copyVarImpl];
+] "copyVarImpl" exportFunction
 
 {
-  dynamicStoraged: Cond;
-
-  processor: Processor Ref;
   block: Block Ref;
+  processor: Processor Ref;
+
+  dynamicStoraged: Cond;
 
   reason: Nat8;
   end: RefToVar Ref;
   begin: RefToVar Ref;
   refToVar: RefToVar Cref;
-} () {convention: cdecl;} [
-  copy dynamicStoraged:;
-
-  processor:;
+} () {} [
   block:;
-  failProc: @failProcForProcessor;
-
-  copy reason:;
+  processor:;
+  dynamicStoraged:;
+  reason:;
   end:;
   begin:;
   refToVar:;
 
-  compileOnce
+  overload failProc: @processor block FailProcForProcessor;
 
   refToVar noMatterToCopy [
     refToVar @begin set
@@ -2072,8 +1993,8 @@ copyVarFromParent: [TRUE  FALSE dynamic @block copyVarImpl];
       shadowSrc: headVar.capturedTail copy;
       refToVar.mutable @shadowSrc.setMutable
 
-      shadowSrc @block copyOneVar @begin set
-      shadowSrc @block copyOneVar @end set
+      shadowSrc @processor @block copyOneVar @begin set
+      shadowSrc @processor @block copyOneVar @end set
 
       beginVar: @begin getVar;
       endVar: @end getVar;
@@ -2138,50 +2059,79 @@ copyVarFromParent: [TRUE  FALSE dynamic @block copyVarImpl];
       ] if
     ] if
   ] if
-] "makeShadowsImpl" exportFunction
-
-makeShadows: [
-  block:;
-  @block @processor FALSE makeShadowsImpl
-];
-
-makeShadowsDynamic: [
-  block:;
-  @block @processor TRUE  makeShadowsImpl
-];
-
-addStackUnderflowInfo: [
-  block:;
-  TRUE @block.@buildingMatchingInfo.@hasStackUnderflow set
-  block.state NodeStateNew = [
-    TRUE @block.@matchingInfo.@hasStackUnderflow set
-  ] when
-];
+] "makeShadowsWith" exportFunction
 
 {
-  forMatching: Cond;
-  processor: Processor Ref;
   block: Block Ref;
+  processor: Processor Ref;
+  refToDst: RefToVar Cref;
+  refToSrc: RefToVar Cref;
+} () {} [
+  refSrc: refDst: processor: block: ;; copy;;
+  overload failProc: @processor block FailProcForProcessor;
+
+  uncopiedSrc: RefToVar Array;
+  uncopiedDst: RefToVar AsRef Array;
+
+  refSrc @uncopiedSrc.pushBack
+  @refDst AsRef @uncopiedDst.pushBack
+
+  i: 0 dynamic;
+  [
+    i uncopiedSrc.dataSize < [
+      currentSrc: i uncopiedSrc.at copy;
+      currentDst: i @uncopiedDst.at.@data;
+      @currentSrc @currentDst i 0 = setOneVar
+
+      currentSrcVar: currentSrc getVar;
+      currentDstVar: currentDst getVar;
+      currentSrcVar.data.getTag VarStruct = [
+        branchSrc: VarStruct currentSrcVar.data.get.get;
+        branchDst: VarStruct currentDstVar.data.get.get;
+        f: 0 dynamic;
+        [
+          f branchSrc.fields.dataSize < [
+            fieldSrc: f @currentSrc @processor @block getField;
+            fieldDst: f @currentDst @processor @block getField;
+
+            fieldSrc @uncopiedSrc.pushBack
+            @fieldDst AsRef @uncopiedDst.pushBack
+
+            f 1 + @f set TRUE
+          ] &&
+        ] loop
+      ] when
+
+      i 1 + @i set TRUE
+    ] &&
+  ] loop
+] "setVar" exportFunction
+
+{
+  block: Block Ref;
+  processor: Processor Ref;
+  forMatching: Cond;
   result: RefToVar Ref;
-} () {convention: cdecl;} [
-  copy forMatching:;
-  processor:;
+} () {} [
   block:;
-  failProc: @failProcForProcessor;
+  processor:;
+  copy forMatching:;
   result:;
+
+  overload failProc: @processor block FailProcForProcessor;
 
   block.stack.dataSize 0 = [
     entryRef: 0 @processor block getStackEntry;
     processor compilable [
       entry: entryRef copy;
       entry staticityOfVar Weak = [
-        @entry Dynamic block makeStaticity @entry set
+        @entry Dynamic @processor block makeStaticity @entry set
       ] when
 
       shadowBegin: RefToVar;
       shadowEnd:   RefToVar;
 
-      entry @shadowBegin @shadowEnd ShadowReasonInput @block makeShadows
+      entry @shadowBegin @shadowEnd ShadowReasonInput @processor @block makeShadows
 
       shadowEnd @result set
       entry isForgotten [
@@ -2226,18 +2176,11 @@ addStackUnderflowInfo: [
     block.stack.last @result set
     @block.@stack.popBack
   ] if
-] "popImpl" exportFunction
-
-pop: [
-  processor: block: ;;
-  result: RefToVar;
-  @result @block @processor FALSE popImpl
-  @result
-];
+] "popWith" exportFunction
 
 popForMatching: [
   result: RefToVar;
-  @result @block @processor TRUE popImpl
+  @result TRUE @processor @block popWith
   result
 ];
 
@@ -2295,9 +2238,9 @@ checkFailedName: [
 
 processNameNode: [
   data:;
-  gnr: data.nameInfo @block getName;
+  gnr: data.nameInfo @processor @block getName;
   block.position.file data.nameInfo gnr checkFailedName
-  cnr: @gnr 0 dynamic @block block.position.file captureName;
+  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
   refToVar: cnr.refToVar copy;
 
   processor compilable [
@@ -2307,9 +2250,9 @@ processNameNode: [
 
 processNameReadNode: [
   data:;
-  gnr: data.nameInfo @block getName;
+  gnr: data.nameInfo @processor @block getName;
   block.position.file data.nameInfo gnr checkFailedName
-  cnr: @gnr 0 dynamic @block block.position.file captureName;
+  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
   refToVar: cnr.refToVar;
 
   processor compilable [
@@ -2328,9 +2271,9 @@ processNameReadNode: [
 
 processNameWriteNode: [
   data:;
-  gnr: data.nameInfo @block getName;
+  gnr: data.nameInfo @processor @block getName;
   block.position.file data.nameInfo gnr checkFailedName
-  cnr: @gnr 0 dynamic @block block.position.file captureName;
+  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
   refToVar: cnr.refToVar;
 
   processor compilable [refToVar setRef] when
@@ -2375,11 +2318,11 @@ processMember: [
         pointee: VarRef structVar.data.get;
         pointeeVar: pointee getVar;
         pointeeVar.data.getTag VarStruct = [
-          fr: nameInfo pointee @processor findField;
+          fr: nameInfo pointee @processor block findField;
           fr.success [
             index: fr.index copy;
             field: index 0 cast VarStruct pointeeVar.data.get.get.fields.at.refToVar;
-            result: field VarRef TRUE dynamic TRUE dynamic TRUE dynamic @block createVariableWithVirtual;
+            result: field VarRef TRUE dynamic TRUE dynamic TRUE dynamic @processor @block createVariableWithVirtual;
             @result fullUntemporize
             read 1 = result.mutable and @result.setMutable
             result @block push
@@ -2392,7 +2335,7 @@ processMember: [
       ] if
     ] [
       refToStruct getVar.data.getTag VarStruct = [
-        fr: nameInfo refToStruct @processor findField;
+        fr: nameInfo refToStruct @processor block findField;
         fr.success [
           index: fr.index copy;
           fieldRef: index @refToStruct @processor @block processStaticAt;
@@ -2411,7 +2354,7 @@ processNameMemberNode: [.nameInfo @processor @block pop 0 dynamic processMember]
 processNameReadMemberNode: [.nameInfo @processor @block pop 1 dynamic processMember];
 processNameWriteMemberNode: [.nameInfo @processor @block pop -1 dynamic processMember];
 
-processStringNode: [@block makeVarString @block push];
+processStringNode: [@processor @block makeVarString @block push];
 processInt8Node:   [makeVarInt8   @block push];
 processInt16Node:  [makeVarInt16  @block push];
 processInt32Node:  [makeVarInt32  @block push];
@@ -2426,7 +2369,7 @@ processReal32Node: [makeVarReal32 @block push];
 processReal64Node: [makeVarReal64 @block push];
 
 addDebugLocationForLastInstruction: [
-  block:;
+  processor: block: ;;
   processor.options.debug [
     instruction: @block.@program.last;
     instruction.codeSize 0 >
@@ -2452,9 +2395,60 @@ addDebugLocationForLastInstruction: [
 ];
 
 addBlock: [
+  processor:;
   Block owner @processor.@blocks.pushBack
   processor.blocks.getSize 1 - @processor.@blocks.last.get.!id
 ];
+
+{
+  block: Block Ref;
+  processor: Processor Ref;
+  refToDst: RefToVar Cref;
+  refToSrc: RefToVar Cref;
+  result: TryImplicitLambdaCastResult Ref;
+} () {} [
+  refToSrc: refToDst: processor: block: ;;;;
+  result:;
+
+  overload failProc: @processor block FailProcForProcessor;
+
+  varSrc: refToSrc getVar;
+  varSrc.data.getTag VarCode = [refToDst isVirtual ~] && [
+    dstPointee: @refToDst @block getPossiblePointee;
+    dstPointeeVar: dstPointee getVar;
+
+    dstPointeeVar.data.getTag VarImport = [
+      declarationIndex: VarImport dstPointeeVar.data.get;
+      declarationNode: declarationIndex processor.blocks.at.get;
+      csignature: declarationNode.csignature;
+      implName: ("lambda." block.id "." block.lastLambdaName) assembleString;
+      astNode: VarCode refToSrc getVar.data.get.index processor.multiParserResult.memory.at;
+      implIndex: csignature astNode VarCode refToSrc getVar.data.get.file implName makeStringView TRUE dynamic @processor @block processExportFunction;
+
+      processor compilable [
+        implNode: implIndex processor.blocks.at.get;
+        implNode.state NodeStateCompiled = ~ [
+          block.state NodeStateHasOutput > [NodeStateHasOutput @block.@state set] when
+          dstPointee @result.@refToVar set
+          TRUE dynamic @result.@success set
+        ] when
+
+        implNode.varNameInfo 0 < ~ [
+          gnr: implNode.varNameInfo @processor @block getName;
+          processor compilable ~ [
+            [FALSE] "Name of new lambda is not visible!" assert
+          ] [
+            cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
+            cnr.refToVar @result.@refToVar set
+            TRUE dynamic @result.@success set
+          ] if
+        ] when
+      ] when
+
+      block.lastLambdaName 1 + @block.@lastLambdaName set
+    ] when
+  ] when
+] "tryImplicitLambdaCastImpl" exportFunction
 
 argAbleToCopy: [
   arg:;
@@ -2466,8 +2460,14 @@ argRecommendedToCopy: [
   arg.mutable ~ [arg argAbleToCopy] && [arg getVar.capturedAsMutable ~] &&
 ];
 
-callInit: [
-  copy refToVar:;
+{
+  block: Block Ref;
+  processor: Processor Ref;
+  refToVar: RefToVar Cref;
+} () {} [
+  refToVar: processor: block: ;; copy;
+  overload failProc: @processor block FailProcForProcessor;
+
   processor compilable [
     uninited: RefToVar Array;
     refToVar isVirtual ~ [refToVar makeVarTreeDynamic] when
@@ -2499,9 +2499,9 @@ callInit: [
         i 1 - @i set
         current: i @uninited.at;
         current getVar.data.getTag VarStruct = [
-          fr: processor.dieNameInfo current @processor findField;
+          fr: processor.dieNameInfo current @processor block findField;
           fr.success [
-            fr: processor.initNameInfo current @processor findField;
+            fr: processor.initNameInfo current @processor block findField;
             fr.success [
               index: fr.index copy;
               fieldRef: index @current @processor @block processStaticAt;
@@ -2524,11 +2524,17 @@ callInit: [
       ] &&
     ] loop
   ] when
-];
+] "callInit" exportFunction
 
-callAssign: [
-  refToDst:;
-  refToSrc:;
+{
+  block: Block Ref;
+  processor: Processor Ref;
+  refToDst: RefToVar Cref;
+  refToSrc: RefToVar Cref;
+} () {} [
+  refToSrc: refToDst: processor: block: ;;;;
+  overload failProc: @processor block FailProcForProcessor;
+
   processor compilable [
     # no struct - simple copy
     # no die - enum fields
@@ -2550,9 +2556,9 @@ callAssign: [
         curDstVar: curDst getVar;
 
         curSrcVar.data.getTag VarStruct = [
-          fr: processor.dieNameInfo curSrc @processor findField;
+          fr: processor.dieNameInfo curSrc @processor block findField;
           fr.success [
-            fr: processor.assignNameInfo curSrc @processor findField;
+            fr: processor.assignNameInfo curSrc @processor block findField;
             fr.success [
               index: fr.index copy;
               fieldRef: index @curSrc @processor @block processStaticAt;
@@ -2595,10 +2601,16 @@ callAssign: [
       ] &&
     ] loop
   ] when
-];
+] "callAssign" exportFunction
 
-callDie: [
-  copy refToVar:;
+{
+  block: Block Ref;
+  processor: Processor Ref;
+  refToVar: RefToVar Cref;
+} () {} [
+  refToVar: processor: block: ;; copy;
+  overload failProc: @processor block FailProcForProcessor;
+
   processor compilable [
     unkilled: RefToVar Array;
     @refToVar fullUntemporize
@@ -2611,7 +2623,7 @@ callDie: [
         @unkilled.popBack
         last getVar.data.getTag VarStruct = [
           struct: VarStruct last getVar.data.get.get;
-          fr: processor.dieNameInfo last @processor findField;
+          fr: processor.dieNameInfo last @processor block findField;
           fr.success [
             index: fr.index copy;
             fieldRef: index @last @processor @block processStaticAt;
@@ -2642,13 +2654,13 @@ callDie: [
       ] &&
     ] loop
   ] when
-];
+] "callDie" exportFunction
 
 killStruct: [
   refToVar:;
   [refToVar getVar.data.getTag VarStruct =] "Destructors works only for structs!" assert
   VarStruct refToVar getVar.data.get.get.unableToDie ~ [
-    refToVar callDie
+    refToVar @processor @block callDie
   ] when
 ];
 
@@ -2660,9 +2672,10 @@ killStruct: [
 } () {} [
   processor:;
   block:;
-  failProc: @failProcForProcessor;
   indexOfAstNode:;
   astNode:;
+
+  overload failProc: @processor block FailProcForProcessor;
 
   processor.options.verboseIR [
     ("filename: " block.position.file.name
@@ -2698,7 +2711,7 @@ killStruct: [
   ) astNode.data.visit
 
   block.program.dataSize programSize > [
-    @block addDebugLocationForLastInstruction
+    @processor @block addDebugLocationForLastInstruction
   ] when
 ] "processNodeImpl" exportFunction
 
@@ -2722,7 +2735,7 @@ addNamesFromModule: [
         nameInfo:      current.nameInfo copy;
         addNameCase:   NameCaseFromModule;
         refToVar:      current.refToVar copy;
-      } addNameInfo #it is not own local variable
+      } @processor addNameInfo #it is not own local variable
     ] each
   ] when
 ];
@@ -2781,7 +2794,7 @@ finalizeListNode: [
   ] when
 
   processor compilable [
-    refToStruct: @struct move owner VarStruct @block createVariable;
+    refToStruct: @struct move owner VarStruct @processor @block createVariable;
     struct: VarStruct @refToStruct getVar.@data.get.get;
 
     refToStruct isVirtual ~ [
@@ -2799,7 +2812,7 @@ finalizeListNode: [
           @curFieldRef markAsUnableToDie
           staticity: curFieldRef staticityOfVar;
           staticity Weak = [Dynamic @staticity set] when
-          staticity Virtual = ~ [@curFieldRef staticity block makeStaticity drop] when
+          staticity Virtual = ~ [@curFieldRef staticity @processor block makeStaticity drop] when
           @curFieldRef i refToStruct @processor @block createGEPInsteadOfAlloc
         ] if
 
@@ -2813,7 +2826,7 @@ finalizeListNode: [
 ];
 
 finalizeObjectNode: [
-  refToStruct: @block.@struct move owner VarStruct @block createVariable;
+  refToStruct: @block.@struct move owner VarStruct @processor @block createVariable;
   structInfo: VarStruct @refToStruct getVar.@data.get.get;
 
   i: 0 dynamic;
@@ -3083,7 +3096,7 @@ checkRecursionOfCodeNode: [
             se1: refToVar1 noMatterToCopy [refToVar1][refToVar1 getVar.shadowEnd] if;
             se2: refToVar2 noMatterToCopy [refToVar2][refToVar2 getVar.shadowEnd] if;
             [se1.assigned [se2.assigned] &&] "variables has no shadowEnd!" assert
-            se1 se2 compareEntriesRec
+            se1 se2 currentMatchingNode @nestedToCur @curToNested @comparingMessage @processor @block compareEntriesRec
           ];
 
           #compare inputs
@@ -3171,7 +3184,7 @@ checkRecursionOfCodeNode: [
                 i block.stack.getSize < [
                   current1: i block.stack.at;
                   current2: i block.outputs.at.refToVar;
-                  current1 current2 compareEntriesRec ~ [
+                  current1 current2 currentMatchingNode @nestedToCur @curToNested @comparingMessage @processor @block compareEntriesRec ~ [
                     FALSE @result set
                   ] when
                   i 1 + @i set
@@ -3218,10 +3231,10 @@ makeCompilerPosition: [
   forcedSignature: CFunctionSignature Cref;
   compilerPositionInfo: CompilerPositionInfo Cref;
   functionName: StringView Cref;
-} () {convention: cdecl;} [
+} () {} [
   processor:;
   block:;
-  failProc: @failProcForProcessor;
+  overload failProc: @processor block FailProcForProcessor;
   forcedSignature:;
   compilerPositionInfo:;
   functionName:;
@@ -3253,11 +3266,11 @@ makeCompilerPosition: [
     var.usedInHeader [var.allocationInstructionIndex 0 <] || [
       refToVar isVirtual ~
       [isDeclaration ~] && [
-        refForArg: refToVar VarRef @block createVariable;
+        refForArg: refToVar VarRef @processor @block createVariable;
         refToVar @refForArg @processor @block createRefOperation
         refForArg TRUE
       ] [
-        copyForArg: refToVar @block copyVarToNew;
+        copyForArg: refToVar @processor @block copyVarToNew;
         TRUE dynamic @copyForArg.setMutable
         @refToVar @copyForArg @processor @block createCopyToNew
         copyForArg FALSE
@@ -3287,7 +3300,7 @@ makeCompilerPosition: [
       @refToVar markAsUnableToDie
     ] [
       var.usedInHeader [
-        copyForArg: refToVar @block copyOneVar;
+        copyForArg: refToVar @processor @block copyOneVar;
         copyForArg @refToVar set
       ] when
     ] if
@@ -3339,7 +3352,7 @@ makeCompilerPosition: [
     var: @refToVar getVar;
     refToVar isAutoStruct [
       var.usedInHeader [
-        copyForArg: refToVar @block copyVarToNew;
+        copyForArg: refToVar @processor @block copyVarToNew;
         TRUE dynamic @copyForArg.setMutable
         @refToVar @copyForArg @processor @block createCopyToNew
         copyForArg @refToVar set
@@ -3371,7 +3384,7 @@ makeCompilerPosition: [
       block.candidatesToDie [
         refToVar:;
         refToVar isAutoStruct [
-          refToVar @processor compilerPositionInfo CFunctionSignature createDtorForGlobalVar
+          refToVar compilerPositionInfo CFunctionSignature @processor createDtorForGlobalVar
         ] when
       ] each
     ] [
@@ -3595,7 +3608,7 @@ makeCompilerPosition: [
     [block.parent 0 = ~] &&
   ] || @block.@empty set
 
-  @block addDebugLocationForLastInstruction
+  @processor @block addDebugLocationForLastInstruction
   checkPreStackDepth
 
   fixArrShadows: [
@@ -3670,17 +3683,22 @@ makeCompilerPosition: [
 
   (retType "(" signature ")") assembleString @block.@signature set
 
+  getTopNode: [
+    topNode: @block;
+    [topNode.parent 0 = ~] [
+      topNode.parent @processor.@blocks.at.get !topNode
+    ] while
+
+    @topNode
+  ];
+
   # fix declarations
   addFunctionVariableInfo: [
     declarationNodeIndex: block.id copy;
     declarationNode: @block;
 
     # we can call func as imported
-    topNode: @block;
-    [topNode.parent 0 = ~] [
-      topNode.parent @processor.@blocks.at.get !topNode
-    ] while
-
+    topNode: getTopNode;
     block: @topNode;
 
     refToVar: RefToVar;
@@ -3696,7 +3714,7 @@ makeCompilerPosition: [
     ] if
 
     refToVar.assigned ~ [
-      declarationNodeIndex VarImport @block createVariable @refToVar set
+      declarationNodeIndex VarImport @processor @block createVariable @refToVar set
     ] when
 
     refToVar @declarationNode.@refToVar set
@@ -3706,7 +3724,7 @@ makeCompilerPosition: [
       "null" toString @processor makeStringId @refToVar getVar.@irNameId set
       "null" toString @declarationNode.@irName set
       block.parent 0 = [
-        (";declare func: " functionName) assembleString addStrToProlog #fix global import var matching bug
+        (";declare func: " functionName) assembleString @processor addStrToProlog #fix global import var matching bug
         processor.prolog.dataSize 1 - @refToVar getVar.@globalDeclarationInstructionIndex set
       ] [
         (";declare func: " functionName) assembleString @block createComment #fix global import var matching bug
@@ -3714,19 +3732,19 @@ makeCompilerPosition: [
       ] if
     ] [
       declarationNode.irName toString @processor makeStringId @refToVar getVar.@irNameId set
-      (";declare func: " functionName) assembleString addStrToProlog #fix global import var matching bug
+      (";declare func: " functionName) assembleString @processor addStrToProlog #fix global import var matching bug
       processor.prolog.dataSize 1 - @refToVar getVar.@globalDeclarationInstructionIndex set
     ] if
 
     topNode.id @declarationNode.@moduleId set
-    nameInfo: functionName findNameInfo;
+    nameInfo: functionName @processor findNameInfo;
     nameInfo @declarationNode.@varNameInfo set
 
     {
       nameInfo:      nameInfo copy;
       addNameCase:   NameCaseLocal;
       refToVar:      refToVar copy;
-    } addNameInfo #it is not own local variable
+    } @processor addNameInfo #it is not own local variable
   ];
 
   #generate function header
@@ -3791,6 +3809,7 @@ makeCompilerPosition: [
     block.nodeCase NodeCaseCodeRefDeclaration = [block.nodeCase NodeCaseLambda =] || [
       addFunctionVariableInfo
     ] [
+      parentBlock: getTopNode;
       fr: @functionName @processor.@namedFunctions.find;
       fr.success [
         prevNode: fr.value @processor.@blocks.at.get;
@@ -3815,25 +3834,26 @@ makeCompilerPosition: [
           ] if
 
           processor compilable [
-            fr: @functionName @block.@namedFunctions.find;
+            fr: @functionName @parentBlock.@namedFunctions.find;
             fr.success ~ [
-              functionName toString block.id @block.@namedFunctions.insert
+              functionName toString block.id @parentBlock.@namedFunctions.insert
               refToVar: @prevNode.@refToVar;
 
-              nameInfo: functionName findNameInfo;
-              block: @refToVar getVar.host; # suppress assert
+              nameInfo: functionName @processor findNameInfo;
+              block:    @parentBlock; # suppress assert
 
               {
-                nameInfo:      nameInfo copy;
-                addNameCase:   NameCaseFromModule;
-                refToVar:      refToVar copy;
-              } addNameInfo #it is not own local variable
+                nameInfo:       nameInfo copy;
+                addNameCase:    NameCaseFromModule;
+                refToVar:       refToVar copy;
+                reallyAddLabel: TRUE;
+              } @processor addNameInfo #it is not own local variable
             ] when
           ] when
         ] when
       ] [
         functionName toString block.id @processor.@namedFunctions.insert
-        functionName toString block.id @block.@namedFunctions.insert
+        functionName toString block.id @parentBlock.@namedFunctions.insert
         addFunctionVariableInfo
       ] if
     ] if
@@ -3844,7 +3864,7 @@ makeCompilerPosition: [
 
   processor.options.debug [block.empty ~] && [isDeclaration ~] && [block.nodeCase NodeCaseEmpty = ~] && [
     compilerPositionInfo functionName makeStringView block.irName makeStringView block.funcDbgIndex @processor addFuncDebugInfo
-    block.funcDbgIndex moveLastDebugString
+    block.funcDbgIndex @processor moveLastDebugString
     " !dbg !"          @block.@header.cat
     block.funcDbgIndex @block.@header.cat
   ] when
@@ -3881,29 +3901,29 @@ nodeHasCode: [
 ];
 
 {
+  processor: Processor Ref;
   signature: CFunctionSignature Cref;
   compilerPositionInfo: CompilerPositionInfo Cref;
   file: File Cref;
   indexArray: IndexArray Cref;
-  processor: Processor Ref;
   nodeCase: NodeCaseCode;
   parentIndex: Int32;
   functionName: StringView Cref;
-} Int32 {convention: cdecl;} [
+} Int32 {} [
+  processor:;
   forcedSignature:;
   compilerPositionInfo:;
   file:;
   indexArray:;
-  processor:;
   copy nodeCase:;
   copy parentIndex:;
   functionName:;
   compileOnce
 
-  addBlock
+  @processor addBlock
   codeNode: @processor.@blocks.last.get;
   block: @codeNode;
-  failProc: @failProcForProcessor;
+  overload failProc: @processor block FailProcForProcessor;
 
   processor.options.autoRecursion @codeNode.@nodeIsRecursive set
   nodeCase                        @codeNode.@nodeCase set

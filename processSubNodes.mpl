@@ -12,8 +12,6 @@
 "String.print" use
 "String.toString" use
 
-"conventions.cdecl" use
-
 "Block.ArgCopy" use
 "Block.ArgGlobal" use
 "Block.ArgRef" use
@@ -47,24 +45,34 @@
 "astNodeType.AstNode" use
 "astNodeType.AstNodeType" use
 "astNodeType.IndexArray" use
+"codeNode.addBlock" use
 "codeNode.astNodeToCodeNode" use
-"codeNode.pop" use
 "codeNode.getFieldForMatching" use
 "codeNode.getNameForMatching" use
 "codeNode.getPointeeForMatching" use
 "codeNode.makeCompilerPosition" use
 "debugWriter.addDebugReserve" use
-"defaultImpl.compilerError" use
-"defaultImpl.failProcForProcessor" use
+"declarations.compilerError" use
+"declarations.copyVar" use
+"declarations.copyVarFromChild" use
+"declarations.copyVarToNew" use
+"declarations.copyVarFromParent" use
+"declarations.getMplType" use
+"declarations.tryImplicitLambdaCast" use
+"defaultImpl.compilable" use
+"defaultImpl.FailProcForProcessor" use
 "defaultImpl.findNameInfo" use
 "defaultImpl.getStackDepth" use
 "defaultImpl.getStackEntry" use
-"irWriter.IRArgument" use
+"defaultImpl.makeVarRealCaptured" use
+"defaultImpl.pop" use
+"defaultImpl.addStackUnderflowInfo" use
 "irWriter.createAllocIR" use
 "irWriter.createCallIR" use
 "irWriter.createDerefToRegister" use
 "irWriter.createStaticInitIR" use
 "irWriter.createStoreFromRegister" use
+"processor.IRArgument" use
 "processor.Processor" use
 "processor.ProcessorErrorInfo" use
 "processor.ProcessorResult" use
@@ -72,7 +80,9 @@
 "staticCall.staticCall" use
 "Var.Dynamic" use
 "Var.isSemiplainNonrecursiveType" use
+"Var.isVirtual" use
 "Var.getVar" use
+"Var.staticityOfVar" use
 "Var.RefToVar" use
 "Var.Static" use
 "Var.VarBuiltin" use
@@ -83,10 +93,9 @@
 "Var.VarStruct" use
 "Var.Virtual" use
 "Var.Weak" use
+"Var.variablesAreSame" use
+"variable.isStaticData" use
 "variable.isGlobal" use
-"variable.compilable" use
-"variable.variablesAreSame" use
-"variable.staticityOfVar" use
 "variable.noMatterToCopy" use
 "variable.refsAreEqual" use
 
@@ -220,8 +229,8 @@
 ] "compareOnePair" exportFunction
 
 {
-  processor: Processor Ref;
   block: Block Cref;
+  processor: Processor Ref;
 
   comparingMessage: String Ref;
   curToNested: RefToVarTable Ref;
@@ -229,11 +238,11 @@
   currentMatchingNode: Block Cref;
   cacheEntry: RefToVar Cref;
   stackEntry: RefToVar Cref;
-} Cond {convention: cdecl;} [
-  block: processor: ;;
+} Cond {} [
+  processor: block: ;;
   stackEntry: cacheEntry: currentMatchingNode: nestedToCur: curToNested: comparingMessage:;;;;;;
 
-  failProc: @failProcForProcessor;
+  overload failProc: @processor block FailProcForProcessor;
 
   makeWayInfo: [{
     copy currentName:;
@@ -288,8 +297,8 @@
                     stackFieldNameInfo: j stackStruct.fields.at.nameInfo;
 
                     cacheFieldNameInfo stackFieldNameInfo = [
-                      j currentFromCache block getFieldForMatching @unfinishedCache.pushBack
-                      j currentFromStack block getFieldForMatching @unfinishedStack.pushBack
+                      j currentFromCache @processor block getFieldForMatching @unfinishedCache.pushBack
+                      j currentFromStack @processor block getFieldForMatching @unfinishedStack.pushBack
                       i j cacheFieldNameInfo processor.nameManager.getText makeWayInfo @unfinishedWay.pushBack
                       j 1 + !j
                     ] [
@@ -332,7 +341,7 @@
   @unfinishedWay.clear
 
   success
-] "compareEntriesRecImpl" exportFunction
+] "compareEntriesRec" exportFunction
 
 getOverloadIndex: [
   cap: block: file: forMathing: ;;;;
@@ -352,7 +361,7 @@ getOverloadIndex: [
       overloadDepth 0 = [
         FALSE
       ] [
-        oldGnr: cap.nameInfo index @block file getNameWithOverloadIndex;
+        oldGnr: cap.nameInfo index @processor @block file getNameWithOverloadIndex;
         oldGnr.startPoint block.id = ~ [outOverloadDepth 1 + !outOverloadDepth] when
 
         overloadDepth 1 - !overloadDepth
@@ -406,7 +415,7 @@ tryMatchNode: [
     matchingCapture: Capture;
     currentMatchingNode.refToVar @matchingCapture.@refToVar set
     NameCaseLocal                @matchingCapture.@captureCase set
-    gnr: currentMatchingNode.varNameInfo matchingCapture @block currentMatchingNode.position.file getNameForMatching;
+    gnr: currentMatchingNode.varNameInfo matchingCapture @processor @block currentMatchingNode.position.file getNameForMatching;
     gnr.refToVar.assigned ~
   ] &&;
 
@@ -446,7 +455,7 @@ tryMatchNode: [
         stackEntry: i @processor block getStackEntry;
         cacheEntry: i currentMatchingNode.matchingInfo.inputs.at.refToVar;
 
-        stackEntry cacheEntry compareEntriesRec [
+        stackEntry cacheEntry currentMatchingNode @nestedToCur @curToNested @comparingMessage @processor @block compareEntriesRec [
           i 1 + @i set
         ] [
           currentMatchingNode.nodeCompileOnce [
@@ -468,7 +477,7 @@ tryMatchNode: [
           stackEntry: i currentMatchingNode.matchingInfo.inputs.dataSize + @processor block getStackEntry copy;
           cacheEntry: i currentMatchingNode.matchingInfo.preInputs.at;
 
-          cacheEntry.assigned [stackEntry cacheEntry compareEntriesRec] && [
+          cacheEntry.assigned [stackEntry cacheEntry currentMatchingNode @nestedToCur @curToNested @comparingMessage @processor @block compareEntriesRec] && [
             i 1 + @i set
           ] [
             currentMatchingNode.nodeCompileOnce [
@@ -490,10 +499,10 @@ tryMatchNode: [
           currentCapture: i currentMatchingNode.matchingInfo.captures.at;
           cacheEntry: currentCapture.refToVar;
           overloadIndex: outOverloadDepth: currentCapture.refToVar.assigned ~ [-1 -1] [currentCapture @block currentCapture.file TRUE getOverloadIndex] if;;
-          stackEntry: currentCapture.nameInfo currentCapture overloadIndex @block currentCapture.file getNameForMatchingWithOverloadIndex.refToVar;
+          stackEntry: currentCapture.nameInfo currentCapture overloadIndex @processor @block currentCapture.file getNameForMatchingWithOverloadIndex.refToVar;
 
           stackEntry.assigned ~ cacheEntry.assigned ~ and [
-            stackEntry.assigned cacheEntry.assigned and [stackEntry cacheEntry compareEntriesRec] &&
+            stackEntry.assigned cacheEntry.assigned and [stackEntry cacheEntry currentMatchingNode @nestedToCur @curToNested @comparingMessage @processor @block compareEntriesRec] &&
           ] || [
             i 1 + @i set
           ] [
@@ -537,10 +546,11 @@ tryMatchNode: [
   ] &&
 ];
 
-{processor: Processor Ref; block: Block Ref; forceRealFunction: Cond; indexArrayOfSubNode: IndexArray Cref;} Int32 {convention: cdecl;} [
+{processor: Processor Ref; block: Block Ref; forceRealFunction: Cond; indexArrayOfSubNode: IndexArray Cref;} Int32 {} [
   processor:;
   block:;
-  failProc: @failProcForProcessor;
+
+  overload failProc: @processor block FailProcForProcessor;
 
   forceRealFunction:;
   indexArrayOfSubNode:;
@@ -693,22 +703,22 @@ fixRef: [
       fr.value @fixed set
     ] [
       # dont have prototype - deref of captured dynamic pointer
-      pointee @block copyVarFromChild @fixed set
+      pointee @processor @block copyVarFromChild @fixed set
       TRUE dynamic @makeDynamic set
     ] if
   ] [
     # dont have shadow - to deref of captured dynamic pointer
     # must by dynamic
     var.staticity Static = [pointeeVar.storageStaticity Static =] && ["returning pointer to local variable" @processor block compilerError] when
-    pointee @block copyVarFromChild @fixed set
+    pointee @processor @block copyVarFromChild @fixed set
     TRUE dynamic @makeDynamic set
   ] if
 
   @fixed.var @pointee.setVar
 
-  wasVirtual [@refToVar Virtual block makeStaticity @refToVar set] [
+  wasVirtual [@refToVar Virtual @processor block makeStaticity @refToVar set] [
     makeDynamic [
-      @refToVar Dynamic block makeStaticity @refToVar set
+      @refToVar Dynamic @processor block makeStaticity @refToVar set
     ] when
   ] if
 
@@ -730,7 +740,7 @@ applyOnePair: [
   cacheEntryVar: cacheEntry  getVar;
   stackEntryVar: @stackEntry getVar;
 
-  @stackEntry cacheEntry staticityOfVar block makeStaticity drop
+  @stackEntry cacheEntry staticityOfVar @processor block makeStaticity drop
 
   cacheEntry noMatterToCopy ~ [cacheEntryVar.shadowEnd getVar.capturedAsMutable copy] && [
     TRUE @stackEntryVar.@capturedAsMutable set
@@ -822,7 +832,7 @@ applyEntriesRec: [
           j: 0 dynamic;
           [
             j cacheStruct.fields.dataSize < [
-              cacheFieldRef: j currentFromCache block getFieldForMatching;
+              cacheFieldRef: j currentFromCache @processor block getFieldForMatching;
               cacheFieldRef getVar.host currentChangesNode is [ # we captured it
                 cacheFieldRef @unfinishedCache.pushBack
                 j @currentFromStack @processor @block getField @unfinishedStack.pushBack
@@ -926,11 +936,11 @@ usePreCapturesWith: [
         currentCapture: i currentChangesNode.matchingInfo.captures.at;
         cacheEntry: currentCapture.refToVar;
         overloadIndex: outOverloadDepth: currentCapture.refToVar.assigned ~ [-1 -1] [currentCapture @block currentCapture.file TRUE getOverloadIndex] if;;
-        gnr: currentCapture.nameInfo currentCapture overloadIndex @block currentCapture.file getNameForMatchingWithOverloadIndex;
+        gnr: currentCapture.nameInfo currentCapture overloadIndex @processor @block currentCapture.file getNameForMatchingWithOverloadIndex;
         gnr.refToVar.assigned ~ [
           # it is failed capture
         ] [
-          stackEntry: @gnr outOverloadDepth @block currentCapture.file captureName.refToVar;
+          stackEntry: @gnr outOverloadDepth @processor @block currentCapture.file captureName.refToVar;
 
           unfinishedStack: @processor.acquireVarRefArray;
           unfinishedCache: @processor.acquireVarRefArray;
@@ -957,7 +967,7 @@ usePreCapturesWith: [
                   j: 0 dynamic;
                   [
                     j cacheStruct.fields.dataSize < [
-                      cacheFieldRef: j currentFromCache block getFieldForMatching;
+                      cacheFieldRef: j currentFromCache @processor block getFieldForMatching;
                       cacheFieldRef getVar.host currentChangesNode is [ # we captured it
                         cacheFieldRef @unfinishedCache.pushBack
                         j @currentFromStack @processor @block getField @unfinishedStack.pushBack
@@ -985,7 +995,7 @@ usePreCapturesWith: [
       i currentChangesNode.matchingInfo.fieldCaptures.dataSize < [
         currentFieldCapture: i currentChangesNode.matchingInfo.fieldCaptures.at;
         overloadIndex: outOverloadDepth: currentFieldCapture @block currentFieldCapture.file TRUE getOverloadIndex;;
-        fieldCnr: currentFieldCapture.nameInfo overloadIndex @block currentFieldCapture.file getNameWithOverloadIndex outOverloadDepth @block currentFieldCapture.file captureName;
+        fieldCnr: currentFieldCapture.nameInfo overloadIndex @processor @block currentFieldCapture.file getNameWithOverloadIndex outOverloadDepth @processor @block currentFieldCapture.file captureName;
         i 1 + @i set processor compilable
       ] &&
     ] loop
@@ -1063,9 +1073,9 @@ applyNodeChanges: [
         currentCapture.file currentCapture.nameInfo addFailedCapture
       ] [
         overloadIndex: outOverloadDepth: currentCapture @block currentCapture.file FALSE getOverloadIndex ;;
-        gnr: currentCapture.nameInfo currentCapture overloadIndex @block currentCapture.file getNameForMatchingWithOverloadIndex;
+        gnr: currentCapture.nameInfo currentCapture overloadIndex @processor @block currentCapture.file getNameForMatchingWithOverloadIndex;
         [gnr.refToVar.assigned] "Stack entry not found!" assert
-        stackEntry: gnr outOverloadDepth @block currentCapture.file captureName.refToVar;
+        stackEntry: gnr outOverloadDepth @processor @block currentCapture.file captureName.refToVar;
         stackEntry cacheEntry applyEntriesRec
       ] if
 
@@ -1078,7 +1088,7 @@ applyNodeChanges: [
     i currentChangesNode.matchingInfo.fieldCaptures.dataSize < [
       currentFieldCapture: i currentChangesNode.matchingInfo.fieldCaptures.at;
       overloadIndex: outOverloadDepth: currentFieldCapture @block currentFieldCapture.file FALSE getOverloadIndex;;
-      fieldCnr: currentFieldCapture.nameInfo overloadIndex @block currentFieldCapture.file getNameWithOverloadIndex outOverloadDepth @block currentFieldCapture.file captureName;
+      fieldCnr: currentFieldCapture.nameInfo overloadIndex @processor @block currentFieldCapture.file getNameWithOverloadIndex outOverloadDepth @processor @block currentFieldCapture.file captureName;
 
       i 1 + @i set processor compilable
     ] &&
@@ -1088,7 +1098,7 @@ applyNodeChanges: [
   [
     i currentChangesNode.outputs.dataSize < [
       currentOutput: i currentChangesNode.outputs.at;
-      outputRef: currentOutput.refToVar @block copyVarFromChild; # output is to inner var
+      outputRef: currentOutput.refToVar @processor @block copyVarFromChild; # output is to inner var
       outputRef fixOutputRefsRec
       outputRef @appliedVars.@fixedOutputs.pushBack
       i 1 + @i set processor compilable
@@ -1105,7 +1115,7 @@ applyNodeChanges: [
     curVar:    pair.key getVar;
     nestedVar: pair.value getVar;
     nestedVar.data.getTag VarRef = [
-      nestedCopy: pair.value @block copyOneVar;
+      nestedCopy: pair.value @processor @block copyOneVar;
       pair.value isGlobal [
         pVar: pair.value  getVar;
         nVar: @nestedCopy getVar;
@@ -1316,7 +1326,7 @@ makeCallInstructionWith: [
       currentCapture.refToVar.assigned [
         currentCapture.argCase ArgRef = [
           overloadIndex: outOverloadDepth: currentCapture @block currentCapture.file FALSE getOverloadIndex;;
-          refToVar: currentCapture.nameInfo currentCapture overloadIndex @block currentCapture.file getNameForMatchingWithOverloadIndex outOverloadDepth @block currentCapture.file captureName.refToVar;
+          refToVar: currentCapture.nameInfo currentCapture overloadIndex @processor @block currentCapture.file getNameForMatchingWithOverloadIndex outOverloadDepth @processor @block currentCapture.file captureName.refToVar;
           [currentCapture.refToVar refToVar variablesAreSame] "invalid capture type while generating arg list!" assert
 
           arg: IRArgument;
@@ -1384,16 +1394,16 @@ processCallByNode: [
   forcedName processNamedCallByNode
 ];
 
-{processor: Processor Ref; block: Block Ref;
-  positionInfo: CompilerPositionInfo Cref; name: StringView Cref; nodeCase: NodeCaseCode; indexArray: IndexArray Cref;} () {convention: cdecl;} [
-  processor:;
+{block: Block Ref; processor: Processor Ref;
+  positionInfo: CompilerPositionInfo Cref; name: StringView Cref; nodeCase: NodeCaseCode; indexArray: IndexArray Cref;} () {} [
   block:;
+  processor:;
   positionInfo:;
   name:;
   copy nodeCase:;
   indexArray:;
-  failProc: @failProcForProcessor;
-  compileOnce
+
+  overload failProc: @processor block FailProcForProcessor;
 
   forcedNameString: String;
   file: positionInfo.file;
@@ -1403,11 +1413,11 @@ processCallByNode: [
     name
     block.id
     nodeCase
-    @processor
     indexArray
     file
     positionInfo
     CFunctionSignature
+    @processor
     astNodeToCodeNode @newNodeIndex set
   ] when
 
@@ -1426,7 +1436,7 @@ processCallByNode: [
     ] && [
       0 newNode.outputs.at.refToVar isStaticData
     ] && [
-      result: 0 newNode.outputs.at.refToVar @block copyVarFromChild;
+      result: 0 newNode.outputs.at.refToVar @processor @block copyVarFromChild;
       TRUE @newNode.@deleted set
       @result @processor @block createStaticInitIR @block push
     ] [
@@ -1437,15 +1447,15 @@ processCallByNode: [
     newNodeIndex usePreInputs
     newNodeIndex usePreCaptures
   ] if
-] "processCallByIndexArrayImpl" exportFunction
+] "processCallByIndexArray" exportFunction
 
-{processor: Processor Ref; block: Block Ref; name: StringView Cref; file: File Cref; callAstNodeIndex: Int32;} () {convention: cdecl;} [
-  processor:;
+{block: Block Ref; processor: Processor Ref; name: StringView Cref; file: File Cref; callAstNodeIndex: Int32;} () {} [
   block:;
+  processor:;
   name:;
   file:;
   callAstNodeIndex:;
-  failProc: @failProcForProcessor;
+  overload failProc: @processor block FailProcForProcessor;
 
   astNode: callAstNodeIndex processor.multiParserResult.memory.at;
 
@@ -1459,15 +1469,15 @@ processCallByNode: [
     AstNodeType.Object [!indexArray NodeCaseObject !nodeCase]
   ) astNode.data.visit
 
-  indexArray nodeCase dynamic name positionInfo processCallByIndexArray
-] "processCallImpl" exportFunction
+  indexArray nodeCase dynamic name positionInfo @processor @block processCallByIndexArray
+] "processCall" exportFunction
 
-{processor: Processor Ref; block: Block Ref; file: File Cref; preAstNodeIndex: Int32;} Cond {convention: cdecl;} [
-  processor:;
+{block: Block Ref; processor: Processor Ref; file: File Cref; preAstNodeIndex: Int32;} Cond {} [
   block:;
+  processor:;
   file:;
   preAstNodeIndex:;
-  failProc: @failProcForProcessor;
+  overload failProc: @processor block FailProcForProcessor;
 
   processor compilable [
     astNode: preAstNodeIndex processor.multiParserResult.memory.at;
@@ -1480,7 +1490,7 @@ processCallByNode: [
     newNodeIndex: indexArray tryMatchAllNodes;
     newNodeIndex 0 < [processor compilable] && [
       processor.depthOfPre 1 + @processor.@depthOfPre set
-      "PRE" makeStringView block.id NodeCaseCode @processor indexArray file positionInfo CFunctionSignature astNodeToCodeNode @newNodeIndex set
+      "PRE" makeStringView block.id NodeCaseCode indexArray file positionInfo CFunctionSignature @processor astNodeToCodeNode @newNodeIndex set
       processor.depthOfPre 1 - @processor.@depthOfPre set
     ] when
 
@@ -1520,7 +1530,7 @@ processCallByNode: [
   ] [
     FALSE dynamic
   ] if
-] "processPreImpl" exportFunction
+] "processPre" exportFunction
 
 processIf: [
   fileElse:;
@@ -1540,11 +1550,11 @@ processIf: [
     "ifThen" makeStringView
     block.id
     NodeCaseCode
-    @processor
     indexArrayThen
     fileThen
     positionInfoThen
-    CFunctionSignature astNodeToCodeNode @newNodeThenIndex set
+    CFunctionSignature
+    @processor astNodeToCodeNode @newNodeThenIndex set
   ] when
 
   newNodeThenIndex usePreInputs
@@ -1556,11 +1566,12 @@ processIf: [
       "ifElse" makeStringView
       block.id
       NodeCaseCode
-      @processor
       indexArrayElse
       fileElse
       positionInfoElse
-      CFunctionSignature astNodeToCodeNode @newNodeElseIndex set
+      CFunctionSignature
+      @processor
+      astNodeToCodeNode @newNodeElseIndex set
     ] when
 
     newNodeElseIndex usePreInputs
@@ -1880,11 +1891,12 @@ processLoop: [
       "loop" makeStringView
       block.id
       NodeCaseCode
-      @processor
       indexArray
       file
       positionInfo
-      CFunctionSignature astNodeToCodeNode @newNodeIndex set
+      CFunctionSignature
+      @processor
+      astNodeToCodeNode @newNodeIndex set
     ] when
 
     newNodeIndex usePreInputs
@@ -1949,11 +1961,11 @@ processDynamicLoop: [
       "dynamicLoop" makeStringView
       block.id
       NodeCaseCode
-      @processor
       indexArray
       file
       positionInfo
-      CFunctionSignature astNodeToCodeNode @newNodeIndex set
+      CFunctionSignature
+      @processor astNodeToCodeNode @newNodeIndex set
     ] when
 
     newNodeIndex usePreInputs
@@ -2054,7 +2066,7 @@ processDynamicLoop: [
             i: 0 dynamic;
             [
               i inputs.getSize < [
-                curNodeInput: i inputs.at @block copyVar;
+                curNodeInput: i inputs.at @processor @block copyVar;
                 curNodeInput @nodeInputs.pushBack
 
                 (curNodeInput @processor getIrType "*") assembleString makeStringView # with *
@@ -2112,16 +2124,16 @@ processDynamicLoop: [
   ] loop
 ];
 
-{processor: Processor Ref; block: Block Ref;
-  asLambda: Cond; name: StringView Cref; file: File Cref; astNode: AstNode Cref; signature: CFunctionSignature Cref;} Int32 {convention: cdecl;} [
-  processor:;
+{block: Block Ref; processor: Processor Ref; 
+  asLambda: Cond; name: StringView Cref; file: File Cref; astNode: AstNode Cref; signature: CFunctionSignature Cref;} Int32 {} [
   block:;
+  processor:;
   copy asLambda:;
   name:;
   file:;
   astNode:;
   signature:;
-  failProc: @failProcForProcessor;
+  overload failProc: @processor block FailProcForProcessor;
 
   indexArray: AstNodeType.Code astNode.data.get;
   positionInfo: astNode file makeCompilerPosition;
@@ -2135,7 +2147,7 @@ processDynamicLoop: [
 
   # we dont know count of used in export entites
   signature.inputs.getSize [
-    r: signature.inputs.getSize 1 - i - signature.inputs.at @block copyVarFromChild;
+    r: signature.inputs.getSize 1 - i - signature.inputs.at @processor @block copyVarFromChild;
     r makeVarTreeDynamic
     @r @processor block unglobalize
     @r fullUntemporize
@@ -2154,7 +2166,7 @@ processDynamicLoop: [
   newNodeIndex 0 < [processor compilable] && [
     nodeCase: asLambda [NodeCaseLambda][NodeCaseExport] if;
     processor.exportDepth 1 + @processor.@exportDepth set
-    name block.id nodeCase @processor indexArray file positionInfo signature astNodeToCodeNode @newNodeIndex set
+    name block.id nodeCase indexArray file positionInfo signature @processor astNodeToCodeNode @newNodeIndex set
     processor.exportDepth 1 - @processor.@exportDepth set
   ] when
 
@@ -2206,31 +2218,32 @@ processDynamicLoop: [
     oldRecursiveNodesStackSize @processor.@recursiveNodesStack.shrink
     -1 @processor.@result clearProcessorResult
 
-    signature name FALSE dynamic processImportFunction Block addressToReference .id copy !newNodeIndex
+    signature name FALSE dynamic @processor @block processImportFunction Block addressToReference .id copy !newNodeIndex
   ] when
 
   newNodeIndex
-] "processExportFunctionImpl" exportFunction
+] "processExportFunction" exportFunction
 
-{processor: Processor Ref; block: Block Ref;
-  asCodeRef: Cond; name: StringView Cref; signature: CFunctionSignature Cref;} Natx {convention: cdecl;} [
-  processor:;
+{
+  block: Block Ref; processor: Processor Ref;
+  asCodeRef: Cond; name: StringView Cref; signature: CFunctionSignature Cref;} Natx {} [
   block:;
-  failProc: @failProcForProcessor;
+  processor:;
+  overload failProc: @processor block FailProcForProcessor;
 
   copy asCodeRef:;
   name:;
   signature:;
   compileOnce
 
-  addBlock
+  @processor addBlock
   declarationNode: @processor.@blocks.last.get;
   block.id @declarationNode.@parent set
   asCodeRef [NodeCaseCodeRefDeclaration][NodeCaseDeclaration] if @declarationNode.@nodeCase set
   signature.variadic @declarationNode.@variadic set
 
   signature.inputs.getSize [
-    r: signature.inputs.getSize 1 - i - signature.inputs.at @block copyVarFromChild;
+    r: signature.inputs.getSize 1 - i - signature.inputs.at @processor @block copyVarFromChild;
     @r @processor block unglobalize
     FALSE @r.setMutable
     r @block push
@@ -2247,13 +2260,13 @@ processDynamicLoop: [
       @processor addDebugReserve @block.@funcDbgIndex set
     ] when
     forcedSignature.inputs   [p:; a: @processor @block pop;] each
-    forcedSignature.outputs [@block copyVarFromChild @block push] each
+    forcedSignature.outputs [@processor @block copyVarFromChild @block push] each
     name finalizeCodeNode
   ] call
 
   signature.inputs   [p:; a: @processor @block pop;] each
   declarationNode storageAddress
-] "processImportFunctionImpl" exportFunction
+] "processImportFunction" exportFunction
 
 callImportWith: [
   declarationNode: refToVar: dynamicFunc: block:;;;;
@@ -2278,7 +2291,7 @@ callImportWith: [
               ] when
 
               stackEntry nodeEntry variablesAreSame ~ [
-                lambdaCastResult: input @nodeEntry @block tryImplicitLambdaCast;
+                lambdaCastResult: input @nodeEntry @processor @block tryImplicitLambdaCast;
                 lambdaCastResult.success [
                   lambdaCastResult.refToVar @input set
                 ] [
@@ -2319,7 +2332,7 @@ callImportWith: [
       [
         i declarationNode.outputs.getSize < [
           currentOutput: i declarationNode.outputs.at.refToVar;
-          current: currentOutput @block copyVarFromChild;
+          current: currentOutput @processor @block copyVarFromChild;
           Dynamic @current getVar.@staticity set
           current @outputs.pushBack
           current getVar.data.getTag VarStruct = [
@@ -2355,11 +2368,11 @@ callImportWith: [
   @outputs @processor.releaseVarRefArray
 ];
 
-{processor: Processor Ref; block: Block Ref;
-  refToVar: RefToVar Cref;} () {convention: cdecl;} [
-  processor:;
+{block: Block Ref; processor: Processor Ref;
+  refToVar: RefToVar Cref;} () {} [
   block:;
-  failProc: @failProcForProcessor;
+  processor:;
+  overload failProc: @processor block FailProcForProcessor;
 
   refToVar:;
   var: refToVar getVar;
@@ -2381,4 +2394,4 @@ callImportWith: [
   ] when
 
   @node refToVar dynamicFunc @block callImportWith
-] "processFuncPtrImpl" exportFunction
+] "processFuncPtr" exportFunction

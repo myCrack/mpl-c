@@ -2,26 +2,34 @@
 
 "conventions.cdecl" use
 
+"Array.Array" use
 "String.assembleString" use
 "String.makeStringView" use
 "String.String" use
 "String.StringView" use
 "String.toString" use
-
 "Block.Block" use
 "Block.Instruction" use
 "Block.makeInstruction" use
 "File.File" use
-"Var.isAutoStruct" use
+"Var.fullUntemporize" use
 "Var.getVar" use
 "Var.getStringImplementation" use
 "Var.getPlainConstantIR" use
+"Var.isAutoStruct" use
 "Var.isForgotten" use
+"Var.isPlain" use
 "Var.isVirtual" use
 "Var.makeStringId" use
 "Var.markAsUnableToDie" use
 "Var.VarBuiltin" use
 "Var.VarStruct" use
+"declarations.callInit" use
+"declarations.callAssign" use
+"declarations.callDie" use
+"declarations.compilerError" use
+"declarations.setVar" use
+
 "processor.Processor" use
 
 appendInstruction: [
@@ -31,16 +39,8 @@ appendInstruction: [
   block.programTemplate.size offset - offset makeInstruction @block.@program.pushBack
 ];
 
-{
-  processor: Processor Ref;
-  block: Block Cref;
-  message: StringView Cref;
-} () {convention: cdecl;} "compilerErrorImpl" importFunction
-
-compilerError: [processor: block:;; makeStringView block @processor compilerErrorImpl];
-
 getMplSchema: [refToVar: processor: ;; refToVar getVar.mplSchemaId @processor.@schemaBuffer.at];
-getNameById:  [index: processor: ;; index processor.nameBuffer.at makeStringView];
+getNameById:  [index: processor: ;; index @processor.nameBuffer.at makeStringView];
 getIrName:    [refToVar: processor: ;; refToVar getVar.irNameId                  @processor getNameById];
 getIrType:    [refToVar: processor: ;; refToVar @processor getMplSchema.irTypeId @processor getNameById];
 
@@ -121,6 +121,7 @@ createPlainIR: [
 ];
 
 createStringIR: [
+  processor:;
   refToVar:;
   string:;
   stringId: processor.lastStringId copy;
@@ -129,7 +130,7 @@ createStringIR: [
   processor.lastStringId 1 + @processor.@lastStringId set
 
   var: @refToVar getVar;
-  stringName makeStringView findNameInfo @var.@mplNameId set
+  stringName makeStringView @processor findNameInfo @var.@mplNameId set
   ("getelementptr inbounds ({i32, [" string.size " x i8]}, {i32, [" string.size " x i8]}* " stringName ", i32 0, i32 1, i32 0)") assembleString @processor makeStringId @var.@irNameId set
 
   valueImplementation: string getStringImplementation;
@@ -139,10 +140,10 @@ createStringIR: [
 
 createGetTextSizeIR: [
   refToName: refToDst: processor: block:;;;;
-  int32PtrRegister:  @processor block generateRegisterIRName;
-  ptrRegister:       @processor block generateRegisterIRName;
-  int32SizeRegister: @processor block generateRegisterIRName;
-  int64SizeRegister: @processor block generateRegisterIRName;
+  int32PtrRegister:  @processor @block generateRegisterIRName;
+  ptrRegister:       @processor @block generateRegisterIRName;
+  int32SizeRegister: @processor @block generateRegisterIRName;
+  int64SizeRegister: @processor @block generateRegisterIRName;
 
   ("  " int32PtrRegister @processor getNameById " = bitcast i8* " refToName @processor getIrName " to i32*") @block appendInstruction
   ("  " ptrRegister @processor getNameById " = getelementptr i32, i32* " int32PtrRegister @processor getNameById ", i32 -1") @block appendInstruction
@@ -169,34 +170,34 @@ createStaticGEP: [
 ];
 
 createFailWithMessage: [
-  message: block:;;
-  gnr: processor.failProcNameInfo @block getName;
-  cnr: @gnr 0 dynamic @block block.position.file captureName;
+  message: processor: block: ;;;
+  gnr: processor.failProcNameInfo @processor @block getName;
+  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
   failProcRefToVar: cnr.refToVar copy;
-  message toString @block makeVarString @block push
+  message toString @processor @block makeVarString @block push
 
   failProcRefToVar getVar.data.getTag VarBuiltin = [
     #no overload
-    defaultFailProc
+    @processor @block defaultFailProc
   ] [
     @failProcRefToVar derefAndPush
-    @block defaultCall
+    @processor @block defaultCall
   ] if
 ];
 
 createDynamicGEP: [
-  resultRefToVar: indexRefToVar: structRefToVar: block:;;;;
+  resultRefToVar: indexRefToVar: structRefToVar: processor: block:;;;;;
   struct: structRefToVar getVar;
   indexRegister: indexRefToVar @processor @block createDerefToRegister;
   processor.options.arrayChecks [
     structSize: VarStruct struct.data.get.get.fields.getSize; #in homogenius struct it is = realFieldIndex
-    checkRegister: @processor block generateRegisterIRName;
+    checkRegister: @processor @block generateRegisterIRName;
 
     ("  " checkRegister @processor getNameById " = icmp ult i32 " indexRegister @processor getNameById ", " structSize) @block appendInstruction
     ("  br i1 " checkRegister @processor getNameById ", label %label" block.lastBrLabelName 1 + ", label %label" block.lastBrLabelName) @block appendInstruction
 
     @block createLabel
-    "Index is out of bounds!" @block createFailWithMessage
+    "Index is out of bounds!" @processor @block createFailWithMessage
     1 @block createJump
     @block createLabel
   ] when
@@ -230,7 +231,7 @@ createBinaryOperation: [
   opName: processor: block: ;;;
   var1p: arg1 @processor @block createDerefToRegister;
   var2p: arg2 @processor @block createDerefToRegister;
-  resultReg: @processor block generateRegisterIRName;
+  resultReg: @processor @block generateRegisterIRName;
   ("  " resultReg @processor getNameById " = " @opName " " arg1 @processor getIrType " " var1p @processor getNameById ", " var2p @processor getNameById) @block appendInstruction
   resultReg result @processor @block createStoreFromRegister
 ];
@@ -239,22 +240,22 @@ createBinaryOperationDiffTypes: [
   opName: processor: block: ;;;
   var1p: arg1 @processor @block createDerefToRegister;
   var2p: arg2 @processor @block createDerefToRegister;
-  castedReg: @processor block generateRegisterIRName;
-  castName: arg1 @processor block getStorageSize arg2 @processor block getStorageSize > [
+  castedReg: @processor @block generateRegisterIRName;
+  castName: arg1 @processor getStorageSize arg2 @processor getStorageSize > [
     arg1 isNat ["zext"] ["sext"] if
   ] [
     "trunc"
   ] if;
 
   ("  " castedReg @processor getNameById " = " castName " " arg2 @processor getIrType " " var2p @processor getNameById " to " arg1 @processor getIrType) @block appendInstruction
-  resultReg: @processor block generateRegisterIRName;
+  resultReg: @processor @block generateRegisterIRName;
   ("  " resultReg @processor getNameById " = " opName " " arg1 @processor getIrType " " var1p @processor getNameById ", " castedReg @processor getNameById) @block appendInstruction
   resultReg result @processor @block createStoreFromRegister
 ];
 
 createDirectBinaryOperation: [
   arg1: arg2: result: opName: processor: block: ;;;;;;
-  resultReg: @processor block generateRegisterIRName;
+  resultReg: @processor @block generateRegisterIRName;
   ("  " resultReg @processor getNameById " = " opName " " arg1 @processor getIrType "* " arg1 @processor getIrName ", " arg2 @processor getIrName) @block appendInstruction
   resultReg result @processor @block createStoreFromRegister
 ];
@@ -262,14 +263,14 @@ createDirectBinaryOperation: [
 createUnaryOperation: [
   opName: mopName: processor: block: ;;;;
   varp: arg @processor @block createDerefToRegister;
-  resultReg: @processor block generateRegisterIRName;
+  resultReg: @processor @block generateRegisterIRName;
   ("  " resultReg @processor getNameById " = " opName " " arg @processor getIrType " " mopName varp @processor getNameById) @block appendInstruction
   resultReg result @processor @block createStoreFromRegister
 ];
 
 createMemset: [
   srcRef: dstRef: processor: block: ;;;;
-  srcRef dstRef setVar
+  srcRef dstRef @processor @block setVar
   srcRef isVirtual ~ [
     loadReg: srcRef @processor @block createDerefToRegister;
     loadReg dstRef @processor @block createStoreFromRegister
@@ -288,7 +289,7 @@ createCheckedCopyToNewWith: [
         srcRef.mutable [
           loadReg: srcRef @processor @block createDerefToRegister;
           loadReg dstRef @processor @block createStoreFromRegister
-          srcRef callInit
+          srcRef @processor @block callInit
           @srcRef fullUntemporize
         ] [
           "movable variable is not mutable" @processor block compilerError
@@ -296,8 +297,8 @@ createCheckedCopyToNewWith: [
       ] [
         prevMut: dstRef.mutable;
         TRUE @dstRef.setMutable
-        dstRef callInit
-        srcRef dstRef callAssign
+        dstRef @processor @block callInit
+        srcRef dstRef @processor @block callAssign
         prevMut @dstRef.setMutable
       ] if
     ] if
@@ -325,7 +326,7 @@ createCastCopyToNew: [
   srcRef: dstRef: castName: processor: block: ;;;;;
   @dstRef @processor @block createAllocIR !dstRef
   loadReg: srcRef @processor @block createDerefToRegister;
-  castedReg: @processor block generateRegisterIRName;
+  castedReg: @processor @block generateRegisterIRName;
   ("  " castedReg @processor getNameById " = " @castName " " srcRef @processor getIrType " " loadReg @processor getNameById " to " dstRef @processor getIrType) @block appendInstruction
   castedReg dstRef @processor @block createStoreFromRegister
 ];
@@ -333,7 +334,7 @@ createCastCopyToNew: [
 createCastCopyPtrToNew: [
   srcRef: dstRef: castName: processor: block: ;;;;;
   @dstRef @processor @block createAllocIR !dstRef
-  castedReg: @processor block generateRegisterIRName;
+  castedReg: @processor @block generateRegisterIRName;
   ("  " castedReg @processor getNameById " = " @castName " " srcRef @processor getIrType "* " srcRef @processor getIrName " to " dstRef @processor getIrType) @block appendInstruction
   castedReg dstRef @processor @block createStoreFromRegister
 ];
@@ -344,22 +345,22 @@ createCopyToExists: [
     srcRef getVar.temporary [
       # die-bytemove is faster than assign-die, I think
       processor.options.verboseIR ["set from temporary" @block createComment] when
-      dstRef callDie
+      dstRef @processor @block callDie
       srcRef dstRef @processor @block createMemset
       @srcRef markAsUnableToDie
     ] [
       srcRef isForgotten [
         processor.options.verboseIR ["set from moved" @block createComment] when
-        dstRef callDie
+        dstRef @processor @block callDie
         srcRef dstRef @processor @block createMemset
-        srcRef callInit
+        srcRef @processor @block callInit
         @srcRef fullUntemporize
       ] [
         processor.options.verboseIR ["set; call ASSIGN" @block createComment] when
         srcRef isVirtual [
           "unable to copy virtual autostruct" @processor block compilerError
         ] [
-          srcRef dstRef callAssign
+          srcRef dstRef @processor @block callAssign
         ] if
       ] if
     ] if
@@ -385,12 +386,12 @@ createCallIR: [
   haveRet: refToRet.var isNil ~;
   retName: 0;
 
-  processor.options.callTrace [@block createCallTraceProlog] when
+  processor.options.callTrace [@processor @block createCallTraceProlog] when
 
   offset: block.programTemplate.size;
 
   haveRet [
-    @processor block generateRegisterIRName @retName set
+    @processor @block generateRegisterIRName @retName set
     ("  " @retName @processor getNameById " = call " conventionName refToRet @processor getIrType " ") @block.@programTemplate.catMany
   ] [
     ("  call " conventionName "void ") @block.@programTemplate.catMany
@@ -417,9 +418,9 @@ createCallIR: [
 
   block.programTemplate.size offset - offset makeInstruction @block.@program.pushBack
 
-  @block addDebugLocationForLastInstruction
+  @processor @block addDebugLocationForLastInstruction
 
-  processor.options.callTrace [@block createCallTraceEpilog] when
+  processor.options.callTrace [@processor @block createCallTraceEpilog] when
 
   retName
 ];
@@ -452,60 +453,65 @@ createComment: [
 ];
 
 addStrToProlog: [
-  toString @processor.@prolog.pushBack
+  what: processor: ;;
+  what toString @processor.@prolog.pushBack
 ];
 
 createFloatBuiltins: [
-  "declare float @llvm.sin.f32(float)"           addStrToProlog
-  "declare double @llvm.sin.f64(double)"         addStrToProlog
-  "declare float @llvm.cos.f32(float)"           addStrToProlog
-  "declare double @llvm.cos.f64(double)"         addStrToProlog
-  "declare float @llvm.floor.f32(float)"         addStrToProlog
-  "declare double @llvm.floor.f64(double)"       addStrToProlog
-  "declare float @llvm.ceil.f32(float)"          addStrToProlog
-  "declare double @llvm.ceil.f64(double)"        addStrToProlog
-  "declare float @llvm.sqrt.f32(float)"          addStrToProlog
-  "declare double @llvm.sqrt.f64(double)"        addStrToProlog
-  "declare float @llvm.log.f32(float)"           addStrToProlog
-  "declare double @llvm.log.f64(double)"         addStrToProlog
-  "declare float @llvm.log10.f32(float)"         addStrToProlog
-  "declare double @llvm.log10.f64(double)"       addStrToProlog
-  "declare float @llvm.pow.f32(float, float)"    addStrToProlog
-  "declare double @llvm.pow.f64(double, double)" addStrToProlog
+  processor:;
+
+  "declare float @llvm.sin.f32(float)"           @processor addStrToProlog
+  "declare double @llvm.sin.f64(double)"         @processor addStrToProlog
+  "declare float @llvm.cos.f32(float)"           @processor addStrToProlog
+  "declare double @llvm.cos.f64(double)"         @processor addStrToProlog
+  "declare float @llvm.floor.f32(float)"         @processor addStrToProlog
+  "declare double @llvm.floor.f64(double)"       @processor addStrToProlog
+  "declare float @llvm.ceil.f32(float)"          @processor addStrToProlog
+  "declare double @llvm.ceil.f64(double)"        @processor addStrToProlog
+  "declare float @llvm.sqrt.f32(float)"          @processor addStrToProlog
+  "declare double @llvm.sqrt.f64(double)"        @processor addStrToProlog
+  "declare float @llvm.log.f32(float)"           @processor addStrToProlog
+  "declare double @llvm.log.f64(double)"         @processor addStrToProlog
+  "declare float @llvm.log10.f32(float)"         @processor addStrToProlog
+  "declare double @llvm.log10.f64(double)"       @processor addStrToProlog
+  "declare float @llvm.pow.f32(float, float)"    @processor addStrToProlog
+  "declare double @llvm.pow.f64(double, double)" @processor addStrToProlog
 ];
 
 createCtors: [
-  copy createTlsInit:;
+  createTlsInit: processor: ; copy;
 
-  "" addStrToProlog
-  "@llvm.global_ctors = appending global [1 x { i32, void ()*, i8* }] [{ i32, void ()*, i8* } { i32 65535, void ()* @global.ctors, i8* null }]" addStrToProlog
-  "" addStrToProlog
-  "define internal void @global.ctors() {" addStrToProlog
+  "" @processor addStrToProlog
+  "@llvm.global_ctors = appending global [1 x { i32, void ()*, i8* }] [{ i32, void ()*, i8* } { i32 65535, void ()* @global.ctors, i8* null }]" @processor addStrToProlog
+  "" @processor addStrToProlog
+  "define internal void @global.ctors() {" @processor addStrToProlog
 
   createTlsInit [
-    "  call void @__tls_init()" toString addStrToProlog
+    "  call void @__tls_init()" toString @processor addStrToProlog
   ] when
 
   processor.moduleFunctions [
     cur: processor.blocks.at.get.irName copy;
-    ("  call void " cur "()") assembleString addStrToProlog
+    ("  call void " cur "()") assembleString @processor addStrToProlog
   ] each
 
-  "  ret void" addStrToProlog
-  "}" addStrToProlog
+  "  ret void" @processor addStrToProlog
+  "}" @processor addStrToProlog
 ];
 
 createDtors: [
-  "" addStrToProlog
-  "@llvm.global_dtors = appending global [1 x { i32, void ()*, i8* }] [{ i32, void ()*, i8* } { i32 65535, void ()* @global.dtors, i8* null }]" addStrToProlog
-  "" addStrToProlog
-  "define internal void @global.dtors() {" addStrToProlog
+  processor:;
+
+  "" @processor addStrToProlog
+  "@llvm.global_dtors = appending global [1 x { i32, void ()*, i8* }] [{ i32, void ()*, i8* } { i32 65535, void ()* @global.dtors, i8* null }]" @processor addStrToProlog
+  "" @processor addStrToProlog
+  "define internal void @global.dtors() {" @processor addStrToProlog
   processor.dtorFunctions [
     cur: processor.blocks.at.get.irName copy;
-    ("  call void " cur "()") assembleString addStrToProlog
+    ("  call void " cur "()") assembleString @processor addStrToProlog
   ] each
-  "  ret void" addStrToProlog
-  "}" addStrToProlog
+  "  ret void" @processor addStrToProlog
+  "}" @processor addStrToProlog
 ];
 
 sortInstructions: [
@@ -539,6 +545,8 @@ sortInstructions: [
 ];
 
 addAliasesForUsedNodes: [
+  processor:;
+
   String @processor.@prolog.pushBack
   "; Func aliases" toString @processor.@prolog.pushBack
   @processor.@blocks [
@@ -550,6 +558,8 @@ addAliasesForUsedNodes: [
 ];
 
 createCallTraceData: [
+  processor:;
+
   tlPrefix: processor.options.threadModel 1 = ["thread_local "] [""] if;
 
   callTraceDataType: "[65536 x %type.callTraceInfo]" toString;
@@ -576,10 +586,10 @@ createCallTraceData: [
   ] when
 ];
 
-createCallTraceProlog: [
-  block:;
-  ptr: @processor block generateRegisterIRName;
-  ptrNext: @processor block generateRegisterIRName;
+createCallTraceProlog: [ 
+  processor: block: ;;
+  ptr: @processor @block generateRegisterIRName;
+  ptrNext: @processor @block generateRegisterIRName;
 
   ("  " ptr @processor getNameById " = load %type.callTraceInfo*, %type.callTraceInfo** @debug.callTracePtr") @block appendInstruction
   ("  " ptrNext @processor getNameById " = getelementptr inbounds %type.callTraceInfo, %type.callTraceInfo* " ptr @processor getNameById ", i32 1") @block appendInstruction
@@ -587,18 +597,18 @@ createCallTraceProlog: [
 
   block.hasNestedCall ~ [
     #ptr->next = ptrNext
-    ptrDotNext: @processor block generateRegisterIRName;
+    ptrDotNext: @processor @block generateRegisterIRName;
     ("  " ptrDotNext @processor getNameById " = getelementptr inbounds %type.callTraceInfo, %type.callTraceInfo* " ptr @processor getNameById ", i32 0, i32 1") @block appendInstruction
     ("  store %type.callTraceInfo* " ptrNext @processor getNameById ", %type.callTraceInfo** " ptrDotNext @processor getNameById) @block appendInstruction
 
     #ptrNext->prev = ptr
-    ptrNextDotPrev: @processor block generateRegisterIRName;
+    ptrNextDotPrev: @processor @block generateRegisterIRName;
     ("  " ptrNextDotPrev @processor getNameById " = getelementptr inbounds %type.callTraceInfo, %type.callTraceInfo* " ptrNext @processor getNameById ", i32 0, i32 0") @block appendInstruction
     ("  store %type.callTraceInfo* " ptr @processor getNameById ", %type.callTraceInfo** " ptrNextDotPrev @processor getNameById) @block appendInstruction
 
     #ptrNext->fileName = fileName
-    fileNameVar: block.position.file.name @block makeVarString;
-    ptrNextDotName: @processor block generateRegisterIRName;
+    fileNameVar: block.position.file.name @processor @block makeVarString;
+    ptrNextDotName: @processor @block generateRegisterIRName;
     ("  " ptrNextDotName @processor getNameById " = getelementptr inbounds %type.callTraceInfo, %type.callTraceInfo* " ptrNext @processor getNameById ", i32 0, i32 2") @block appendInstruction
     ("  store i8* " fileNameVar @processor getIrName ", i8** " ptrNextDotName @processor getNameById) @block appendInstruction
 
@@ -606,51 +616,51 @@ createCallTraceProlog: [
   ] when
 
   #ptrNext->line = line
-  ptrNextDotLine: @processor block generateRegisterIRName;
+  ptrNextDotLine: @processor @block generateRegisterIRName;
   ("  " ptrNextDotLine @processor getNameById " = getelementptr inbounds %type.callTraceInfo, %type.callTraceInfo* " ptrNext @processor getNameById ", i32 0, i32 3") @block appendInstruction
   ("  store i32 " block.position.line ", i32* " ptrNextDotLine @processor getNameById) @block appendInstruction
 
   #ptrNext->column = column
-  ptrNextDotColumn: @processor block generateRegisterIRName;
+  ptrNextDotColumn: @processor @block generateRegisterIRName;
   ("  " ptrNextDotColumn @processor getNameById " = getelementptr inbounds %type.callTraceInfo, %type.callTraceInfo* " ptrNext @processor getNameById ", i32 0, i32 4") @block appendInstruction
   ("  store i32 " block.position.column ", i32* " ptrNextDotColumn @processor getNameById) @block appendInstruction
 ];
 
 createCallTraceEpilog: [
-  block:;
-  ptr:     @processor block generateRegisterIRName;
-  ptrPrev: @processor block generateRegisterIRName;
+  processor: block:;;
+  ptr:     @processor @block generateRegisterIRName;
+  ptrPrev: @processor @block generateRegisterIRName;
   ("  " ptr @processor getNameById " = load %type.callTraceInfo*, %type.callTraceInfo** @debug.callTracePtr") @block appendInstruction
   ("  " ptrPrev @processor getNameById " = getelementptr inbounds %type.callTraceInfo, %type.callTraceInfo* " ptr @processor getNameById ", i32 -1") @block appendInstruction
   ("  store %type.callTraceInfo* " ptrPrev @processor getNameById ", %type.callTraceInfo** @debug.callTracePtr") @block appendInstruction
 ];
 
 createGetCallTrace: [
-  infoIrType: variableIrType: variable: block:;;;;
+  infoIrType: variableIrType: variable: processor: block: ;;;;;
   processor.options.callTrace [
     callTraceDataType: "[65536 x %type.callTraceInfo]" toString;
 
-    ptrFirstSrc:  @processor block generateRegisterIRName;
-    ptrFirstCast: @processor block generateRegisterIRName;
-    ptrFirstDst:  @processor block generateRegisterIRName;
+    ptrFirstSrc:  @processor @block generateRegisterIRName;
+    ptrFirstCast: @processor @block generateRegisterIRName;
+    ptrFirstDst:  @processor @block generateRegisterIRName;
     ("  " ptrFirstSrc @processor getNameById " = getelementptr inbounds " callTraceDataType ", " callTraceDataType "* @debug.callTrace, i32 0, i32 0") @block appendInstruction
     ("  " ptrFirstDst @processor getNameById " = getelementptr inbounds " variableIrType ", " variableIrType "* " variable @processor getIrName ", i32 0, i32 0") @block appendInstruction
     ("  " ptrFirstCast @processor getNameById " = bitcast %type.callTraceInfo* " ptrFirstSrc @processor getNameById " to " infoIrType "*") @block appendInstruction
     ("  store " infoIrType "* " ptrFirstCast @processor getNameById ", " infoIrType "** " ptrFirstDst @processor getNameById) @block appendInstruction
 
-    ptrLastSrc:  @processor block generateRegisterIRName;
-    ptrLastCast: @processor block generateRegisterIRName;
-    ptrLastDst:  @processor block generateRegisterIRName;
+    ptrLastSrc:  @processor @block generateRegisterIRName;
+    ptrLastCast: @processor @block generateRegisterIRName;
+    ptrLastDst:  @processor @block generateRegisterIRName;
     ("  " ptrLastSrc @processor getNameById " = load %type.callTraceInfo*, %type.callTraceInfo** @debug.callTracePtr") @block appendInstruction
     ("  " ptrLastDst @processor getNameById " = getelementptr inbounds " variableIrType ", " variableIrType "* " variable @processor getIrName ", i32 0, i32 1") @block appendInstruction
     ("  " ptrLastCast @processor getNameById " = bitcast %type.callTraceInfo* " ptrLastSrc @processor getNameById " to " infoIrType "*") @block appendInstruction
     ("  store " infoIrType "* " ptrLastCast @processor getNameById ", " infoIrType "** " ptrLastDst @processor getNameById) @block appendInstruction
   ] [
-    ptrFirstDst: @processor block generateRegisterIRName;
+    ptrFirstDst: @processor @block generateRegisterIRName;
     ("  " ptrFirstDst @processor getNameById " = getelementptr inbounds " variableIrType ", " variableIrType "* " variable @processor getIrName ", i32 0, i32 0") @block appendInstruction
     ("  store " infoIrType "* null, " infoIrType "** " ptrFirstDst @processor getNameById) @block appendInstruction
 
-    ptrLastDst: @processor block generateRegisterIRName;
+    ptrLastDst: @processor @block generateRegisterIRName;
     ("  " ptrLastDst @processor getNameById " = getelementptr inbounds " variableIrType ", " variableIrType "* " variable @processor getIrName ", i32 0, i32 1") @block appendInstruction
     ("  store " infoIrType "* null, " infoIrType "** " ptrLastDst @processor getNameById) @block appendInstruction
   ] if
