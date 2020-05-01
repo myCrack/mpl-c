@@ -1,8 +1,9 @@
 "control" use
 
+"String.makeStringView" use
 "String.String" use
 "String.StringView" use
-"String.makeStringView" use
+"String.toString" use
 
 "astNodeType.AstNode" use
 "astNodeType.IndexArray" use
@@ -88,13 +89,7 @@ compilerError: [processor: block:;; makeStringView block @processor compilerErro
 {
   block: Block Ref;
   processor: Processor Ref;
-
-  asLambda: Cond;
-  name: StringView Cref;
-  file: File Cref;
-  astNode: AstNode Cref;
-  signature: CFunctionSignature Cref;
-} Int32 {} "processExportFunction" importFunction
+} () {} "defaultCall" importFunction
 
 {
   block: Block Ref;
@@ -104,6 +99,17 @@ compilerError: [processor: block:;; makeStringView block @processor compilerErro
   name: StringView Cref;
   signature: CFunctionSignature Cref;
 } Natx {} "processImportFunction" importFunction
+
+{
+  block: Block Ref;
+  processor: Processor Ref;
+
+  asLambda: Cond;
+  name: StringView Cref;
+  file: File Cref;
+  astNode: AstNode Cref;
+  signature: CFunctionSignature Cref;
+} Int32 {} "processExportFunction" importFunction
 
 {
   block: Block Cref;
@@ -261,7 +267,6 @@ tryImplicitLambdaCast: [
   @result
 ];
 
-
 {
   block: Block Ref;
   processor: Processor Ref;
@@ -284,3 +289,44 @@ copyVar:           [processor: block:;; FALSE dynamic FALSE dynamic @processor @
 copyVarFromChild:  [processor: block:;; TRUE  dynamic FALSE dynamic @processor @block copyVarWith];
 copyVarToNew:      [processor: block:;; FALSE dynamic TRUE  dynamic @processor @block copyVarWith];
 copyVarFromParent: [processor: block:;; TRUE  dynamic FALSE dynamic @processor @block copyVarWith];
+
+{
+  block: Block Ref;
+  processor: Processor Ref;
+  refToDst: RefToVar Cref;
+  refToSrc: RefToVar Cref;
+} () {} "createCopyToExists" importFunction
+
+{
+  block: Block Ref;
+  processor: Processor Ref;
+  string: String Ref;
+  result: RefToVar Ref;
+} () {} "makeVarStringImpl" importFunction
+
+makeVarString: [
+  text: processor: block: ;;;
+
+  string: text toString;
+  result: RefToVar;
+  @result @string @processor @block makeVarStringImpl
+  @result
+];
+
+{
+  block: Block Ref;
+  processor: Processor Ref;
+} () {} "addDebugLocationForLastInstruction" importFunction
+
+
+{
+  block: Block Ref;
+  processor: Processor Ref;
+  message: String Ref;
+} () {} "createFailWithMessageImpl" importFunction
+
+createFailWithMessage: [
+  text: processor: block: ;;;
+  string: text String same [@text] [text toString] uif;
+  @string @processor @block createFailWithMessageImpl
+];

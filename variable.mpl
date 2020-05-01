@@ -60,6 +60,12 @@
 "Var.VarStruct" use
 "Var.Variable" use
 "Var.Virtual" use
+"Var.Dirty" use
+"Var.Dynamic" use
+"Var.Weak" use
+"Var.Static" use
+"Var.Virtual" use
+"Var.Schema" use
 "astNodeType.AstNode" use
 "astNodeType.IndexArray" use
 "declarations.compilerError" use
@@ -706,6 +712,8 @@ makeDbgTypeId: [
 ] "getMplTypeImpl" exportFunction
 
 cutValue: [
+  processor:;
+
   copy tag:;
   copy value:;
   tag (
@@ -769,63 +777,6 @@ zeroValue: [
       ] if
     ] if
   ] if
-];
-
-getStaticStructIR: [
-  refToVar:;
-  result: String;
-  unfinishedVars: RefToVar Array;
-  unfinishedTerminators: StringView Array;
-  refToVar @unfinishedVars.pushBack
-  ", " makeStringView @unfinishedTerminators.pushBack
-  [
-    unfinishedVars.getSize 0 > [
-      current: unfinishedVars.last copy;
-      @unfinishedVars.popBack
-
-      current isVirtual [
-        [FALSE] "Virtual field cannot be processed in static array constant!" assert
-      ] [
-        current isPlain [
-          (current @processor getIrType " " current getPlainConstantIR) @result.catMany
-          [
-            currentTerminator: unfinishedTerminators.last;
-            currentTerminator @result.cat
-            currentTerminator ", " = ~
-            @unfinishedTerminators.popBack
-          ] loop
-        ] [
-          curVar: current getVar;
-          curVar.data.getTag VarStruct = [
-            (current @processor getIrType " ") @result.catMany
-            struct: VarStruct curVar.data.get.get;
-            struct.homogeneous ["[" makeStringView] ["{" makeStringView] if @result.cat
-            first: TRUE dynamic;
-            struct.fields.getSize [
-              current: struct.fields.getSize 1 - i - struct.fields.at.refToVar;
-              current isVirtual ~ [
-                current @unfinishedVars.pushBack
-                first [
-                  struct.homogeneous ["]" makeStringView] ["}" makeStringView] if @unfinishedTerminators.pushBack
-                  FALSE dynamic @first set
-                ] [
-                  ", " makeStringView @unfinishedTerminators.pushBack
-                ] if
-              ] when
-            ] times
-          ] [
-            [FALSE] "Unknown type in static struct!" assert
-          ] if
-        ] if
-      ] if
-
-      TRUE
-    ] &&
-  ] loop
-
-  result.size 2 - @result.@chars.shrink
-  @result.makeZ
-  result
 ];
 
 makeVariableIRName: [

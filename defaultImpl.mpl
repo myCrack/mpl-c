@@ -14,13 +14,16 @@
 "declarations.defaultPrintStackTrace" use
 "declarations.compilerError" use
 "declarations.createRefWith" use
+"declarations.createCopyToExists" use
 "declarations.getMplType" use
 "declarations.popWith" use
+"declarations.processCall" use
+"declarations.processFuncPtr" use
 "declarations.push" use
 "declarations.tryImplicitLambdaCast" use
-"irWriter.createCopyToExists" use
 "Block.Block" use
 "Block.NodeStateNew" use
+"Block.NodeCaseCodeRefDeclaration" use
 "processor.Processor" use
 "Var.getVar" use
 "Var.RefToVar" use
@@ -78,44 +81,6 @@ makeVarRealCaptured: [
 defaultFailProc: [
   processor: block: ;;
   text: @processor @block pop;
-];
-
-defaultCall: [
-  processor: block: ;;
-  refToVar: @processor @block pop;
-  processor compilable [
-    var: refToVar getVar;
-    var.data.getTag  (
-      [VarCode =] [
-        VarCode var.data.get.index VarCode var.data.get.file "call" makeStringView @processor @block processCall
-      ]
-      [VarImport =] [
-        refToVar @processor @block processFuncPtr
-      ]
-      [VarString =] [
-        (
-          [processor compilable]
-          [refToVar staticityOfVar Weak < ["name must be a static string" @processor block compilerError] when]
-          [
-            nameInfo: VarString var.data.get makeStringView @processor findNameInfo;
-            getNameResult: nameInfo @processor @block getName;
-            block.position.file nameInfo getNameResult checkFailedName
-            captureNameResult: @getNameResult 0 dynamic @processor @block block.position.file captureName;
-            refToName: captureNameResult.refToVar copy;
-          ]
-          [
-            TRUE dynamic captureNameResult.object refToName 0 nameInfo pushName
-          ]
-        ) sequence
-      ]
-      [drop refToVar isCallable] [
-        TRUE dynamic RefToVar refToVar "call" makeStringView callCallableStruct # call struct with INVALID object
-      ]
-      [
-        "not callable" @processor block compilerError
-      ]
-    ) cond
-  ] when
 ];
 
 defaultSet: [
@@ -301,4 +266,9 @@ addStackUnderflowInfo: [
   block.state NodeStateNew = [
     TRUE @block.@matchingInfo.@hasStackUnderflow set
   ] when
+];
+
+nodeHasCode: [
+  node:;
+  node.emptyDeclaration ~ [node.uncompilable ~] && [node.empty ~] && [node.deleted ~] && [node.nodeCase NodeCaseCodeRefDeclaration = ~] &&
 ];

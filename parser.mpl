@@ -10,6 +10,7 @@
 "String.makeStringView2" use
 "String.splitString" use
 "String.toString" use
+"String.print" use
 "ascii.ascii" use
 
 "astNodeType.AstNode" use
@@ -415,7 +416,7 @@ lexicalError: [
 ];
 
 parseStringConstant: [
-  nameSymbols: StringView Array;
+  nameSymbols: String;
   iterate
   stop: FALSE;
   error: [lexicalError TRUE !stop];
@@ -428,20 +429,20 @@ parseStringConstant: [
       ] [
         currentCode ascii.quote = [TRUE !stop] term
       ] [
-        currentCode ascii.backSlash = ~ [currentSymbol @nameSymbols.pushBack] term
+        currentCode ascii.backSlash = ~ [currentSymbol @nameSymbols.cat] term
       ] [
         iterate
         currentCode ascii.null = ["unterminated escape sequence" error] term
       ] [
-        currentCode ascii.quote = [currentSymbol @nameSymbols.pushBack] term
+        currentCode ascii.quote = [currentSymbol @nameSymbols.cat] term
       ] [
-        currentCode ascii.nCode = [LF makeStringView @nameSymbols.pushBack] term
+        currentCode ascii.nCode = [LF makeStringView @nameSymbols.cat] term
       ] [
-        currentCode ascii.rCode = [code: 13n8; code storageAddress 1 makeStringView2 @nameSymbols.pushBack] term
+        currentCode ascii.rCode = [code: 13n8; code storageAddress 1 makeStringView2 @nameSymbols.cat] term
       ] [
-        currentCode ascii.tCode = [code: 9n8; code storageAddress 1 makeStringView2 @nameSymbols.pushBack] term
+        currentCode ascii.tCode = [code: 9n8; code storageAddress 1 makeStringView2 @nameSymbols.cat] term
       ] [
-        currentCode ascii.backSlash = [currentSymbol @nameSymbols.pushBack] term
+        currentCode ascii.backSlash = [currentSymbol @nameSymbols.cat] term
       ] [
         currentCode Int32 cast codepointHex? ~ ["invalid escape sequence" error] term
       ] [
@@ -454,7 +455,7 @@ parseStringConstant: [
         first 4n8 lshift currentCode Int32 cast codepointHexValue Nat8 cast or !first
         first codeunitHead? ~ ["invalid unicode sequence" error] term
       ] [
-        first storageAddress 1 makeStringView2 @nameSymbols.pushBack
+        first storageAddress 1 makeStringView2 @nameSymbols.cat
         first 0x80n8 < [] term
       ] [
         iterate
@@ -471,7 +472,7 @@ parseStringConstant: [
         next 4n8 lshift currentCode Int32 cast codepointHexValue Nat8 cast or !next
         next codeunitTail? ~ ["invalid unicode sequence" error] term
       ] [
-        next storageAddress 1 makeStringView2 @nameSymbols.pushBack
+        next storageAddress 1 makeStringView2 @nameSymbols.cat
         first 0xE0n8 < [] term
       ] [
         iterate
@@ -488,7 +489,7 @@ parseStringConstant: [
         next 4n8 lshift currentCode Int32 cast codepointHexValue Nat8 cast or !next
         next codeunitTail? ~ ["invalid unicode sequence" error] term
       ] [
-        next storageAddress 1 makeStringView2 @nameSymbols.pushBack
+        next storageAddress 1 makeStringView2 @nameSymbols.cat
         first 0xF0n8 < [] term
       ] [
         iterate
@@ -505,14 +506,14 @@ parseStringConstant: [
         next 4n8 lshift currentCode Int32 cast codepointHexValue Nat8 cast or !next
         next codeunitTail? ~ ["invalid unicode sequence" error] term
       ] [
-        next storageAddress 1 makeStringView2 @nameSymbols.pushBack
+        next storageAddress 1 makeStringView2 @nameSymbols.cat
       ]
     ) sequence
 
     iterate stop ~
   ] loop
 
-  nameSymbols assembleString makeStringNode @mainResult.@memory.pushBack
+  @nameSymbols move makeStringNode @mainResult.@memory.pushBack
   TRUE
 ];
 

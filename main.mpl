@@ -6,19 +6,40 @@
 "ascii.ascii" use
 "memory.debugMemory" use
 "HashTable.hash" use
+
 "String.addLog" use
+"String.assembleString" use
 "String.hash" use
+"String.makeStringView" use
 "String.makeStringViewByAddress" use
+"String.splitString" use
 "String.String" use
 "String.toString" use
+"String.print" use
+"String.printList" use
+"file.loadString" use
+"file.saveString" use
 
+"astNodeType.MultiParserResult" use
+"astNodeType.ParserResult" use
 "astNodeType.ParserResults" use
+"astOptimizers.concatParserResults" use
+"astOptimizers.optimizeLabels" use
+"astOptimizers.optimizeNames" use
 "NameManager.NameManager" use
 "pathUtils.extractClearPath" use
+"parser.parseString" use
+"processor.DEFAULT_STATIC_LOOP_LENGTH_LIMIT" use
+"processor.DEFAULT_RECURSION_DEPTH_LIMIT" use
+"processor.DEFAULT_PRE_RECURSION_DEPTH_LIMIT" use
 "processor.NameInfoEntry" use
 "processor.Processor" use
 "processor.ProcessorOptions" use
 "processorImpl.process" use
+
+debugMemory [
+  "memory.getMemoryMetrics" use
+] [] uif
 
 printInfo: [
   "USAGE: mplc.exe [options] <inputs>" print LF print
@@ -387,10 +408,10 @@ processIntegerOption: [
   debugMemory [] && [
     #mplReleaseCache
     (
-      "allocations: " memoryCurrentAllocationCount copy "/" memoryTotalAllocationCount copy
-      ", bytes: " memoryCurrentAllocationSize copy "/" memoryTotalAllocationSize copy
-      ", max: " memoryMaxAllocationSize copy
-      ", checksum: " memoryChecksum copy
+      "allocations: " getMemoryMetrics.memoryCurrentAllocationCount copy "/" getMemoryMetrics.memoryTotalAllocationCount copy
+      ", bytes: " getMemoryMetrics.memoryCurrentAllocationSize copy "/" getMemoryMetrics.memoryTotalAllocationSize copy
+      ", max: " getMemoryMetrics.memoryMaxAllocationSize copy
+      ", checksum: " getMemoryMetrics.memoryChecksum copy
       LF
     ) printList
   ] when

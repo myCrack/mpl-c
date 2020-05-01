@@ -77,7 +77,6 @@ NameInfoEntry: [{
   mplFieldIndex: -1 dynamic; # for NameCaseSelfMember
 }];
 
-
 MatchingNode: [{
   unknownMplType: IndexArray;
   byMplType: Int32 IndexArray HashTable; #first input MPL type
@@ -114,7 +113,6 @@ Processor: [{
   #file: [@fileStack.last.data]; # Currently processed File
 
   blocks: Block Owner Array;
-
   variables: Variable Array Array;
 
   matchingNodes:       Natx MatchingNode HashTable;

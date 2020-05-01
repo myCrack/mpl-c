@@ -1,5 +1,12 @@
+"control" use
+
 "Array.Array" use
 "Array.makeArrayRange" use
+
+"String.makeStringView" use
+
+"astNodeType.AstNodeType" use
+"astNodeType.IndexArray" use
 
 optimizeLabelsInCurrentNode: [
   node:;

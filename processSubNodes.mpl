@@ -46,11 +46,30 @@
 "astNodeType.AstNodeType" use
 "astNodeType.IndexArray" use
 "codeNode.addBlock" use
+"codeNode.addUnfoundedName" use
 "codeNode.astNodeToCodeNode" use
+"codeNode.captureName" use
+"codeNode.copyOneVar" use
+"codeNode.deleteNode" use
+"codeNode.finalizeCodeNode" use
+"codeNode.getField" use
 "codeNode.getFieldForMatching" use
 "codeNode.getNameForMatching" use
+"codeNode.getNameWithOverloadIndex" use
+"codeNode.getNameForMatchingWithOverloadIndex" use
+"codeNode.getPointeeNoDerefIR" use
 "codeNode.getPointeeForMatching" use
+"codeNode.getPossiblePointee" use
 "codeNode.makeCompilerPosition" use
+"codeNode.makePointeeDirtyIfRef" use
+"codeNode.makeStaticity" use
+"codeNode.makeVarDynamic" use
+"codeNode.makeVarDirty" use
+"codeNode.makeVarTreeDirty" use
+"codeNode.makeVarTreeDynamic" use
+"codeNode.makeVarTreeDirty" use
+"codeNode.popForMatching" use
+"codeNode.processStaticAt" use
 "debugWriter.addDebugReserve" use
 "declarations.compilerError" use
 "declarations.copyVar" use
@@ -59,6 +78,7 @@
 "declarations.copyVarFromParent" use
 "declarations.getMplType" use
 "declarations.tryImplicitLambdaCast" use
+"declarations.push" use
 "defaultImpl.compilable" use
 "defaultImpl.FailProcForProcessor" use
 "defaultImpl.findNameInfo" use
@@ -68,19 +88,32 @@
 "defaultImpl.pop" use
 "defaultImpl.addStackUnderflowInfo" use
 "irWriter.createAllocIR" use
+"irWriter.createBranch" use
 "irWriter.createCallIR" use
+"irWriter.createComment" use
+"irWriter.createCheckedCopyToNewNoDie" use
 "irWriter.createDerefToRegister" use
+"irWriter.createJump" use
+"irWriter.createLabel" use
+"irWriter.createPhiNode" use
 "irWriter.createStaticInitIR" use
 "irWriter.createStoreFromRegister" use
+"irWriter.getMplSchema" use
+"irWriter.getIrName" use
+"irWriter.getIrType" use
 "processor.IRArgument" use
 "processor.Processor" use
 "processor.ProcessorErrorInfo" use
 "processor.ProcessorResult" use
 "processor.RefToVarTable" use
 "staticCall.staticCall" use
+"Var.Dirty" use
 "Var.Dynamic" use
 "Var.isSemiplainNonrecursiveType" use
+"Var.isNonrecursiveType" use
+"Var.isSchema" use
 "Var.isVirtual" use
+"Var.fullUntemporize" use
 "Var.getVar" use
 "Var.staticityOfVar" use
 "Var.RefToVar" use
@@ -96,8 +129,10 @@
 "Var.variablesAreSame" use
 "variable.isStaticData" use
 "variable.isGlobal" use
+"variable.markAsAbleToDie" use
 "variable.noMatterToCopy" use
 "variable.refsAreEqual" use
+"variable.unglobalize" use
 
 {processorResult: ProcessorResult Ref; cachedGlobalErrorInfoSize: Int32;} () {} [
   cachedGlobalErrorInfoSize: processorResult:;;
@@ -279,8 +314,8 @@
           stackEntryVar: currentFromStack getVar;
 
           cacheEntryVar.data.getTag VarRef = [currentFromCache staticityOfVar Virtual <] && [currentFromCache staticityOfVar Weak >] && [
-            currentFromStack getPointeeForMatching @unfinishedStack.pushBack
-            currentFromCache getPointeeForMatching @unfinishedCache.pushBack
+            currentFromStack @processor @block getPointeeForMatching @unfinishedStack.pushBack
+            currentFromCache @processor @block getPointeeForMatching @unfinishedCache.pushBack
             i -1 "deref" makeStringView makeWayInfo @unfinishedWay.pushBack
           ] [
             cacheEntryVar.data.getTag VarStruct = [
@@ -608,10 +643,12 @@ tryMatchNode: [
 ] "tryMatchAllNodesWith" exportFunction
 
 tryMatchAllNodes: [
+  processor: block: ;;
   FALSE @block @processor tryMatchAllNodesWith
 ];
 
 tryMatchAllNodesForRealFunction: [
+  processor: block: ;;
   TRUE @block @processor tryMatchAllNodesWith
 ];
 
@@ -823,7 +860,7 @@ applyEntriesRec: [
         clearPointee: VarRef cacheEntryVar.data.get copy; # if captured, host index will be currentChangesNodeIndex
         clearPointee getVar.host currentChangesNode is [ # we captured it
           clearPointee @unfinishedCache.pushBack
-          @currentFromStack getPointeeNoDerefIR @unfinishedStack.pushBack
+          @currentFromStack @processor @block getPointeeNoDerefIR @unfinishedStack.pushBack
         ] when
       ] [
         cacheEntryVar.data.getTag VarStruct = [
@@ -867,7 +904,7 @@ fixOutputRefsRec: [
         currentFromStack isSchema ~ [
           stackPointee: VarRef @stackEntryVar.@data.get;
           stackPointee getVar.host currentChangesNode is [
-            fixed: @currentFromStack fixRef getPointeeNoDerefIR;
+            fixed: @currentFromStack fixRef @processor @block getPointeeNoDerefIR;
             fixed @unfinishedStack.pushBack
           ] when
         ] when
@@ -957,8 +994,8 @@ usePreCapturesWith: [
               cacheEntryVar.data.getTag VarRef = [currentFromCache staticityOfVar Virtual <] && [currentFromCache staticityOfVar Dynamic >] && [
                 clearPointee: VarRef cacheEntryVar.data.get copy; # if captured, host index will be currentChangesNodeIndex
                 clearPointee getVar.host currentChangesNode is [ # we captured it
-                  clearPointee                          @unfinishedCache.pushBack
-                  @currentFromStack getPointeeNoDerefIR @unfinishedStack.pushBack
+                  clearPointee                                            @unfinishedCache.pushBack
+                  @currentFromStack @processor @block getPointeeNoDerefIR @unfinishedStack.pushBack
                 ] when
               ] [
                 cacheEntryVar.data.getTag VarStruct = [
@@ -1003,7 +1040,7 @@ usePreCapturesWith: [
     exitPre ~ [
       currentChangesNode.matchingInfo.unfoundedNames [
         un: .key;
-        un.file un.nameInfo addUnfoundedName
+        un.file un.nameInfo @processor @block addUnfoundedName
       ] each
     ] when
 
@@ -1045,7 +1082,7 @@ applyNodeChanges: [
   i: 0 dynamic;
   [
     i currentChangesNode.matchingInfo.inputs.dataSize < [
-      stackEntry: popForMatching;
+      stackEntry: @processor @block popForMatching;
       cacheEntry: i currentChangesNode.matchingInfo.inputs.at.refToVar;
 
       stackEntry cacheEntry applyEntriesRec
@@ -1190,7 +1227,7 @@ derefNEntries: [
     i count < [
       count 1 - i - implicitDerefInfo.at [
         dst: i @processor @block getStackEntry;
-        @dst @block getPossiblePointee @dst set
+        @dst @processor @block getPossiblePointee @dst set
       ] when
       i 1 + @i set TRUE
     ] &&
@@ -1408,7 +1445,7 @@ processCallByNode: [
   forcedNameString: String;
   file: positionInfo.file;
 
-  newNodeIndex: indexArray tryMatchAllNodes;
+  newNodeIndex: indexArray @processor @block tryMatchAllNodes;
   newNodeIndex 0 < [processor compilable] && [
     name
     block.id
@@ -1487,7 +1524,7 @@ processCallByNode: [
     oldSuccess: processor compilable;
     oldGlobalErrorCount: processor.result.globalErrorInfo.getSize;
 
-    newNodeIndex: indexArray tryMatchAllNodes;
+    newNodeIndex: indexArray @processor @block tryMatchAllNodes;
     newNodeIndex 0 < [processor compilable] && [
       processor.depthOfPre 1 + @processor.@depthOfPre set
       "PRE" makeStringView block.id NodeCaseCode indexArray file positionInfo CFunctionSignature @processor astNodeToCodeNode @newNodeIndex set
@@ -1533,6 +1570,8 @@ processCallByNode: [
 ] "processPre" exportFunction
 
 processIf: [
+  processor: block: ;;
+
   fileElse:;
   astNodeElse:;
   fileThen:;
@@ -1545,7 +1584,7 @@ processIf: [
   positionInfoThen: astNodeThen fileThen makeCompilerPosition;
   positionInfoElse: astNodeElse fileElse makeCompilerPosition;
 
-  newNodeThenIndex: @indexArrayThen tryMatchAllNodes;
+  newNodeThenIndex: @indexArrayThen @processor @block tryMatchAllNodes;
   newNodeThenIndex 0 < [processor compilable] && [
     "ifThen" makeStringView
     block.id
@@ -1561,7 +1600,7 @@ processIf: [
 
   processor compilable [
     newNodeThen: newNodeThenIndex @processor.@blocks.at.get;
-    newNodeElseIndex: @indexArrayElse tryMatchAllNodes;
+    newNodeElseIndex: @indexArrayElse @processor @block tryMatchAllNodes;
     newNodeElseIndex 0 < [processor compilable] && [
       "ifElse" makeStringView
       block.id
@@ -1666,16 +1705,16 @@ processIf: [
 
             [value1 value2 variablesAreSame] "captures changed to different types!" assert
             value1 staticityOfVar Dynamic = value2 staticityOfVar Dynamic = or [
-              @refToDst makeVarDynamic
-              @value1 makePointeeDirtyIfRef
-              @value2 makePointeeDirtyIfRef
+              @refToDst @processor @block makeVarDynamic
+              @value1 @processor @block makePointeeDirtyIfRef
+              @value2 @processor @block makePointeeDirtyIfRef
             ] [
               value1 value2 processor variablesAreEqual [ # both are static, same value
                 value1 @refToDst changeVarValue
               ] [
-                @refToDst makeVarDynamic
-                @value1 makePointeeDirtyIfRef
-                @value2 makePointeeDirtyIfRef
+                @refToDst @processor @block makeVarDynamic
+                @value1 @processor @block makePointeeDirtyIfRef
+                @value2 @processor @block makePointeeDirtyIfRef
               ] if
             ] if
           ];
@@ -1843,7 +1882,7 @@ processIf: [
               ];
 
               wasNestedCall: block.hasNestedCall copy;
-              0 refToCond @block createBranch
+              0 refToCond @processor @block createBranch
               @block createLabel
               inputsThen @outputsThen newNodeThen makeCallInstruction
               newNodeThen outputsThen createStores
@@ -1878,7 +1917,7 @@ processIf: [
 ];
 
 processLoop: [
-  astNode: file:;;
+  astNode: processor: block: file: ;;;;
   indexArray: AstNodeType.Code astNode.data.get;
   positionInfo: astNode file makeCompilerPosition;
 
@@ -1886,7 +1925,7 @@ processLoop: [
   loopIsDynamic: FALSE;
 
   [
-    newNodeIndex: @indexArray tryMatchAllNodes;
+    newNodeIndex: @indexArray @processor @block tryMatchAllNodes;
     newNodeIndex 0 < [processor compilable] && [
       "loop" makeStringView
       block.id
@@ -1956,7 +1995,7 @@ processDynamicLoop: [
   iterationNumber: 0 dynamic;
   [
     needToRemake: FALSE dynamic;
-    newNodeIndex: @indexArray tryMatchAllNodes;
+    newNodeIndex: @indexArray @processor @block tryMatchAllNodes;
     newNodeIndex 0 < [processor compilable] && [
       "dynamicLoop" makeStringView
       block.id
@@ -2003,11 +2042,11 @@ processDynamicLoop: [
 
           pair.key pair.value checkToRecompile [
             pair.value staticityOfVar Dirty = [
-              pair.key copy makeVarDirty
+              pair.key copy @processor @block makeVarDirty
             ] [
-              pair.key copy makeVarDynamic
+              pair.key copy @processor @block makeVarDynamic
             ] if
-            pair.key copy makePointeeDirtyIfRef
+            pair.key copy @processor @block makePointeeDirtyIfRef
             TRUE dynamic @needToRemake set
           ] when
         ] each
@@ -2024,7 +2063,7 @@ processDynamicLoop: [
               curInput: i @processor block getStackEntry;
               curOutput: newNode.matchingInfo.inputs.dataSize 1 - i - newNode.outputs.at .refToVar;
               curInput curOutput checkToRecompile [
-                curInput makeVarTreeDynamic
+                curInput @processor @block makeVarTreeDynamic
                 TRUE dynamic @needToRemake set
               ] when
               i 1 + @i set TRUE
@@ -2092,7 +2131,7 @@ processDynamicLoop: [
           newNode.outputs [.argCase isImplicitDeref @implicitDerefInfo.pushBack] each
           implicitDerefInfo outputs.getSize 1 - @block derefNEntries
           processor.options.verboseIR ["loop end prepare..." @block createComment] when
-          1 outputs.last @block createBranch
+          1 outputs.last @processor @block createBranch
           @block createLabel
 
           @inputs     @processor.releaseVarRefArray
@@ -2107,7 +2146,7 @@ processDynamicLoop: [
             "loop body compileOnce directive fail" @processor block compilerError
           ] when
 
-          newNodeIndex deleteNode
+          newNodeIndex @processor deleteNode
 
           iterationNumber processor.options.staticLoopLengthLimit > [
             "loop dynamisation iteration count so big" @processor block compilerError
@@ -2123,6 +2162,50 @@ processDynamicLoop: [
     ] &&
   ] loop
 ];
+
+{
+  block: Block Ref; processor: Processor Ref;
+  asCodeRef: Cond; name: StringView Cref; signature: CFunctionSignature Cref;} Natx {} [
+  block:;
+  processor:;
+  overload failProc: @processor block FailProcForProcessor;
+
+  copy asCodeRef:;
+  name:;
+  signature:;
+  compileOnce
+
+  @processor addBlock
+  declarationNode: @processor.@blocks.last.get;
+  block.id @declarationNode.@parent set
+  asCodeRef [NodeCaseCodeRefDeclaration][NodeCaseDeclaration] if @declarationNode.@nodeCase set
+  signature.variadic @declarationNode.@variadic set
+
+  signature.inputs.getSize [
+    r: signature.inputs.getSize 1 - i - signature.inputs.at @processor @block copyVarFromChild;
+    @r @processor block unglobalize
+    FALSE @r.setMutable
+    r @block push
+  ] times
+
+  [
+    curPosition: block.position;
+    block: @declarationNode;
+    curPosition @block.@position set
+    position: curPosition copy;
+    compilerPositionInfo: position;
+    forcedSignature: signature;
+    processor.options.debug [
+      @processor addDebugReserve @block.@funcDbgIndex set
+    ] when
+    forcedSignature.inputs   [p:; a: @processor @block pop;] each
+    forcedSignature.outputs [@processor @block copyVarFromChild @block push] each
+    name compilerPositionInfo forcedSignature @processor @block finalizeCodeNode
+  ] call
+
+  signature.inputs   [p:; a: @processor @block pop;] each
+  declarationNode storageAddress
+] "processImportFunction" exportFunction
 
 {block: Block Ref; processor: Processor Ref; 
   asLambda: Cond; name: StringView Cref; file: File Cref; astNode: AstNode Cref; signature: CFunctionSignature Cref;} Int32 {} [
@@ -2148,11 +2231,11 @@ processDynamicLoop: [
   # we dont know count of used in export entites
   signature.inputs.getSize [
     r: signature.inputs.getSize 1 - i - signature.inputs.at @processor @block copyVarFromChild;
-    r makeVarTreeDynamic
+    r @processor @block makeVarTreeDynamic
     @r @processor block unglobalize
     @r fullUntemporize
     r getVar.data.getTag VarRef = [
-      @r getPointeeNoDerefIR @block push
+      @r @processor @block getPointeeNoDerefIR @block push
     ] [
       FALSE @r.setMutable
       r @block push
@@ -2162,7 +2245,7 @@ processDynamicLoop: [
   oldSuccess: processor compilable;
   oldRecursiveNodesStackSize: processor.recursiveNodesStack.getSize;
 
-  newNodeIndex: @indexArray tryMatchAllNodesForRealFunction;
+  newNodeIndex: @indexArray @processor @block tryMatchAllNodesForRealFunction;
   newNodeIndex 0 < [processor compilable] && [
     nodeCase: asLambda [NodeCaseLambda][NodeCaseExport] if;
     processor.exportDepth 1 + @processor.@exportDepth set
@@ -2224,50 +2307,6 @@ processDynamicLoop: [
   newNodeIndex
 ] "processExportFunction" exportFunction
 
-{
-  block: Block Ref; processor: Processor Ref;
-  asCodeRef: Cond; name: StringView Cref; signature: CFunctionSignature Cref;} Natx {} [
-  block:;
-  processor:;
-  overload failProc: @processor block FailProcForProcessor;
-
-  copy asCodeRef:;
-  name:;
-  signature:;
-  compileOnce
-
-  @processor addBlock
-  declarationNode: @processor.@blocks.last.get;
-  block.id @declarationNode.@parent set
-  asCodeRef [NodeCaseCodeRefDeclaration][NodeCaseDeclaration] if @declarationNode.@nodeCase set
-  signature.variadic @declarationNode.@variadic set
-
-  signature.inputs.getSize [
-    r: signature.inputs.getSize 1 - i - signature.inputs.at @processor @block copyVarFromChild;
-    @r @processor block unglobalize
-    FALSE @r.setMutable
-    r @block push
-  ] times
-
-  [
-    curPosition: block.position;
-    block: @declarationNode;
-    curPosition @block.@position set
-    position: curPosition copy;
-    compilerPositionInfo: position;
-    forcedSignature: signature;
-    processor.options.debug [
-      @processor addDebugReserve @block.@funcDbgIndex set
-    ] when
-    forcedSignature.inputs   [p:; a: @processor @block pop;] each
-    forcedSignature.outputs [@processor @block copyVarFromChild @block push] each
-    name finalizeCodeNode
-  ] call
-
-  signature.inputs   [p:; a: @processor @block pop;] each
-  declarationNode storageAddress
-] "processImportFunction" exportFunction
-
 callImportWith: [
   declarationNode: refToVar: dynamicFunc: block:;;;;
   inputs:  @processor.acquireVarRefArray;
@@ -2303,7 +2342,7 @@ callImportWith: [
                 ("cant call import, expected mutable argument #" i " with type " nodeEntry @processor block getMplType) assembleString @processor block compilerError
               ] when
             ] [
-              nodeMutable [stackEntry @block makeVarTreeDirty] when
+              nodeMutable [stackEntry @processor @block makeVarTreeDirty] when
               input @inputs.pushBack
             ]
           ) sequence

@@ -2,14 +2,20 @@
 "builtinImpl" use
 
 "String.print" use
+"String.makeStringView" use
 "String.toString" use
 "conventions.cdecl" use
 
 "Block.Block" use
 "Block.NameCaseBuiltin" use
+"codeNode.addNameInfo" use
+"codeNode.createVariable" use
+"codeNode.makeStaticity" use
 "declarations.getMplType" use
 "defaultImpl.FailProcForProcessor" use
 "Var.getVar" use
+"Var.VarBuiltin" use
+"Var.Virtual" use
 "processor.Processor" use
 "processor.ProcessorResult" use
 "variable.NameInfo" use
@@ -115,7 +121,7 @@ addBuiltin: [
     addNameCase: NameCaseBuiltin;
     refToVar:    bvar copy;
     nameInfo:    nameId copy;
-  } @processor addNameInfo
+  } @processor @block addNameInfo
 ];
 
 initBuiltins: [

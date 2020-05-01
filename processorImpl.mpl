@@ -1,16 +1,57 @@
 "control" use
 
+"String.addLog" use
+"String.assembleString" use
 "String.String" use
+"String.StringView" use
+"String.makeStringView" use
+"String.toString" use
+"HashTable.HashTable" use
+"Owner.owner" use
 
+"astNodeType.IndexArray" use
 "astNodeType.MultiParserResult" use
+"Block.BlockSchema" use
+"Block.CFunctionSignature" use
+"Block.CompilerPositionInfo" use
+"Block.NodeCaseCode" use
+"Block.NodeCaseDeclaration" use
+"Block.NodeCaseDtor" use
 "builtins.initBuiltins" use
 "codeNode.addBlock" use
-"codeNode.addBlock" use
+"codeNode.astNodeToCodeNode" use
+"codeNode.finalizeCodeNode" use
+"codeNode.killStruct" use
+"debugWriter.addDebugProlog" use
+"debugWriter.addDebugReserve" use
+"debugWriter.addFileDebugInfo" use
+"debugWriter.addLinkerOptionsDebugInfo" use
+"debugWriter.correctUnitInfo" use
+"debugWriter.clearUnusedDebugInfo" use
+"declarations.makeShadows" use
+"defaultImpl.compilable" use
 "defaultImpl.FailProcForProcessor" use
+"defaultImpl.findNameInfo" use
+"defaultImpl.nodeHasCode" use
+"File.File" use
+"irWriter.addAliasesForUsedNodes" use
+"irWriter.addStrToProlog" use
+"irWriter.createCallTraceData" use
+"irWriter.createCtors" use
+"irWriter.createDtors" use
+"irWriter.createFloatBuiltins" use
 "NameManager.NameManager" use
+"pathUtils.extractFilename" use
+"pathUtils.stripExtension" use
 "processor.NameInfoEntry" use
 "processor.Processor" use
 "processor.ProcessorOptions" use
+"processSubNodes.clearProcessorResult" use
+"Var.getVar" use
+"Var.RefToVar" use
+"Var.ShadowReasonCapture" use
+"Var.VarStruct" use
+"Var.VarSchema" use
 
 {
   program: String Ref;
@@ -34,20 +75,20 @@
   @options @processor.@options set
   multiParserResult @processor.!multiParserResult
 
-  ""           @processor findNameInfo @processor.@emptyNameInfo set
-  "CALL"       @processor findNameInfo @processor.@callNameInfo set
-  "PRE"        @processor findNameInfo @processor.@preNameInfo set
-  "DIE"        @processor findNameInfo @processor.@dieNameInfo set
-  "INIT"       @processor findNameInfo @processor.@initNameInfo set
-  "ASSIGN"     @processor findNameInfo @processor.@assignNameInfo set
-  "self"       @processor findNameInfo @processor.@selfNameInfo set
-  "closure"    @processor findNameInfo @processor.@closureNameInfo set
-  "inputs"     @processor findNameInfo @processor.@inputsNameInfo set
-  "outputs"    @processor findNameInfo @processor.@outputsNameInfo set
-  "captures"   @processor findNameInfo @processor.@capturesNameInfo set
-  "variadic"   @processor findNameInfo @processor.@variadicNameInfo set
-  "failProc"   @processor findNameInfo @processor.@failProcNameInfo set
-  "convention" @processor findNameInfo @processor.@conventionNameInfo set
+  ""           makeStringView @processor findNameInfo @processor.@emptyNameInfo set
+  "CALL"       makeStringView @processor findNameInfo @processor.@callNameInfo set
+  "PRE"        makeStringView @processor findNameInfo @processor.@preNameInfo set
+  "DIE"        makeStringView @processor findNameInfo @processor.@dieNameInfo set
+  "INIT"       makeStringView @processor findNameInfo @processor.@initNameInfo set
+  "ASSIGN"     makeStringView @processor findNameInfo @processor.@assignNameInfo set
+  "self"       makeStringView @processor findNameInfo @processor.@selfNameInfo set
+  "closure"    makeStringView @processor findNameInfo @processor.@closureNameInfo set
+  "inputs"     makeStringView @processor findNameInfo @processor.@inputsNameInfo set
+  "outputs"    makeStringView @processor findNameInfo @processor.@outputsNameInfo set
+  "captures"   makeStringView @processor findNameInfo @processor.@capturesNameInfo set
+  "variadic"   makeStringView @processor findNameInfo @processor.@variadicNameInfo set
+  "failProc"   makeStringView @processor findNameInfo @processor.@failProcNameInfo set
+  "convention" makeStringView @processor findNameInfo @processor.@conventionNameInfo set
 
   @processor addBlock
   TRUE dynamic @processor.@blocks.last.get.@root set
@@ -69,7 +110,7 @@
 
   processor.options.callTrace [@processor createCallTraceData] when
 
-  addLinkerOptionsDebugInfo
+  @processor addLinkerOptionsDebugInfo
 
   processor.options.fileNames.size @processor.@files.resize
   processor.options.fileNames.size [
@@ -78,7 +119,7 @@
   ] times
 
   processor.options.debug [
-    @processor [processor:; addDebugProlog @processor.@debugInfo.@unit set] call
+    @processor [processor:; @processor addDebugProlog @processor.@debugInfo.@unit set] call
 
     processor.files.size [
       i processor.files.at.get.name @processor addFileDebugInfo i @processor.@files.at.get.!debugId
@@ -177,7 +218,7 @@
 
     processor.result.success [
       processor.options.debug [
-        lastFile correctUnitInfo
+        lastFile @processor correctUnitInfo
       ] when
 
       0 @processor.@result clearProcessorResult
@@ -226,7 +267,7 @@
 
   processor.result.success [
     ("nameCount=" processor.nameManager.names.dataSize
-      "; irNameCount=" processor.nameBuffer.dataSize) addLog
+      "; irNameCount=" processor.nameBuffer.dataSize "; block count=" processor.blocks.getSize "; block size=" BlockSchema storageSize "; est var count=" processor.variables.getSize 4096 * "; var size=" VarSchema storageSize) addLog
 
     ("max depth of recursion=" processor.maxDepthOfRecursion) addLog
 
@@ -340,8 +381,8 @@
   VarStruct refToVar getVar.data .get.get .unableToDie
   VarStruct @end     getVar.@data.get.get.@unableToDie set # fake becouse it is fake shadow
 
-  end killStruct
+  end @processor @block killStruct
   dtorName: ("dtor." refToVar getVar.globalId) assembleString;
   dtorNameStringView: dtorName makeStringView;
-  dtorNameStringView finalizeCodeNode
+  dtorNameStringView compilerPositionInfo forcedSignature @processor @block finalizeCodeNode
 ] "createDtorForGlobalVar" exportFunction

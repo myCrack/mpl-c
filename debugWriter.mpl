@@ -45,6 +45,7 @@
 "Var.VarStruct" use
 
 addDebugProlog: [
+  processor:;
   "declare void @llvm.dbg.declare(metadata, metadata, metadata)" toString @processor.@debugInfo.@strings.pushBack
 
   String @processor.@debugInfo.@strings.pushBack
@@ -93,6 +94,8 @@ addDebugProlog: [
 ];
 
 addLinkerOptionsDebugInfo: [
+  processor:;
+
   index: processor.debugInfo.lastId copy;
   processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
 
@@ -447,6 +450,8 @@ moveLastDebugString: [
 ];
 
 correctUnitInfo: [
+  processor:;
+
   file:;
 
   index: processor.debugInfo.lastId copy;

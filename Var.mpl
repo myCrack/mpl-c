@@ -3,6 +3,7 @@
 "Array.Array" use
 "String.addLog" use
 "String.String" use
+"String.StringView" use
 "String.toString" use
 "String.makeStringView" use
 "Owner.Owner" use

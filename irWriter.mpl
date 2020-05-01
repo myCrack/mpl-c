@@ -16,20 +16,27 @@
 "Var.getVar" use
 "Var.getStringImplementation" use
 "Var.getPlainConstantIR" use
+"Var.getStorageSize" use
 "Var.isAutoStruct" use
 "Var.isForgotten" use
 "Var.isPlain" use
+"Var.isNat" use
 "Var.isVirtual" use
 "Var.makeStringId" use
 "Var.markAsUnableToDie" use
+"Var.RefToVar" use
 "Var.VarBuiltin" use
 "Var.VarStruct" use
+"declarations.addDebugLocationForLastInstruction" use
 "declarations.callInit" use
 "declarations.callAssign" use
 "declarations.callDie" use
+"declarations.createFailWithMessage" use
 "declarations.compilerError" use
+"declarations.makeVarString" use
 "declarations.setVar" use
-
+"defaultImpl.findNameInfo" use
+"defaultImpl.nodeHasCode" use
 "processor.Processor" use
 
 appendInstruction: [
@@ -43,6 +50,65 @@ getMplSchema: [refToVar: processor: ;; refToVar getVar.mplSchemaId @processor.@s
 getNameById:  [index: processor: ;; index @processor.nameBuffer.at makeStringView];
 getIrName:    [refToVar: processor: ;; refToVar getVar.irNameId                  @processor getNameById];
 getIrType:    [refToVar: processor: ;; refToVar @processor getMplSchema.irTypeId @processor getNameById];
+
+getStaticStructIR: [
+  processor:;
+
+  refToVar:;
+  result: String;
+  unfinishedVars: RefToVar Array;
+  unfinishedTerminators: StringView Array;
+  refToVar @unfinishedVars.pushBack
+  ", " makeStringView @unfinishedTerminators.pushBack
+  [
+    unfinishedVars.getSize 0 > [
+      current: unfinishedVars.last copy;
+      @unfinishedVars.popBack
+
+      current isVirtual [
+        [FALSE] "Virtual field cannot be processed in static array constant!" assert
+      ] [
+        current isPlain [
+          (current @processor getIrType " " current getPlainConstantIR) @result.catMany
+          [
+            currentTerminator: unfinishedTerminators.last;
+            currentTerminator @result.cat
+            currentTerminator ", " = ~
+            @unfinishedTerminators.popBack
+          ] loop
+        ] [
+          curVar: current getVar;
+          curVar.data.getTag VarStruct = [
+            (current @processor getIrType " ") @result.catMany
+            struct: VarStruct curVar.data.get.get;
+            struct.homogeneous ["[" makeStringView] ["{" makeStringView] if @result.cat
+            first: TRUE dynamic;
+            struct.fields.getSize [
+              current: struct.fields.getSize 1 - i - struct.fields.at.refToVar;
+              current isVirtual ~ [
+                current @unfinishedVars.pushBack
+                first [
+                  struct.homogeneous ["]" makeStringView] ["}" makeStringView] if @unfinishedTerminators.pushBack
+                  FALSE dynamic @first set
+                ] [
+                  ", " makeStringView @unfinishedTerminators.pushBack
+                ] if
+              ] when
+            ] times
+          ] [
+            [FALSE] "Unknown type in static struct!" assert
+          ] if
+        ] if
+      ] if
+
+      TRUE
+    ] &&
+  ] loop
+
+  result.size 2 - @result.@chars.shrink
+  @result.makeZ
+  result
+];
 
 createDerefTo: [
   refToVar: derefNameId: processor: block: ;;;;
@@ -75,13 +141,13 @@ createStaticInitIR: [
   refToVar: processor: block: ;;;
   var: @refToVar getVar;
   [block.parent 0 =] "Can be used only with global vars!" assert
-  (refToVar @processor getIrName " = local_unnamed_addr global " refToVar getStaticStructIR) assembleString @processor.@prolog.pushBack
+  (refToVar @processor getIrName " = local_unnamed_addr global " refToVar @processor getStaticStructIR) assembleString @processor.@prolog.pushBack
   processor.prolog.dataSize 1 - @var.@globalDeclarationInstructionIndex set
   refToVar copy
 ];
 
 createVarImportIR: [
-  refToVar:;
+  refToVar: processor: block: ;;;
 
   var: @refToVar getVar;
 
@@ -92,7 +158,7 @@ createVarImportIR: [
 ];
 
 createVarExportIR: [
-  refToVar:;
+  refToVar: processor: block: ;;;
 
   var: @refToVar getVar;
 
@@ -169,22 +235,6 @@ createStaticGEP: [
   ("  " resultRefToVar @processor getIrName " = getelementptr " structRefToVar @processor getIrType ", " structRefToVar @processor getIrType "* " structRefToVar @processor getIrName ", i32 0, i32 " realIndex) @block appendInstruction
 ];
 
-createFailWithMessage: [
-  message: processor: block: ;;;
-  gnr: processor.failProcNameInfo @processor @block getName;
-  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
-  failProcRefToVar: cnr.refToVar copy;
-  message toString @processor @block makeVarString @block push
-
-  failProcRefToVar getVar.data.getTag VarBuiltin = [
-    #no overload
-    @processor @block defaultFailProc
-  ] [
-    @failProcRefToVar derefAndPush
-    @processor @block defaultCall
-  ] if
-];
-
 createDynamicGEP: [
   resultRefToVar: indexRefToVar: structRefToVar: processor: block:;;;;;
   struct: structRefToVar getVar;
@@ -228,7 +278,7 @@ createStoreFromRegister: [
 ];
 
 createBinaryOperation: [
-  opName: processor: block: ;;;
+  arg1: arg2: result: opName: processor: block: ;;;;;;
   var1p: arg1 @processor @block createDerefToRegister;
   var2p: arg2 @processor @block createDerefToRegister;
   resultReg: @processor @block generateRegisterIRName;
@@ -237,7 +287,7 @@ createBinaryOperation: [
 ];
 
 createBinaryOperationDiffTypes: [
-  opName: processor: block: ;;;
+  arg1: arg2: result: opName: processor: block: ;;;;;;
   var1p: arg1 @processor @block createDerefToRegister;
   var2p: arg2 @processor @block createDerefToRegister;
   castedReg: @processor @block generateRegisterIRName;
@@ -261,7 +311,7 @@ createDirectBinaryOperation: [
 ];
 
 createUnaryOperation: [
-  opName: mopName: processor: block: ;;;;
+  arg: result: opName: mopName: processor: block: ;;;;;;
   varp: arg @processor @block createDerefToRegister;
   resultReg: @processor @block generateRegisterIRName;
   ("  " resultReg @processor getNameById " = " opName " " arg @processor getIrType " " mopName varp @processor getNameById) @block appendInstruction
@@ -339,36 +389,6 @@ createCastCopyPtrToNew: [
   castedReg dstRef @processor @block createStoreFromRegister
 ];
 
-createCopyToExists: [
-  srcRef: dstRef: processor: block: ;;;;
-  srcRef isAutoStruct [
-    srcRef getVar.temporary [
-      # die-bytemove is faster than assign-die, I think
-      processor.options.verboseIR ["set from temporary" @block createComment] when
-      dstRef @processor @block callDie
-      srcRef dstRef @processor @block createMemset
-      @srcRef markAsUnableToDie
-    ] [
-      srcRef isForgotten [
-        processor.options.verboseIR ["set from moved" @block createComment] when
-        dstRef @processor @block callDie
-        srcRef dstRef @processor @block createMemset
-        srcRef @processor @block callInit
-        @srcRef fullUntemporize
-      ] [
-        processor.options.verboseIR ["set; call ASSIGN" @block createComment] when
-        srcRef isVirtual [
-          "unable to copy virtual autostruct" @processor block compilerError
-        ] [
-          srcRef dstRef @processor @block callAssign
-        ] if
-      ] if
-    ] if
-  ] [
-    srcRef dstRef @processor @block createMemset
-  ] if
-];
-
 createRefOperation: [
   srcRef: dstRef: processor: block: ;;;;
   @dstRef @processor @block createAllocIR !dstRef
@@ -432,7 +452,7 @@ createLabel: [
 ];
 
 createBranch: [
-  timeShift: refToCond: block:;;;
+  timeShift: refToCond: processor: block: ;;;;
   condReg: refToCond @processor @block createDerefToRegister;
   ("  br i1 " condReg @processor getNameById ", label %label" block.lastBrLabelName timeShift - ", label %label" block.lastBrLabelName timeShift - 1 +) @block appendInstruction
 ];
@@ -680,3 +700,37 @@ generateVariableIRNameWith: [
 
 generateRegisterIRName: [processor: block: ;; @block TRUE @processor block generateVariableIRNameWith];
 
+{
+  block: Block Ref;
+  processor: Processor Ref;
+  refToDst: RefToVar Cref;
+  refToSrc: RefToVar Cref;
+} () {} [
+  srcRef: dstRef: processor: block: ;;;;
+  srcRef isAutoStruct [
+    srcRef getVar.temporary [
+      # die-bytemove is faster than assign-die, I think
+      processor.options.verboseIR ["set from temporary" @block createComment] when
+      dstRef @processor @block callDie
+      srcRef dstRef @processor @block createMemset
+      @srcRef markAsUnableToDie
+    ] [
+      srcRef isForgotten [
+        processor.options.verboseIR ["set from moved" @block createComment] when
+        dstRef @processor @block callDie
+        srcRef dstRef @processor @block createMemset
+        srcRef @processor @block callInit
+        @srcRef fullUntemporize
+      ] [
+        processor.options.verboseIR ["set; call ASSIGN" @block createComment] when
+        srcRef isVirtual [
+          "unable to copy virtual autostruct" @processor block compilerError
+        ] [
+          srcRef dstRef @processor @block callAssign
+        ] if
+      ] if
+    ] if
+  ] [
+    srcRef dstRef @processor @block createMemset
+  ] if
+] "createCopyToExists" exportFunction

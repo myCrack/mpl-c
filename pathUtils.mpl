@@ -1,5 +1,11 @@
 "control" use
+
+"Array.Array" use
+"Array.makeSubRange" use
+"String.assembleString" use
+"String.makeStringView" use
 "String.splitString" use
+"String.String" use
 
 extractClearPath: [
   splittedPath: splitString;
