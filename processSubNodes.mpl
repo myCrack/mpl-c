@@ -450,7 +450,7 @@ tryMatchNode: [
     matchingCapture: Capture;
     currentMatchingNode.refToVar @matchingCapture.@refToVar set
     NameCaseLocal                @matchingCapture.@captureCase set
-    gnr: currentMatchingNode.varNameInfo matchingCapture @processor @block currentMatchingNode.position.file getNameForMatching;
+    gnr: currentMatchingNode.varNameInfo matchingCapture @processor @block matchingCapture.file getNameForMatching;
     gnr.refToVar.assigned ~
   ] &&;
 
@@ -2189,11 +2189,8 @@ processDynamicLoop: [
   ] times
 
   [
-    curPosition: block.position;
+    compilerPositionInfo: processor.positions.last copy;
     block: @declarationNode;
-    curPosition @block.@position set
-    position: curPosition copy;
-    compilerPositionInfo: position;
     forcedSignature: signature;
     processor.options.debug [
       @processor addDebugReserve @block.@funcDbgIndex set
@@ -2268,14 +2265,6 @@ processDynamicLoop: [
     ] when
 
     processor compilable [
-      newNode.captureNames [
-        currentCaptureName:;
-        currentCaptureName.startPoint block.id = ~ [
-          fr: currentCaptureName.startPoint @block.@usedModulesTable.find;
-          fr.success [TRUE @fr.@value.@used set] when
-        ] when
-      ] each
-
       signature.outputs.getSize [
         currentInNode: i newNode.outputs.at.refToVar;
         currentInSignature: i signature.outputs.at;

@@ -19,6 +19,7 @@
 "codeNode.addNameInfo" use
 "codeNode.addIndexArrayToProcess" use
 "codeNode.captureName" use
+"codeNode.catPossibleModulesList" use
 "codeNode.createNamedVariable" use
 "codeNode.createVariable" use
 "codeNode.createVariableWithVirtual" use
@@ -56,7 +57,6 @@
 "defaultImpl.defaultFailProc" use
 "defaultImpl.defaultMakeConstWith" use
 "defaultImpl.defaultSet" use
-"defaultImpl.defaultUseOrIncludeModule" use
 "defaultImpl.findNameInfo" use
 "defaultImpl.FailProcForProcessor" use
 "defaultImpl.makeVarRealCaptured" use
@@ -144,6 +144,7 @@
 "variable.zeroValue" use
 "pathUtils.extractExtension" use
 "pathUtils.stripExtension" use
+"processSubNodes.clearProcessorResult" use
 "processSubNodes.processLoop" use
 "processSubNodes.processIf" use
 "processSubNodes.processImportFunction" use
@@ -1071,7 +1072,7 @@ staticityOfBinResult: [
     ]
     [
       gnr: newBlock.varNameInfo @processor @block getName;
-      cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
+      cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
       refToVar: cnr.refToVar copy;
 
       refToVar @block push
@@ -1481,8 +1482,6 @@ staticityOfBinResult: [
     ] when
   ] when
 ] "mplBuiltinImportVariable" @declareBuiltin ucall
-
-[FALSE dynamic @processor @block defaultUseOrIncludeModule] "mplBuiltinIncludeModule" @declareBuiltin ucall
 
 [
   refToVar1: @processor @block pop;
@@ -1951,13 +1950,29 @@ staticityOfBinResult: [
               addNameCase: NameCaseFromModule;
               refToVar:    label.refToVar copy;
               nameInfo:    label.nameInfo copy;
+              overload:    block.nextLabelIsOverload;
             } @processor @block addNameInfo
 
             labelCount 1 + !labelCount
           ] when
         ] each
 
-        labelCount 0 = [("no names match \"" name "\"") assembleString @processor block compilerError] when
+        FALSE @block.!nextLabelIsOverload
+
+        labelCount 0 = [
+          oldSuccess: processor compilable;
+          message: ("no names match \"" name "\"") assembleString; 
+
+          name "" = ~ [
+            @message nameInfo @processor catPossibleModulesList
+          ] when
+
+          message @processor block compilerError
+          oldSuccess [
+            @processor.@result.@errorInfo move @processor.@result.@globalErrorInfo.pushBack
+            -1 @processor.@result clearProcessorResult
+          ] when
+        ] when
       ] [
         TRUE dynamic @processor.@result.@findModuleFail set
         filename toString @processor.@result.@errorInfo.@missedModule set
@@ -1966,10 +1981,6 @@ staticityOfBinResult: [
     ]
   ) sequence
 ] "mplBuiltinUse" @declareBuiltin ucall
-
-[
-  TRUE dynamic @processor @block defaultUseOrIncludeModule
-] "mplBuiltinUseModule" @declareBuiltin ucall
 
 [
   block.nextLabelIsVirtual ["duplicate virtual specifier" @processor block compilerError] when

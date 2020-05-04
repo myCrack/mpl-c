@@ -8,6 +8,7 @@
 
 "Block.Block" use
 "Block.NameCaseBuiltin" use
+"File.File" use
 "codeNode.addNameInfo" use
 "codeNode.createVariable" use
 "codeNode.makeStaticity" use
@@ -121,6 +122,7 @@ addBuiltin: [
     addNameCase: NameCaseBuiltin;
     refToVar:    bvar copy;
     nameInfo:    nameId copy;
+    file:        File Cref;
   } @processor @block addNameInfo
 ];
 

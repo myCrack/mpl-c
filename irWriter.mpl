@@ -627,7 +627,7 @@ createCallTraceProlog: [
     ("  store %type.callTraceInfo* " ptr @processor getNameById ", %type.callTraceInfo** " ptrNextDotPrev @processor getNameById) @block appendInstruction
 
     #ptrNext->fileName = fileName
-    fileNameVar: block.position.file.name @processor @block makeVarString;
+    fileNameVar: processor.positions.last.file.name @processor @block makeVarString;
     ptrNextDotName: @processor @block generateRegisterIRName;
     ("  " ptrNextDotName @processor getNameById " = getelementptr inbounds %type.callTraceInfo, %type.callTraceInfo* " ptrNext @processor getNameById ", i32 0, i32 2") @block appendInstruction
     ("  store i8* " fileNameVar @processor getIrName ", i8** " ptrNextDotName @processor getNameById) @block appendInstruction
@@ -638,12 +638,12 @@ createCallTraceProlog: [
   #ptrNext->line = line
   ptrNextDotLine: @processor @block generateRegisterIRName;
   ("  " ptrNextDotLine @processor getNameById " = getelementptr inbounds %type.callTraceInfo, %type.callTraceInfo* " ptrNext @processor getNameById ", i32 0, i32 3") @block appendInstruction
-  ("  store i32 " block.position.line ", i32* " ptrNextDotLine @processor getNameById) @block appendInstruction
+  ("  store i32 " processor.positions.last.line ", i32* " ptrNextDotLine @processor getNameById) @block appendInstruction
 
   #ptrNext->column = column
   ptrNextDotColumn: @processor @block generateRegisterIRName;
   ("  " ptrNextDotColumn @processor getNameById " = getelementptr inbounds %type.callTraceInfo, %type.callTraceInfo* " ptrNext @processor getNameById ", i32 0, i32 4") @block appendInstruction
-  ("  store i32 " block.position.column ", i32* " ptrNextDotColumn @processor getNameById) @block appendInstruction
+  ("  store i32 " processor.positions.last.column ", i32* " ptrNextDotColumn @processor getNameById) @block appendInstruction
 ];
 
 createCallTraceEpilog: [

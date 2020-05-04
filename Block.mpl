@@ -131,8 +131,9 @@ NameWithOverloadAndRefToVar: [{
   virtual NAME_WITH_OVERLOAD_AND_REF_TO_VAR: ();
   nameInfo: -1 dynamic;
   nameOverloadDepth:-1 dynamic;
-  refToVar: RefToVar;
   startPoint: -1 dynamic;
+  hasOverloadWord: FALSE dynamic;
+  refToVar: RefToVar;
 }];
 
 TokenRef: [{
@@ -150,7 +151,6 @@ Block: [{
   root:            FALSE dynamic;
   parent:          0 dynamic;
   nodeCase:        NodeCaseCode;
-  position:        CompilerPositionInfo;
   stack:           RefToVar Array; # we must compile node without touching parent
   minStackDepth:   0 dynamic;
   programTemplate: String;
@@ -198,16 +198,9 @@ Block: [{
 
   candidatesToDie:     RefToVar Array;
   unprocessedAstNodes: TokenRef Array;
-  moduleName:          String;
-  includedModules:     Int32 Array; #ids in order
-  directlyIncludedModulesTable: Int32 Cond HashTable; # dont include twice plz
-  includedModulesTable:         Int32 UsedModuleInfo HashTable; # dont include twice plz
-  usedModulesTable:             Int32 UsedModuleInfo HashTable; # moduleID, hasUsedVars
-  usedOrIncludedModulesTable:   Int32 Cond HashTable; # moduleID, hasUsedVars
 
   refToVar:           RefToVar; #refToVar of function with compiled node
   varNameInfo:        -1 dynamic; #variable name of imported function
-  moduleId:           -1 dynamic;
   indexArrayAddress:  0nx dynamic;
   matchingInfoIndex:  -1 dynamic;
   exportDepth:        0 dynamic;

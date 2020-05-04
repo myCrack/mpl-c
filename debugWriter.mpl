@@ -179,12 +179,12 @@ addMemberInfo: [
 
   name "" = [
     ("!" index " = !DIDerivedType(tag: DW_TAG_member, name: \"f" fieldNumber "\", scope: !" block.funcDbgIndex
-      ", file: !" block.position.file.debugId
-      ", line: " block.position.line ", baseType: !" debugDeclarationIndex ", size: " fsize 8 * ", offset: " offset 8 * ")") assembleString
+      ", file: !" processor.positions.last.file.debugId
+      ", line: " processor.positions.last.line ", baseType: !" debugDeclarationIndex ", size: " fsize 8 * ", offset: " offset 8 * ")") assembleString
   ] [
     ("!" index " = !DIDerivedType(tag: DW_TAG_member, name: \"" name "\", scope: !" block.funcDbgIndex
-      ", file: !" block.position.file.debugId
-      ", line: " block.position.line ", baseType: !" debugDeclarationIndex ", size: " fsize 8 * ", offset: " offset 8 * ")") assembleString
+      ", file: !" processor.positions.last.file.debugId
+      ", line: " processor.positions.last.line ", baseType: !" debugDeclarationIndex ", size: " fsize 8 * ", offset: " offset 8 * ")") assembleString
   ] if
 
   @processor.@debugInfo.@strings.pushBack
@@ -249,8 +249,8 @@ getTypeDebugDeclaration: [
             index: processor.debugInfo.lastId copy;
             processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
 
-            ("!" index " = distinct !DICompositeType(tag: DW_TAG_structure_type, file: !" block.position.file.debugId
-              ", name: \"" refToVar @processor block getDebugType "\", line: " block.position.line ", size: " refToVar @processor getStorageSize 0ix cast 0 cast 8 * ", elements: !" index 1 -
+            ("!" index " = distinct !DICompositeType(tag: DW_TAG_structure_type, file: !" processor.positions.last.file.debugId
+              ", name: \"" refToVar @processor block getDebugType "\", line: " processor.positions.last.line ", size: " refToVar @processor getStorageSize 0ix cast 0 cast 8 * ", elements: !" index 1 -
               ")") assembleString @processor.@debugInfo.@strings.pushBack
             index block.funcDbgIndex @processor.@debugInfo.@locationIds.insert
             index
@@ -295,8 +295,8 @@ addVariableDebugInfo: [
     index: processor.debugInfo.lastId copy;
     processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
     ("!" index " = !DILocalVariable(name: \"" nameInfo processor.nameManager.getText "\", scope: !" block.funcDbgIndex
-      ", file: !" block.position.file.debugId
-      ", line: " block.position.line ", type: !" debugDeclarationIndex ")") assembleString @processor.@debugInfo.@strings.pushBack
+      ", file: !" processor.positions.last.file.debugId
+      ", line: " processor.positions.last.line ", type: !" debugDeclarationIndex ")") assembleString @processor.@debugInfo.@strings.pushBack
     index block.funcDbgIndex @processor.@debugInfo.@locationIds.insert
 
     index
@@ -318,8 +318,8 @@ addGlobalVariableDebugInfo: [
     index: processor.debugInfo.lastId copy;
     processor.debugInfo.lastId 1 + @processor.@debugInfo.@lastId set
     ("!" index " = !DIGlobalVariable(name: \"" nameInfo processor.nameManager.getText "\", linkageName: \"" refToVar @processor getIrName
-      "\", scope: !" processor.debugInfo.unit ", file: !" block.position.file.debugId
-      ", line: " block.position.line ", type: !" debugDeclarationIndex ", isLocal: false, isDefinition: true)") assembleString @processor.@debugInfo.@strings.pushBack
+      "\", scope: !" processor.debugInfo.unit ", file: !" processor.positions.last.file.debugId
+      ", line: " processor.positions.last.line ", type: !" debugDeclarationIndex ", isLocal: false, isDefinition: true)") assembleString @processor.@debugInfo.@strings.pushBack
 
     result: index 1 -;
     result @processor.@debugInfo.@globals.pushBack

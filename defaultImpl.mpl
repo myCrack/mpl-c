@@ -142,33 +142,6 @@ defaultMakeConstWith: [
     ] if
   ] when
 ];
-
-defaultUseOrIncludeModule: [
-  asUse: processor: block: ;;;
-  (
-    [processor compilable]
-    [block.parent 0 = ~ ["module can be used only in top block" @processor block compilerError] when]
-    [refToName: @processor @block pop;]
-    [refToName staticityOfVar Weak < ["name must be static string" @processor block compilerError] when]
-    [
-      varName: refToName getVar;
-      varName.data.getTag VarString = ~ ["name must be static string" @processor block compilerError] when
-    ] [
-      string: VarString varName.data.get;
-      ("use or include module " string) addLog
-
-      fr: string makeStringView processor.modules.find;
-      fr.success [fr.value 0 < ~] && [
-        #insert variables here
-      ] [
-        TRUE dynamic @processor.@result.@findModuleFail set
-        string @processor.@result.@errorInfo.@missedModule set
-        ("module not found: " string) assembleString @processor block compilerError
-      ] if
-    ]
-  ) sequence
-];
-
 getStackEntryWith: [
   depth: check: block: ;; copy;
   result: RefToVar @block isConst [Cref] [Ref] uif; #ref to 0nx
@@ -234,23 +207,18 @@ getStackDepth: [
   block: Block Cref;
   processor: Processor Ref;
 } () {} [
-  processor: block:;;
-  currentBlock: block;
-  [
-    currentBlock.root [
-      FALSE
-    ] [
-      (
-        "at filename: " currentBlock.position.file.name
-        ", token: "     currentBlock.position.token
-        ", line: "      currentBlock.position.line
-        ", column: "    currentBlock.position.column LF
-      ) printList
+  processor: block: ;;
 
-      currentBlock.parent processor.blocks.at.get !currentBlock
-      TRUE
-    ] if
-  ] loop
+  processor.positions.getSize [
+    currentPosition: processor.positions.getSize 1 - i - processor.positions.at;
+
+    (
+      "at filename: " currentPosition.file.name
+      ", token: "     currentPosition.token
+      ", line: "      currentPosition.line
+      ", column: "    currentPosition.column LF
+    ) printList
+  ] times
 
   @processor block defaultPrintStack
 ] "defaultPrintStackTrace" exportFunction

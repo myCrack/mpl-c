@@ -183,6 +183,8 @@
 "irWriter.getMplSchema" use
 "irWriter.getNameById" use
 "irWriter.sortInstructions" use
+"pathUtils.extractFilename" use
+"pathUtils.stripExtension" use
 "processor.MatchingNode" use
 "processor.NameInfoEntry" use
 "processor.Processor" use
@@ -210,17 +212,13 @@ addNameInfo: [
   reg:            params "reg"            has [params.reg copy] [TRUE dynamic] if;
   startPoint:     params "startPoint"     has [params.startPoint copy] [block.id copy] if;
   overloadDepth:  params "overloadDepth"  has [params.overloadDepth copy] [0 dynamic] if;
-  file:           params "file"           has [params.file] [block.position.file] if;
-  reallyAddLabel: params "reallyAddLabel" has [params.reallyAddLabel copy] [FALSE] if;
+  file:           params "file"           has [params.file] [processor.positions.last.file] if;
   addNameCase:    params.addNameCase copy dynamic;
   refToVar:       params.refToVar copy dynamic;
   nameInfo:       params.nameInfo copy dynamic;
 
   [
-    [addNameCase NameCaseFromModule = [refToVar noMatterToCopy] || [refToVar getVar.host block is] ||] "addNameInfo block mismatch!" assert
-
     nameInfo 0 < ~ [
-
       addInfo: TRUE;
 
       reg ~ [addNameCase NameCaseBuiltin =] || [
@@ -230,15 +228,13 @@ addNameInfo: [
         overloadDepth @nameWithOverload.@nameOverloadDepth set
         nameInfo      @nameWithOverload.@nameInfo          set
         startPoint    @nameWithOverload.@startPoint        set
+        forOverload   @nameWithOverload.@hasOverloadWord   set
 
         addNameCase NameCaseLocal = [
           nameWithOverload @block.@labelNames.pushBack
         ] [
           addNameCase NameCaseFromModule = [
             nameWithOverload @block.@fromModuleNames.pushBack
-            reallyAddLabel [
-              nameWithOverload @block.@labelNames.pushBack
-            ] when
           ] [
             addNameCase NameCaseCapture = [addNameCase NameCaseSelfObjectCapture =] || [addNameCase NameCaseClosureObjectCapture =] || [
               nameWithOverload @block.@captureNames.pushBack
@@ -263,13 +259,8 @@ addNameInfo: [
       addInfo [ # captures dont live in stack
         nameInfoEntry: NameInfoEntry;
         forOverload [
-          FALSE @block.!nextLabelIsOverload
           File Cref @nameInfoEntry.!file
         ] [
-          block.nextLabelIsOverload [
-            "invalid use of \"overload\" keyword" @processor block compilerError
-          ] when
-
           file @nameInfoEntry.!file
         ] if
 
@@ -1058,6 +1049,8 @@ createNamedVariable: [
       overload:    block.nextLabelIsOverload copy;
     } @processor @block addNameInfo
 
+    FALSE @block.!nextLabelIsOverload
+
     processor compilable [processor.options.debug copy] && [newRefToVar isVirtual ~] && [
       newRefToVar isGlobal [
         d: nameInfo newRefToVar @processor block addGlobalVariableDebugInfo;
@@ -1090,7 +1083,7 @@ processCodeNode: [
   astNode: indexOfAstNode processor.multiParserResult.memory.at; #we have info from parser anyway
   codeInfo: CodeNodeInfo;
 
-  block.position.file @codeInfo.@file.set
+  processor.positions.last.file @codeInfo.@file.set
   astNode.line   copy @codeInfo.!line
   astNode.column copy @codeInfo.!column
   indexOfAstNode copy @codeInfo.!index
@@ -1100,14 +1093,14 @@ processCodeNode: [
 
 processObjectNode: [
   data: ;
-  position: block.position copy;
+  position: processor.positions.last copy;
   name: "objectInitializer" makeStringView;
   data NodeCaseObject dynamic name position @processor @block processCallByIndexArray
 ];
 
 processListNode: [
   data: ;
-  position: block.position copy;
+  position: processor.positions.last copy;
   name: "listInitializer" makeStringView;
   data NodeCaseList dynamic name position @processor @block processCallByIndexArray
 ];
@@ -1133,15 +1126,10 @@ processListNode: [
 
     processor.depthOfPre 0 = [processor.result.passErrorThroughPRE copy] || [
       message toString @processor.@result.@errorInfo.@message set
-      [
-        block.root [
-          FALSE
-        ] [
-          block.position @processor.@result.@errorInfo.@position.pushBack
-          block.parent processor.blocks.at.get !block
-          TRUE
-        ] if
-      ] loop
+      processor.positions.getSize [
+        currentPosition: processor.positions.getSize 1 - i - processor.positions.at;
+        currentPosition @processor.@result.@errorInfo.@position.pushBack
+      ] times
     ] when
   ] when
 ] "compilerErrorImpl" exportFunction
@@ -1193,6 +1181,45 @@ findNameStackObject: [
   result
 ];
 
+findPossibleModules: [
+  nameInfo: processor: ;;
+
+  result: String Array;
+
+  processor.modules [
+    pair:;
+
+    fileBlock: pair.value processor.blocks.at.get;
+    labelCount: 0;
+
+    fileBlock.labelNames [
+      label:;
+      label.nameInfo nameInfo = [label.refToVar isVirtual [label.refToVar getVar.data.getTag VarImport =] ||] && [
+        labelCount 1 + !labelCount
+      ] when
+    ] each
+
+    labelCount 0 > [
+      pair.key @result.pushBack
+    ] when
+  ] each
+
+  result
+];
+
+catPossibleModulesList: [
+  message: nameInfo: processor: ;;;
+
+  possibleModuleNames: nameInfo processor findPossibleModules;
+  possibleModuleNames.getSize 0 > [
+    "; try use name from modules: " @message.cat
+    possibleModuleNames.getSize [
+      i 0 > [", " @message.cat] when
+      i possibleModuleNames.at @message.cat
+    ] times
+  ] when
+];
+
 getNameAs: [
   file:;
   processor: block: ;;
@@ -1204,7 +1231,10 @@ getNameAs: [
   unknownName: [
     forMatching [
     ] [
-      ("unknown name:" nameInfo processor.nameManager.getText) assembleString @processor block compilerError
+      message: ("unknown name: " nameInfo processor.nameManager.getText) assembleString;
+      @message nameInfo @processor catPossibleModulesList
+
+      message @processor block compilerError
     ] if
   ];
 
@@ -1261,11 +1291,6 @@ getNameAs: [
         result: head getVar.capturedTail copy;
         refToVar.mutable @result.setMutable # tail cant keep correct staticity in some cases
 
-        block.parent 0 = [nameInfoEntry.startPoint block.id = ~] && [
-          fr: nameInfoEntry.startPoint @block.@usedModulesTable.find;
-          fr.success [TRUE @fr.@value.@used set] when
-        ] when
-
         result
       ] [
         refToVar copy
@@ -1279,7 +1304,7 @@ getNameAs: [
   @result
 ];
 
-getName: [processor: block:;; Capture FALSE dynamic -1 dynamic @processor @block block.position.file getNameAs];
+getName: [processor: block:;; Capture FALSE dynamic -1 dynamic @processor @block processor.positions.last.file getNameAs];
 
 getNameForMatching: [
   processor: block: file: ;;;
@@ -1644,7 +1669,7 @@ callCallableStructWithPre: [
   overloadIndex: -1 dynamic;
 
   findInside ~ [
-    overloadIndex block.position.file nameInfo @processor.@nameManager.findItem !overloadIndex
+    overloadIndex processor.positions.last.file nameInfo @processor.@nameManager.findItem !overloadIndex
   ] when
 
   [
@@ -1657,6 +1682,7 @@ callCallableStructWithPre: [
     [fr.success copy] "Struct is not callable!" assert
 
     codeField: fr.index struct.fields.at .refToVar;
+
     codeVar: codeField getVar;
     codeVar.data.getTag VarCode = [
 
@@ -1684,19 +1710,19 @@ callCallableStructWithPre: [
             ("cant call overload for field with name: " name) assembleString @processor block compilerError
           ] if
         ] [
-          oldGnr: nameInfo overloadIndex @processor @block block.position.file getNameWithOverloadIndex;
+          oldGnr: nameInfo overloadIndex @processor @block processor.positions.last.file getNameWithOverloadIndex;
           oldGnr.startPoint block.id = ~ [overloadDepth 1 + !overloadDepth] when
 
-          overloadIndex block.position.file nameInfo processor.nameManager.findItem !overloadIndex
+          overloadIndex processor.positions.last.file nameInfo processor.nameManager.findItem !overloadIndex
           overloadIndex 0 < [
             name: nameInfo processor.nameManager.getText;
             ("cant call overload for name: " name) assembleString @processor block compilerError
           ] when
 
           processor compilable [
-            gnr: nameInfo overloadIndex @processor @block block.position.file getNameWithOverloadIndex;
+            gnr: nameInfo overloadIndex @processor @block processor.positions.last.file getNameWithOverloadIndex;
             processor compilable [
-              cnr: @gnr overloadDepth @processor @block block.position.file captureName;
+              cnr: @gnr overloadDepth @processor @block processor.positions.last.file captureName;
               cnr.object @object set
               cnr.refToVar @refToVar set
             ] when
@@ -2220,8 +2246,8 @@ checkFailedName: [
 processNameNode: [
   data:;
   gnr: data.nameInfo @processor @block getName;
-  block.position.file data.nameInfo gnr checkFailedName
-  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
+  processor.positions.last.file data.nameInfo gnr checkFailedName
+  cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
   refToVar: cnr.refToVar copy;
 
   processor compilable [
@@ -2232,8 +2258,8 @@ processNameNode: [
 processNameReadNode: [
   data:;
   gnr: data.nameInfo @processor @block getName;
-  block.position.file data.nameInfo gnr checkFailedName
-  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
+  processor.positions.last.file data.nameInfo gnr checkFailedName
+  cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
   refToVar: cnr.refToVar;
 
   processor compilable [
@@ -2253,8 +2279,8 @@ processNameReadNode: [
 processNameWriteNode: [
   data:;
   gnr: data.nameInfo @processor @block getName;
-  block.position.file data.nameInfo gnr checkFailedName
-  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
+  processor.positions.last.file data.nameInfo gnr checkFailedName
+  cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
   refToVar: cnr.refToVar;
 
   processor compilable [refToVar @processor @block setRef] when
@@ -2363,7 +2389,7 @@ processReal64Node: [makeVarReal64 @block push];
     instruction: @block.@program.last;
     instruction.codeSize 0 >
     [instruction.codeOffset instruction.codeSize 1 - + block.programTemplate.chars.at 58n8 =  ~] && # label detector, code of ":"
-    [block.position.line 0 < ~] &&
+    [processor.positions.last.line 0 < ~] &&
     [
       @block.@programTemplate.makeNZ
       offset: block.programTemplate.chars.getSize;
@@ -2374,7 +2400,7 @@ processReal64Node: [makeVarReal64 @block push];
 
       @block.@programTemplate.makeZ
 
-      locationIndex: block.position block.funcDbgIndex @processor addDebugLocation;
+      locationIndex: processor.positions.last block.funcDbgIndex @processor addDebugLocation;
       (", !dbg !" locationIndex) @block.@programTemplate.catMany
 
       offset copy @instruction.!codeOffset
@@ -2414,8 +2440,8 @@ addBlock: [
           [
             nameInfo: VarString var.data.get makeStringView @processor findNameInfo;
             getNameResult: nameInfo @processor @block getName;
-            block.position.file nameInfo getNameResult checkFailedName
-            captureNameResult: @getNameResult 0 dynamic @processor @block block.position.file captureName;
+            processor.positions.last.file nameInfo getNameResult checkFailedName
+            captureNameResult: @getNameResult 0 dynamic @processor @block processor.positions.last.file captureName;
             refToName: captureNameResult.refToVar copy;
           ]
           [
@@ -2459,12 +2485,13 @@ addBlock: [
     {
       addNameCase: NameCaseLocal;
       refToVar:    refToVar copy;
-      nameInfo:    refToVar getVar.mplNameId;
+      nameInfo:    refToVar getVar.mplNameId copy;
+      overload:    TRUE;
     } @processor @block addNameInfo
   ] if
 
   gnr: refToVar getVar.mplNameId @processor @block getName;
-  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
+  cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
 
   cnr.refToVar @result set
 ] "makeVarStringImpl" exportFunction
@@ -2507,7 +2534,7 @@ addBlock: [
           processor compilable ~ [
             [FALSE] "Name of new lambda is not visible!" assert
           ] [
-            cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
+            cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
             cnr.refToVar @result.@refToVar set
             TRUE dynamic @result.@success set
           ] if
@@ -2744,7 +2771,7 @@ killStruct: [
   overload failProc: @processor block FailProcForProcessor;
 
   gnr: processor.failProcNameInfo @processor @block getName;
-  cnr: @gnr 0 dynamic @processor @block block.position.file captureName;
+  cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
   failProcRefToVar: cnr.refToVar copy;
   @message @processor @block makeVarString @block push
 
@@ -2771,8 +2798,8 @@ killStruct: [
   overload failProc: @processor block FailProcForProcessor;
 
   processor.options.verboseIR [
-    ("filename: " block.position.file.name
-      ", line: " block.position.line ", column: " block.position.column ", token: " astNode.token) assembleString @block createComment
+    ("filename: " processor.positions.last.file.name
+      ", line: " processor.positions.last.line ", column: " processor.positions.last.column ", token: " astNode.token) assembleString @block createComment
   ] when
 
   programSize: block.program.dataSize copy;
@@ -2816,51 +2843,16 @@ processNode: [
 addNamesFromModule: [
   copy moduleId:;
 
-  fru: moduleId block.usedOrIncludedModulesTable.find;
-  fru.success ~ [
-    moduleId TRUE @block.@usedOrIncludedModulesTable.insert
+  moduleNode: moduleId processor.blocks.at.get;
+  moduleNode.labelNames [
+    current:;
 
-    moduleNode: moduleId processor.blocks.at.get;
-    moduleNode.labelNames [
-      current:;
-
-      {
-        nameInfo:      current.nameInfo copy;
-        addNameCase:   NameCaseFromModule;
-        refToVar:      current.refToVar copy;
-      } @processor @block addNameInfo #it is not own local variable
-    ] each
-  ] when
-];
-
-processUseModule: [
-  copy asUse:;
-  copy moduleId:;
-
-  currentModule: moduleId processor.blocks.at.get;
-  moduleList: currentModule.includedModules copy;
-  moduleId @moduleList.pushBack
-
-  moduleList.getSize [
-    current: i moduleList.at;
-    last: i moduleList.getSize 1 - =;
-
-    asUse [last copy] && [
-      current {used: FALSE dynamic; position: block.position copy;} @block.@usedModulesTable.insert
-      current TRUE @block.@directlyIncludedModulesTable.insert
-      current addNamesFromModule
-    ] [
-      fr: current block.includedModulesTable.find;
-      fr.success ~ [
-        last [
-          current TRUE @block.@directlyIncludedModulesTable.insert
-        ] when
-        current @block.@includedModules.pushBack
-        current {used: FALSE dynamic; position: block.position copy;} @block.@includedModulesTable.insert
-        current addNamesFromModule
-      ] when
-    ] if
-  ] times
+    {
+      nameInfo:    current.nameInfo copy;
+      addNameCase: NameCaseFromModule;
+      refToVar:    current.refToVar copy;
+    } @processor @block addNameInfo #it is not own local variable
+  ] each
 ];
 
 finalizeListNode: [
@@ -2961,13 +2953,26 @@ unregCodeNodeNames: [
     ] each
   ];
 
-  processor compilable block.parent 0 = and [
-    #dont delete names from vision for succesfull file nodes
-  ] [
-    @block.@labelNames unregisterNamesIn
-    @block.@fromModuleNames unregisterNamesIn
-  ] if
+  registerWithoutOverload: [
+    addNameCase:;
+    [
+      nameWithOverload:;
 
+      {
+        addNameCase: addNameCase copy;
+        refToVar:    nameWithOverload.refToVar copy;
+        nameInfo:    nameWithOverload.nameInfo copy;
+      } @processor @block addNameInfo
+    ] each
+  ];
+
+  @block.@labelNames unregisterNamesIn
+  @block.@fromModuleNames unregisterNamesIn
+
+  processor compilable block.parent 0 = and [
+    @block.@fromModuleNames NameCaseFromModule registerWithoutOverload
+    @block.@labelNames      NameCaseLocal registerWithoutOverload
+  ] when
 
   @block.@capturedVars [
     curVar: getVar;
@@ -2975,9 +2980,6 @@ unregCodeNodeNames: [
   ] each
 
   @block.@capturedVars.release
-  @block.@usedModulesTable.release
-  @block.@includedModulesTable.release
-  @block.@directlyIncludedModulesTable.release
   @block.@captureTable.release
   @block.@fieldCaptureTable.release
 ];
@@ -3829,7 +3831,6 @@ makeCompilerPosition: [
       processor.prolog.dataSize 1 - @refToVar getVar.@globalDeclarationInstructionIndex set
     ] if
 
-    topNode.id @declarationNode.@moduleId set
     nameInfo: functionName @processor findNameInfo;
     nameInfo @declarationNode.@varNameInfo set
 
@@ -3936,9 +3937,8 @@ makeCompilerPosition: [
 
               {
                 nameInfo:       nameInfo copy;
-                addNameCase:    NameCaseFromModule;
+                addNameCase:    NameCaseLocal;
                 refToVar:       refToVar copy;
-                reallyAddLabel: TRUE;
               } @processor @parentBlock addNameInfo #it is not own local variable
             ] when
           ] when
@@ -4011,10 +4011,11 @@ addIndexArrayToProcess: [
   processor.options.autoRecursion @codeNode.@nodeIsRecursive set
   nodeCase                        @codeNode.@nodeCase set
   parentIndex                     @codeNode.@parent set
-  @compilerPositionInfo           @codeNode.@position set
   @processor block getStackDepth  @codeNode.@minStackDepth set
   processor.varCount              @codeNode.@variableCountDelta set
   processor.exportDepth           @codeNode.@exportDepth set
+
+  compilerPositionInfo @processor.@positions.pushBack
 
   processor.depthOfRecursion 1 + @processor.@depthOfRecursion set
   processor.depthOfRecursion processor.maxDepthOfRecursion > [
@@ -4035,7 +4036,7 @@ addIndexArrayToProcess: [
   indexArray storageAddress @block addMatchingNode
 
   block.parent 0 = [block.id 1 >] && [
-    1 dynamic TRUE dynamic processUseModule #definitions
+    1 dynamic addNamesFromModule
   ] when
 
   recursionTries: 0 dynamic;
@@ -4060,7 +4061,7 @@ addIndexArrayToProcess: [
         @block.@unprocessedAstNodes.popBack
 
         astNode: tokenRef.token processor.multiParserResult.memory.at;
-        astNode tokenRef.file makeCompilerPosition @block.@position set
+        astNode tokenRef.file makeCompilerPosition @processor.@positions.last set
 
         astNode tokenRef.token processNode
         processor compilable [block.state NodeStateNoOutput = ~] &&
@@ -4092,28 +4093,8 @@ addIndexArrayToProcess: [
 
   processor.varCount codeNode.variableCountDelta - @codeNode.@variableCountDelta set
 
-  processor.result.findModuleFail [
-    moduleName: block.moduleName;
-    moduleName.size 0 > [
-      fr: moduleName @processor.@modules.find;
-      fr.success [
-        -1 @fr.@value set
-      ] [
-        [FALSE] "Undef unexisting module!" assert
-      ] if
-    ] when
-  ] when
-
   processor.depthOfRecursion 1 - @processor.@depthOfRecursion set
-
-  HAS_LOGS [
-    block.parent 0 = [
-      block.includedModules [
-        id:;
-        ("node included module: " id processor.blocks.at.get.moduleName) addLog
-      ] each
-    ] when
-  ] when
+  @processor.@positions.popBack
 
   block.id copy
 ] "astNodeToCodeNode" exportFunction

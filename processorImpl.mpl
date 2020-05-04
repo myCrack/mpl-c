@@ -167,7 +167,6 @@
 
         moduleName stripExtension extractFilename toString !moduleName
         moduleName topNodeIndex @processor.@modules.insert
-        moduleName copy topNodeIndex @processor.@blocks.at.get.!moduleName
 
         # call files which depends from this module
         moduleName.size 0 > [
@@ -368,7 +367,7 @@
 
   NodeCaseDtor @codeNode.@nodeCase set
   0 dynamic @codeNode.@parent set
-  @compilerPositionInfo @codeNode.@position set
+  @compilerPositionInfo @processor.@positions.last set
 
   processor.options.debug [
     @processor addDebugReserve @codeNode.@funcDbgIndex set

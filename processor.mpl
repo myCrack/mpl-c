@@ -107,6 +107,7 @@ Processor: [{
   options: ProcessorOptions;
   multiParserResult: MultiParserResult Cref;
   result: ProcessorResult;
+  positions: CompilerPositionInfo Array;
 
   files: File Owner Array;
   #fileStack: File AsRef Array;
