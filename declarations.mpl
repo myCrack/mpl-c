@@ -127,7 +127,7 @@ compilerError: [processor: block:;; makeStringView block @processor compilerErro
   block: Block Cref;
   processor: Processor Ref;
 
-  refToVar: RefToVar Cref;
+  refToVar: RefToVar Ref;
 } () {} "makeVariableType" importFunction
 
 {

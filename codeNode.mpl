@@ -305,7 +305,7 @@ makeStaticity: [
     var: @refToVar getVar;
     staticity @var.@staticity set
     staticity Virtual < ~ [
-      refToVar @processor block makeVariableType
+      @refToVar @processor block makeVariableType
     ] when
   ] when
 
@@ -376,7 +376,7 @@ createVariableWithVirtual: [
 
   result isNonrecursiveType ~ [result isUnallocable ~] && @result.setMutable
 
-  makeType [result @processor block makeVariableType] when
+  makeType [@result @processor block makeVariableType] when
   @result @processor block makeVariableIRName
 
   processor.varCount 1 + @processor.@varCount set
@@ -1036,7 +1036,7 @@ createNamedVariable: [
     FALSE @newRefToVar getVar.@tref set
 
     block.nextLabelIsVirtual block.nextLabelIsSchema or [
-      newRefToVar @processor block makeVariableType
+      @newRefToVar @processor block makeVariableType
       block.nextLabelIsSchema [@newRefToVar makeVarSchema][@newRefToVar makeVarVirtual] if
       FALSE @block.@nextLabelIsVirtual set
       FALSE @block.@nextLabelIsSchema set
@@ -3907,22 +3907,20 @@ makeCompilerPosition: [
       fr: @functionName @processor.@namedFunctions.find;
       fr.success [
         prevNode: fr.value @processor.@blocks.at.get;
+        fakeNode: block.id VarImport @processor @parentBlock createVariable;
+
         prevNode.state NodeStateCompiled = [
-          prevNode.signature block.signature = ~ [
+          prevNode.refToVar fakeNode variablesAreSame ~ [
             ("node " functionName " was defined with another signature") assembleString @processor block compilerError
           ] [
-            prevNode.mplConvention block.mplConvention = ~ [
-              ("node " functionName " was defined with another convention") assembleString @processor block compilerError
+            block.nodeCase NodeCaseDeclaration = [
+              TRUE @block.@emptyDeclaration set
             ] [
-              block.nodeCase NodeCaseDeclaration = [
-                TRUE @block.@emptyDeclaration set
+              prevNode.nodeCase NodeCaseDeclaration = [
+                TRUE @prevNode.@emptyDeclaration set
+                block.id @fr.@value set
               ] [
-                prevNode.nodeCase NodeCaseDeclaration = [
-                  TRUE @prevNode.@emptyDeclaration set
-                  block.id @fr.@value set
-                ] [
-                  "dublicated func implementation" @processor block compilerError
-                ] if
+                "dublicated func implementation" @processor block compilerError
               ] if
             ] if
           ] if
