@@ -17,11 +17,12 @@ Static:  [3n8 dynamic];
 Virtual: [4n8 dynamic];
 Schema:  [5n8 dynamic];
 
-ShadowReasonNo:      [0n8 dynamic];
-ShadowReasonCapture: [1n8 dynamic];
-ShadowReasonInput:   [2n8 dynamic];
-ShadowReasonField:   [3n8 dynamic];
-ShadowReasonPointee: [4n8 dynamic];
+ShadowReasonNo:           [0];
+ShadowReasonCapture:      [1];
+ShadowReasonFieldCapture: [2];
+ShadowReasonInput:        [3];
+ShadowReasonField:        [4];
+ShadowReasonPointee:      [5];
 
 VarInvalid: [ 0 static];
 VarCond:    [ 1 static];
@@ -122,6 +123,7 @@ Variable: [{
   tref:                              TRUE dynamic;
   shadowReason:                      ShadowReasonNo;
   globalId:                          -1 dynamic;
+  shadowEventIndex:                  -1 dynamic;
   shadowBegin:                       RefToVar;
   shadowEnd:                         RefToVar;
   capturedHead:                      RefToVar;

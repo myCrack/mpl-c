@@ -3,6 +3,7 @@
 "Array.Array" use
 "HashTable.HashTable" use
 "String.String" use
+"Variant.Variant" use
 
 "Mref.Mref" use
 "Var.RefToVar" use
@@ -12,9 +13,10 @@ ArgVirtual:     [0n8 dynamic];
 ArgGlobal:      [1n8 dynamic];
 ArgRef:         [2n8 dynamic];
 ArgCopy:        [3n8 dynamic];
-ArgReturn:      [4n8 dynamic];
-ArgRefDeref:    [5n8 dynamic];
-ArgReturnDeref: [6n8 dynamic];
+ArgMeta:        [4n8 dynamic];
+ArgReturn:      [5n8 dynamic];
+ArgRefDeref:    [6n8 dynamic];
+ArgReturnDeref: [7n8 dynamic];
 
 NameCaseInvalid:               [ 0n8 dynamic];
 NameCaseBuiltin:               [ 1n8 dynamic];
@@ -87,6 +89,7 @@ FieldCapture: [{
   captureCase:       NameCaseInvalid;
   nameInfo:          -1 dynamic;
   nameOverloadDepth: -1 dynamic;
+  fieldIndex:        -1 dynamic;
   file:              ["File.FileSchema" use FileSchema] Mref;
 }];
 
@@ -110,6 +113,15 @@ UnfoundedName: [{
   ];
 }];
 
+ShadowEvent: [(
+  Cond                    #ShadowReasonNo
+  ShadowEventCapture      #ShadowReasonCapture
+  ShadowEventFieldCapture #ShadowReasonFieldCapture
+  ShadowEventInput        #ShadowReasonInput
+  ShadowEventField        #ShadowReasonField
+  ShadowEventPointee      #ShadowReasonPointee
+) Variant];
+
 MatchingInfo: [{
   inputs: Argument Array;
   preInputs: RefToVar Array;
@@ -117,6 +129,7 @@ MatchingInfo: [{
   fieldCaptures: FieldCapture Array;
   hasStackUnderflow: FALSE dynamic;
   unfoundedNames: UnfoundedName Cond HashTable; #nameInfos
+  shadowEvents:      ShadowEvent Array;
 }];
 
 NameWithOverload: [{
@@ -144,6 +157,23 @@ TokenRef: [{
 UsedModuleInfo: [{
   used: FALSE dynamic;
   position: CompilerPositionInfo;
+}];
+
+ShadowEventInput:        [Argument];
+
+ShadowEventCapture:      [Capture];
+
+ShadowEventFieldCapture: [FieldCapture];
+
+ShadowEventField: [{
+  object: RefToVar;
+  field: RefToVar;
+  mplFieldIndex: Int32;
+}];
+
+ShadowEventPointee: [{
+  pointer: RefToVar;
+  pointee: RefToVar;
 }];
 
 Block: [{

@@ -21,9 +21,12 @@
 "declarations.processFuncPtr" use
 "declarations.push" use
 "declarations.tryImplicitLambdaCast" use
+"Block.ArgMeta" use
 "Block.Block" use
+"Block.NameCaseInvalid" use
 "Block.NodeStateNew" use
 "Block.NodeCaseCodeRefDeclaration" use
+"Block.ShadowEvent" use
 "processor.Processor" use
 "Var.getVar" use
 "Var.RefToVar" use
@@ -32,6 +35,8 @@
 "Var.VarImport" use
 "Var.VarString" use
 "Var.Weak" use
+"Var.ShadowReasonInput" use
+"Var.ShadowReasonCapture" use
 "Var.staticityOfVar" use
 
 FailProcForProcessor: [{
@@ -142,6 +147,7 @@ defaultMakeConstWith: [
     ] if
   ] when
 ];
+
 getStackEntryWith: [
   depth: check: block: ;; copy;
   result: RefToVar @block isConst [Cref] [Ref] uif; #ref to 0nx
@@ -234,9 +240,44 @@ addStackUnderflowInfo: [
   block.state NodeStateNew = [
     TRUE @block.@matchingInfo.@hasStackUnderflow set
   ] when
+
+  newEvent: ShadowEvent;
+  ShadowReasonInput @newEvent.setTag
+  branch: ShadowReasonInput @newEvent.get;
+  RefToVar @branch.@refToVar set
+  ArgMeta   @branch.@argCase set
+  @newEvent @block addShadowEvent
 ];
 
 nodeHasCode: [
   node:;
   node.emptyDeclaration ~ [node.uncompilable ~] && [node.empty ~] && [node.deleted ~] && [node.nodeCase NodeCaseCodeRefDeclaration = ~] &&
+];
+
+addEmptyCapture: [
+  processor: block: ;;
+  nameInfo: nameOverloadDepth: ;;
+  file:;
+
+  newEvent: ShadowEvent;
+  ShadowReasonCapture @newEvent.setTag
+  branch: ShadowReasonCapture @newEvent.get;
+
+  RefToVar          @branch.@refToVar set
+  nameInfo          @branch.@nameInfo set
+  nameOverloadDepth @branch.@nameOverloadDepth set
+  NameCaseInvalid   @branch.@captureCase set
+  file              @branch.@file.set
+  ArgMeta           @branch.@argCase set
+  @newEvent @block addShadowEvent
+];
+
+addShadowEvent: [
+  event: block: ;;
+
+  event @block.@buildingMatchingInfo.@shadowEvents.pushBack
+
+  block.state NodeStateNew = [
+    event @block.@matchingInfo.@shadowEvents.pushBack
+  ] when
 ];

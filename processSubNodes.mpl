@@ -13,6 +13,7 @@
 "String.toString" use
 
 "Block.ArgCopy" use
+"Block.ArgMeta" use
 "Block.ArgGlobal" use
 "Block.ArgRef" use
 "Block.ArgRefDeref" use
@@ -24,6 +25,7 @@
 "Block.Capture" use
 "Block.CFunctionSignature" use
 "Block.CompilerPositionInfo" use
+"Block.NameCaseInvalid" use
 "Block.NameCaseLocal" use
 "Block.NodeCaseCode" use
 "Block.NodeCaseCodeRefDeclaration" use
@@ -41,6 +43,7 @@
 "Block.NodeRecursionStateNew" use
 "Block.NodeRecursionStateNo" use
 "Block.NodeRecursionStateOld" use
+"Block.ShadowEvent" use
 "File.File" use
 "astNodeType.AstNode" use
 "astNodeType.AstNodeType" use
@@ -49,7 +52,6 @@
 "codeNode.addUnfoundedName" use
 "codeNode.astNodeToCodeNode" use
 "codeNode.captureName" use
-"codeNode.copyOneVar" use
 "codeNode.deleteNode" use
 "codeNode.finalizeCodeNode" use
 "codeNode.getField" use
@@ -72,6 +74,7 @@
 "codeNode.processStaticAt" use
 "debugWriter.addDebugReserve" use
 "declarations.compilerError" use
+"declarations.copyOneVar" use
 "declarations.copyVar" use
 "declarations.copyVarFromChild" use
 "declarations.copyVarToNew" use
@@ -79,6 +82,8 @@
 "declarations.getMplType" use
 "declarations.tryImplicitLambdaCast" use
 "declarations.push" use
+"defaultImpl.addShadowEvent" use
+"defaultImpl.addEmptyCapture" use
 "defaultImpl.compilable" use
 "defaultImpl.FailProcForProcessor" use
 "defaultImpl.findNameInfo" use
@@ -117,6 +122,7 @@
 "Var.getVar" use
 "Var.staticityOfVar" use
 "Var.RefToVar" use
+"Var.ShadowReasonCapture" use
 "Var.Static" use
 "Var.VarBuiltin" use
 "Var.VarCond" use
@@ -1040,7 +1046,7 @@ usePreCapturesWith: [
     exitPre ~ [
       currentChangesNode.matchingInfo.unfoundedNames [
         un: .key;
-        un.file un.nameInfo @processor @block addUnfoundedName
+        un.file un.nameInfo 0 @processor @block addUnfoundedName
       ] each
     ] when
 
@@ -1062,6 +1068,8 @@ addFailedCapture: [
   block.state NodeStateNew = [
     newCapture @block.@buildingMatchingInfo.@captures.pushBack
   ] when
+
+  file nameInfo 0 @processor @block addEmptyCapture
 ];
 
 applyNodeChanges: [
