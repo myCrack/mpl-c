@@ -152,7 +152,7 @@ compilerError: [processor: block:;; makeStringView block @processor compilerErro
   end: RefToVar Ref;
   begin: RefToVar Ref;
   refToVar: RefToVar Cref;
-} Cond {} "makeShadowsWith" importFunction
+} () {} "makeShadowsWith" importFunction
 
 makeShadows: [
   processor: block:;;
@@ -161,7 +161,7 @@ makeShadows: [
 
 makeShadowsDynamic: [
   processor: block:;;
-  TRUE @processor @block makeShadowsWith drop
+  TRUE @processor @block makeShadowsWith
 ];
 
 {
@@ -295,19 +295,20 @@ copyVarFromParent: [processor: block:;; TRUE  dynamic FALSE dynamic @processor @
   processor: Processor Ref;
 
   toNew: Cond;
+  fromChildToParent: Cond;
   refToVar: RefToVar Cref;
   result: RefToVar Ref;
 } () {} "copyOneVarWithImpl" importFunction
 
 copyOneVarWith: [
-  src: toNew: processor: block: ;;;;
+  src: fromChildToParent: toNew: processor: block: ;;;;;
 
   result: RefToVar;
-  @result src toNew @processor @block copyOneVarWithImpl
+  @result src fromChildToParent toNew @processor @block copyOneVarWithImpl
   @result
 ];
 
-copyOneVar: [processor: block:;; FALSE dynamic @processor @block copyOneVarWith];
+copyOneVar: [processor: block:;; FALSE dynamic FALSE dynamic @processor @block copyOneVarWith];
 
 {
   block: Block Ref;

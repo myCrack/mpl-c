@@ -576,8 +576,8 @@ makeDbgTypeId: [
     [drop refToVar isNonrecursiveType] [refToVar block getNonrecursiveDataDBGType @resultDBG set]
     [VarRef =] [
       branch: VarRef var.data.get;
-      pointee: branch getVar;
-      branch @processor getDbgType @resultDBG.cat
+      pointee: branch.refToVar getVar;
+      branch.refToVar @processor getDbgType @resultDBG.cat
       "*" @resultDBG.cat
     ]
     [VarStruct =] [
@@ -617,9 +617,9 @@ makeDbgTypeId: [
     [drop refToVar isNonrecursiveType] [refToVar block getNonrecursiveDataIRType @resultIR set]
     [VarRef =] [
       branch: VarRef var.data.get;
-      pointee: branch getVar;
+      pointee: branch.refToVar getVar;
 
-      branch processor getIrType @resultIR.cat
+      branch.refToVar processor getIrType @resultIR.cat
       "*"  @resultIR.cat
     ]
     [VarStruct =] [
@@ -676,9 +676,9 @@ makeDbgTypeId: [
   ] [
     var.data.getTag VarRef = [
       branch: VarRef var.data.get;
-      pointee: branch getVar;
-      branch @processor block getMplType @resultMPL.cat
-      branch.mutable [
+      pointee: branch.refToVar getVar;
+      branch.refToVar @processor block getMplType @resultMPL.cat
+      branch.refToVar.mutable [
         "R" @resultMPL.cat
       ] [
         "C" @resultMPL.cat

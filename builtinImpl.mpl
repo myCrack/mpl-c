@@ -99,6 +99,7 @@
 "Var.isForgotten" use
 "Var.getAlignment" use
 "Var.getStorageSize" use
+"Var.makeRefBranch" use
 "Var.makeStringId" use
 "Var.markAsUnableToDie" use
 "Var.RefToVar" use
@@ -181,7 +182,7 @@ mplBuiltinProcessAtList: [
       (
         [processor compilable]
         [
-          pointee: VarRef structVar.data.get;
+          pointee: VarRef structVar.data.get.refToVar;
           pointeeVar: pointee getVar;
           pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
         ]
@@ -193,7 +194,7 @@ mplBuiltinProcessAtList: [
           index 0 < [index struct.fields.getSize < ~] || ["index is out of bounds" @processor block compilerError] when
         ] [
           field: index struct.fields.at.refToVar;
-          field VarRef TRUE dynamic TRUE dynamic TRUE dynamic @processor @block createVariableWithVirtual @result set
+          field makeRefBranch VarRef TRUE dynamic TRUE dynamic TRUE dynamic @processor @block createVariableWithVirtual @result set
           refToStruct.mutable @result.setMutable
           @result fullUntemporize
         ]
@@ -527,7 +528,7 @@ parseSignature: [
               [conventionVarRef.data.getTag VarRef = ~ ["value must be String Ref" @processor block compilerError] when]
               [conventionRefToVarRef staticityOfVar Weak < ["value must be Static" @processor block compilerError] when]
               [
-                conventionRefToVar: VarRef conventionVarRef.data.get;
+                conventionRefToVar: VarRef conventionVarRef.data.get.refToVar;
                 conventionVar: conventionRefToVar getVar;
                 conventionVar.data.getTag VarString = ~ ["value must be String Ref" @processor block compilerError] when
               ]
@@ -823,7 +824,7 @@ staticityOfBinResult: [
       schemaOfResult: RefToVar;
       varSchema.data.getTag VarRef = [
         refToSchema isSchema [
-          VarRef varSchema.data.get @processor @block copyVarFromChild @schemaOfResult set
+          VarRef varSchema.data.get.refToVar @processor @block copyVarFromChild @schemaOfResult set
           refToSchema.mutable schemaOfResult.mutable and @schemaOfResult.setMutable
         ] [
           [FALSE] "Unable in current semantic!" assert
@@ -835,7 +836,7 @@ staticityOfBinResult: [
       schemaOfResult isVirtual [
         "pointee is virtual, cannot cast" @processor block compilerError
       ] [
-        refToDst: schemaOfResult VarRef @processor @block createVariable;
+        refToDst: schemaOfResult makeRefBranch VarRef @processor @block createVariable;
         Dirty @refToDst getVar.@staticity set
         refToVar @refToDst "inttoptr" @processor @block createCastCopyToNew
         @refToDst @processor @block derefAndPush
@@ -851,7 +852,7 @@ staticityOfBinResult: [
   processor compilable [
     refToVar isVirtual [
       refToVar isSchema [
-        pointee: VarRef refToVar getVar.data.get;
+        pointee: VarRef refToVar getVar.data.get.refToVar;
         pointee isVirtual [
           0nx
         ] [
@@ -966,7 +967,7 @@ staticityOfBinResult: [
     varSrc: refToVar getVar;
     varSchema: refToSchema getVar;
     varSchema.data.getTag VarRef = [refToSchema isVirtual] && [
-      VarRef varSchema.data.get @processor @block copyVarFromChild @refToSchema set
+      VarRef varSchema.data.get.refToVar @processor @block copyVarFromChild @refToSchema set
       refToSchema getVar !varSchema
     ] when
 
@@ -1227,7 +1228,7 @@ staticityOfBinResult: [
   processor compilable [
     var: refToVar getVar;
     refToVar isSchema [
-      pointee: VarRef var.data.get;
+      pointee: VarRef var.data.get.refToVar;
       pointeeVar: pointee getVar;
       pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
       processor compilable [
@@ -1279,7 +1280,7 @@ staticityOfBinResult: [
         count: VarInt32 varCount.data.get 0 cast;
         var: refToVar getVar;
         refToVar isSchema [
-          pointee: VarRef var.data.get;
+          pointee: VarRef var.data.get.refToVar;
           pointeeVar: pointee getVar;
           pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
           processor compilable [
@@ -1774,7 +1775,7 @@ staticityOfBinResult: [
   processor compilable [
     refToVar isVirtual [
       refToVar isSchema [
-        pointee: VarRef refToVar getVar.data.get;
+        pointee: VarRef refToVar getVar.data.get.refToVar;
         pointee isVirtual [
           0nx
         ] [

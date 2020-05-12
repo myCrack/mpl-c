@@ -375,7 +375,7 @@
 
   begin: RefToVar;
   end: RefToVar;
-  refToVar @begin @end ShadowReasonCapture @processor @block makeShadows drop
+  refToVar @begin @end ShadowReasonCapture @processor @block makeShadows
 
   VarStruct refToVar getVar.data .get.get .unableToDie
   VarStruct @end     getVar.@data.get.get.@unableToDie set # fake becouse it is fake shadow

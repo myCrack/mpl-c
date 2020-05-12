@@ -204,8 +204,8 @@
                 VarString stackEntryVar.data.get =
               ] [
                 checkRefs [cacheEntryVar.data.getTag VarRef =] && [cacheEntry staticityOfVar Virtual <] && [
-                  r1: VarRef cacheEntryVar.data.get;
-                  r2: VarRef stackEntryVar.data.get;
+                  r1: VarRef cacheEntryVar.data.get.refToVar;
+                  r2: VarRef stackEntryVar.data.get.refToVar;
                   r1.var r2.var is [r1.mutable r2.mutable =] && [r1 staticityOfVar r2 staticityOfVar =] &&
                 ] [
                   TRUE # go recursive
@@ -735,7 +735,7 @@ fixRef: [
   var: @refToVar getVar;
   wasVirtual: refToVar isVirtual;
   makeDynamic: FALSE dynamic;
-  pointee: VarRef @var.@data.get;
+  pointee: VarRef @var.@data.get.@refToVar;
   pointeeVar: pointee getVar;
   pointeeIsLocal: pointeeVar.capturedHead getVar.host currentChangesNode is;
 
@@ -863,7 +863,7 @@ applyEntriesRec: [
       cacheEntryVar.capturedAsRealValue [@currentFromStack makeVarRealCaptured] when
 
       cacheEntryVar.data.getTag VarRef = [currentFromCache staticityOfVar Virtual <] && [currentFromCache staticityOfVar Dynamic >] && [
-        clearPointee: VarRef cacheEntryVar.data.get copy; # if captured, host index will be currentChangesNodeIndex
+        clearPointee: VarRef cacheEntryVar.data.get.refToVar copy; # if captured, host index will be currentChangesNodeIndex
         clearPointee getVar.host currentChangesNode is [ # we captured it
           clearPointee @unfinishedCache.pushBack
           @currentFromStack @processor @block getPointeeNoDerefIR @unfinishedStack.pushBack
@@ -908,7 +908,7 @@ fixOutputRefsRec: [
 
       stackEntryVar.data.getTag VarRef = [
         currentFromStack isSchema ~ [
-          stackPointee: VarRef @stackEntryVar.@data.get;
+          stackPointee: VarRef @stackEntryVar.@data.get.refToVar;
           stackPointee getVar.host currentChangesNode is [
             fixed: @currentFromStack fixRef @processor @block getPointeeNoDerefIR;
             fixed @unfinishedStack.pushBack
@@ -944,7 +944,7 @@ fixCaptureRef: [
     continue: FALSE;
     var: fixed getVar;
 
-    curPointee: VarRef var.data.get;
+    curPointee: VarRef var.data.get.refToVar;
     curPointeeVar: curPointee getVar;
 
     curPointeeVar.data.getTag VarRef = [
@@ -998,7 +998,7 @@ usePreCapturesWith: [
               stackEntryVar: currentFromStack getVar;
 
               cacheEntryVar.data.getTag VarRef = [currentFromCache staticityOfVar Virtual <] && [currentFromCache staticityOfVar Dynamic >] && [
-                clearPointee: VarRef cacheEntryVar.data.get copy; # if captured, host index will be currentChangesNodeIndex
+                clearPointee: VarRef cacheEntryVar.data.get.refToVar copy; # if captured, host index will be currentChangesNodeIndex
                 clearPointee getVar.host currentChangesNode is [ # we captured it
                   clearPointee                                            @unfinishedCache.pushBack
                   @currentFromStack @processor @block getPointeeNoDerefIR @unfinishedStack.pushBack

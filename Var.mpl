@@ -59,6 +59,7 @@ Field: [{
   nameInfo: -1 dynamic; # NameInfo id
   nameOverload: -1 dynamic;
   refToVar: RefToVar;
+  usedHere: FALSE dynamic;
 }];
 
 FieldArray: [Field Array];
@@ -75,6 +76,13 @@ Struct: [{
   structStorageSize: 0nx dynamic;
   structAlignment: 0nx dynamic;
 }]; #IDs of pointee vars
+
+makeRefBranch: [{
+  refToVar: copy;
+  usedHere: FALSE dynamic;
+}];
+
+RefBranch: [RefToVar makeRefBranch];
 
 RefToVar: [{
   data: Natx;
@@ -130,6 +138,7 @@ Variable: [{
   capturedTail:                      RefToVar;
   capturedPrev:                      RefToVar;
   realValue:                         RefToVar;
+  sourceOfValue:                     RefToVar;
   globalDeclarationInstructionIndex: -1 dynamic;
   allocationInstructionIndex:        -1 dynamic;
   getInstructionIndex:               -1 dynamic;
@@ -153,7 +162,7 @@ Variable: [{
     Int32            #VarBuiltin
     Int32            #VarImport
     String           #VarString
-    RefToVar         #VarRef
+    RefBranch        #VarRef
     Struct Owner     #VarStruct
   ) Variant;
 
@@ -291,7 +300,7 @@ getVirtualValue: [
     ]
     VarBuiltin [VarBuiltin var.data.get @result.cat]
     VarRef     [
-      pointee: VarRef var.data.get;
+      pointee: VarRef var.data.get.refToVar;
       pointeeVar: pointee getVar;
       var.staticity Schema = [
         "." @result.cat

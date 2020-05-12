@@ -206,7 +206,7 @@ getTypeDebugDeclaration: [
       refToVar @processor getPlainTypeDebugDeclaration
     ] [
       var.data.getTag VarRef = [
-        pointee: VarRef var.data.get;
+        pointee: VarRef var.data.get.refToVar;
         pointee @processor getPointerTypeDebugDeclaration
       ] [
         var.data.getTag VarImport = [

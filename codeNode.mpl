@@ -81,6 +81,7 @@
 "Var.isPlain" use
 "Var.isVirtual" use
 "Var.isVirtualType" use
+"Var.makeRefBranch" use
 "Var.makeStringId" use
 "Var.markAsUnableToDie" use
 "Var.staticityOfVar" use
@@ -367,6 +368,7 @@ createVariableWithVirtual: [
   result: RefToVar;
   @processor.@variables.last.last @result.setVar
   @block @result getVar.@host.set
+  result @result getVar.@sourceOfValue set
 
   makeVirtual [
     makeSchema [Schema] [Virtual] if @result getVar.@staticity set
@@ -400,6 +402,18 @@ createVariableWithVirtual: [
   entry @block.@stack.pushBack
 ] "push" exportFunction
 
+setShadowEventIndex: [
+  block: refToVar: ;;
+  refToVar noMatterToCopy ~ [
+    var: @refToVar getVar;
+    var.shadowEventIndex 0 < [
+      shadowEventIndex: block.buildingMatchingInfo.shadowEvents.size;
+      shadowEventIndex @var.@shadowEventIndex set
+      shadowEventIndex @var.@shadowBegin getVar.@shadowEventIndex set
+    ] when
+  ] when
+];
+
 getStackEntryForPreInput: [
   copy depth:;
   depth @processor block getStackDepth < [
@@ -407,14 +421,15 @@ getStackEntryForPreInput: [
     [entry getVar.host block is ~] "Pre input is just in inputs!" assert
     shadowBegin: RefToVar;
     shadowEnd: RefToVar;
-    entry @shadowBegin @shadowEnd ShadowReasonInput @processor @block makeShadows [
-      newEvent: ShadowEvent;
-      ShadowReasonInput @newEvent.setTag
-      branch: ShadowReasonInput @newEvent.get;
-      shadowEnd @branch.@refToVar set
-      ArgMeta   @branch.@argCase set
-      @newEvent @block addShadowEvent
-    ] when
+    entry @shadowBegin @shadowEnd ShadowReasonInput @processor @block makeShadows
+
+    newEvent: ShadowEvent;
+    ShadowReasonInput @newEvent.setTag
+    branch: ShadowReasonInput @newEvent.get;
+    shadowEnd @branch.@refToVar set
+    ArgMeta   @branch.@argCase set
+    @block @shadowEnd setShadowEventIndex
+    @newEvent @block addShadowEvent
 
     shadowEnd
   ] [
@@ -441,7 +456,7 @@ getPointeeForMatching: [
   refToVar:;
   var: refToVar getVar;
   [var.data.getTag VarRef =] "Not a reference!" assert
-  pointee: VarRef @var.@data.get; # reference
+  pointee: VarRef var.data.get.refToVar; # reference
   result: pointee copy;
   refToVar.mutable pointee.mutable and @result.setMutable # to deref is
   result
@@ -454,7 +469,7 @@ getPointeeWith: [
   refToVar isVirtualType [
     refToVar copy
   ] [
-    pointee: VarRef @var.@data.get; # reference
+    pointee: VarRef @var.@data.get.@refToVar; # reference
 
     fromParent: pointee getVar.host block is ~;
     pointeeIsGlobal: FALSE dynamic;
@@ -488,7 +503,7 @@ getPointeeWith: [
           [var.shadowBegin.assigned] "Ref got from parent, but dont have shadow!" assert
           var.shadowBegin @varShadow set
         ] when
-        pointeeOfShadow: VarRef @varShadow getVar.@data.get;
+        pointeeOfShadow: VarRef @varShadow getVar.@data.get.@refToVar;
 
         pointeeOfShadow getVar.host block is [ # just made deref from another place
           pointeeOfShadowVar: pointeeOfShadow getVar;
@@ -497,28 +512,16 @@ getPointeeWith: [
         ] [
           psBegin: RefToVar;
           psEnd:   RefToVar;
-          madeShadow: FALSE;
 
           pointeeOfShadow pointee = [
-            pointeeOfShadow @psBegin @psEnd ShadowReasonPointee @processor @block makeShadows !madeShadow
+            pointeeOfShadow @psBegin @psEnd ShadowReasonPointee @processor @block makeShadows
             psBegin @pointeeOfShadow set
             psEnd @pointee set
           ] [
             #we changed ref, pointeeOFShadow is another pointer to another var!
-            pointee @psBegin @psEnd ShadowReasonPointee @processor @block makeShadows !madeShadow
+            pointee @psBegin @psEnd ShadowReasonPointee @processor @block makeShadows
             psEnd @pointee set
           ] if
-
-          madeShadow [
-            newEvent: ShadowEvent;
-            ShadowReasonPointee @newEvent.setTag
-            branch: ShadowReasonPointee @newEvent.get;
-
-            refToVar      @branch.@pointer set
-            psEnd         @branch.@pointee set
-
-            @newEvent @block addShadowEvent
-          ] when
 
           @psBegin fullUntemporize
           @psEnd   fullUntemporize
@@ -529,6 +532,28 @@ getPointeeWith: [
 
       pointee isGlobal [
         TRUE @pointeeIsGlobal set
+      ] when
+
+      sourceValueVar: var.sourceOfValue getVar;
+      shadowUsed: VarRef @sourceValueVar.@data.get.@usedHere;
+
+      cond1: refToVar noMatterToCopy ~;
+      cond2: sourceValueVar.capturedHead getVar.host block is ~;
+      cond3: pointee noMatterToCopy ~;
+      cond4: shadowUsed ~;
+
+      refToVar noMatterToCopy ~ [sourceValueVar.capturedHead getVar.host block is ~] && [pointee noMatterToCopy ~] && [shadowUsed ~] && [
+        TRUE @shadowUsed set
+
+        newEvent: ShadowEvent;
+        ShadowReasonPointee @newEvent.setTag
+        branch: ShadowReasonPointee @newEvent.get;
+
+        var.sourceOfValue @branch.@pointer set
+        pointee           @branch.@pointee set
+        @block @pointee setShadowEventIndex
+
+        @newEvent @block addShadowEvent
       ] when
     ] if
 
@@ -610,17 +635,7 @@ getField: [
 
         psBegin: RefToVar;
         psEnd: RefToVar;
-        fieldShadow @psBegin @psEnd ShadowReasonField @processor @block makeShadows [
-          newEvent: ShadowEvent;
-          ShadowReasonField @newEvent.setTag
-          branch: ShadowReasonField @newEvent.get;
-
-          refToVar      @branch.@object set
-          psEnd         @branch.@field set
-          mplFieldIndex @branch.@mplFieldIndex set
-
-          @newEvent move @block addShadowEvent
-        ] when
+        fieldShadow @psBegin @psEnd ShadowReasonField @processor @block makeShadows
 
         psBegin @fieldShadow set
         psEnd @fieldRefToVar set
@@ -632,6 +647,21 @@ getField: [
     ] when
 
     refToVar.mutable @fieldRefToVar.setMutable
+
+    refToVar noMatterToCopy ~ [var.capturedHead getVar.host block is ~] && [fieldRefToVar noMatterToCopy ~] && [mplFieldIndex struct.fields.at.usedHere ~] &&  [
+      TRUE mplFieldIndex @struct.@fields.at.!usedHere
+
+      newEvent: ShadowEvent;
+      ShadowReasonField @newEvent.setTag
+      branch: ShadowReasonField @newEvent.get;
+
+      refToVar      @branch.@object set
+      mplFieldIndex @branch.@mplFieldIndex set
+      fieldRefToVar @branch.@field set
+
+      @block @fieldRefToVar setShadowEventIndex
+      @newEvent @block addShadowEvent
+    ] when
 
     @fieldRefToVar
   ] [
@@ -688,12 +718,14 @@ setOneVar: [
     ] staticCall
   ] when
 
+  srcVar.sourceOfValue @dstVar.@sourceOfValue set
+
   refDst staticityOfVar Dirty > [
     staticity: refSrc staticityOfVar;
     staticity Weak = [refDst staticityOfVar @staticity set] when
     @refDst staticity @processor block makeStaticity drop
   ] [
-    srcVar.data.getTag VarRef = [refSrc.mutable] && [VarRef srcVar.data.get.mutable] && [
+    srcVar.data.getTag VarRef = [refSrc.mutable] && [VarRef srcVar.data.get.refToVar.mutable] && [
       staticity: refSrc staticityOfVar;
       refSrc @processor @block makeVarTreeDirty
       @refSrc staticity @processor block makeStaticity drop
@@ -722,7 +754,7 @@ setOneVar: [
     @pointee fullUntemporize
 
     pointee.mutable [mutable copy] && @pointee.setMutable
-    newRefToVar: pointee VarRef @processor @block createVariable;
+    newRefToVar: pointee makeRefBranch VarRef @processor @block createVariable;
     createOperation [pointee @newRefToVar @processor @block createRefOperation] when
     newRefToVar @result set
   ] if
@@ -889,7 +921,7 @@ makeVarVirtual: [
         ] if
       ] [
         curVar.data.getTag VarRef = [
-          VarRef curVar.data.get isUnallocable [
+          VarRef curVar.data.get.refToVar isUnallocable [
           ] [
             "can not virtualize reference to local variable" @processor block compilerError
           ] if
@@ -1418,7 +1450,7 @@ captureName: [
         ] || [
           shadowBegin: RefToVar;
           shadowEnd: RefToVar;
-          makeShadowsResult: refToVar @shadowBegin @shadowEnd ShadowReasonCapture @processor @block makeShadows;
+          refToVar @shadowBegin @shadowEnd ShadowReasonCapture @processor @block makeShadows
 
           newCapture: Capture;
           shadowEnd @newCapture.@refToVar set
@@ -1446,10 +1478,12 @@ captureName: [
           ShadowReasonCapture @newEvent.setTag
           branch: ShadowReasonCapture @newEvent.get;
           newCapture @branch set
+
+          @block @shadowEnd setShadowEventIndex
           @newEvent @block addShadowEvent
 
           processor.options.debug [shadowEnd isVirtual ~] && [shadowEnd isGlobal ~] && [
-            fakePointer: shadowEnd VarRef @processor @block createVariable;
+            fakePointer: shadowEnd makeRefBranch VarRef @processor @block createVariable;
             shadowEnd @fakePointer @processor @block createRefOperation
             nameInfo fakePointer @processor @block addVariableMetadata
             programSize: block.program.getSize;
@@ -1529,6 +1563,7 @@ captureName: [
         getNameResult.nameCase      @newFieldCapture.@captureCase set
         getNameResult.mplFieldIndex @newFieldCapture.@fieldIndex set
         file                        @newFieldCapture.@file.set
+
         newFieldCapture @block.@buildingMatchingInfo.@fieldCaptures.pushBack
 
         block.state NodeStateNew = [
@@ -1874,7 +1909,7 @@ setRef: [
     refToVar isSchema [
       "can not write to virtual" @processor block compilerError
     ] [
-      pointee: VarRef var.data.get;
+      pointee: VarRef var.data.get.refToVar;
       pointee.mutable ~ [
         FALSE @processor @block defaultMakeConstWith #source
       ] when
@@ -1920,7 +1955,7 @@ setRef: [
   end: RefToVar Ref;
   begin: RefToVar Ref;
   refToVar: RefToVar Cref;
-} Cond {} [
+} () {} [
   block:;
   processor:;
   dynamicStoraged:;
@@ -1934,7 +1969,6 @@ setRef: [
   refToVar noMatterToCopy [
     refToVar @begin set
     refToVar @end set
-    FALSE
   ] [
     var: refToVar getVar;
     head: var.capturedHead copy;
@@ -1969,6 +2003,7 @@ setRef: [
 
       begin @endVar  .@shadowBegin set
       end   @beginVar.@shadowEnd   set
+      end   @endVar.@sourceOfValue set
 
       var.globalId @beginVar.@globalId set
       var.globalId   @endVar.@globalId set
@@ -1988,7 +2023,6 @@ setRef: [
 
     dynamicStoraged [
       reallyCreateShadows
-      FALSE
     ] [
       headVar.capturedTail getVar.host block is [
         headVar.capturedTail @end set
@@ -2004,13 +2038,10 @@ setRef: [
           reason @endVar  .@shadowReason set
         ] when
 
-        FALSE
         [begin getVar.host block is] "Begin hostId incorrect in makeShadows!" assert
         [end getVar.host block is] "End hostId incorrect in makeShadows!" assert
       ] [
-        TRUE
         reallyCreateShadows
-        block.buildingMatchingInfo.shadowEvents.size @end getVar.@shadowEventIndex set
       ] if
     ] if
   ] if
@@ -2021,10 +2052,12 @@ setRef: [
   processor: Processor Ref;
 
   toNew: Cond;
+  fromChildToParent: Cond;
+
   refToVar: RefToVar Cref;
   result: RefToVar Ref;
 } () {} [
-  src: toNew: processor: block: ;;;;
+  src: fromChildToParent: toNew: processor: block: ;;;;;
   result:;
 
   srcVar: src getVar;
@@ -2063,6 +2096,11 @@ setRef: [
 
   src.mutable @result.setMutable
   dstVar: @result getVar;
+
+  fromChildToParent ~ [
+    srcVar.sourceOfValue @dstVar.@sourceOfValue set
+  ] when
+
   srcVar.mplSchemaId @dstVar.@mplSchemaId set
 ] "copyOneVarWithImpl" exportFunction
 
@@ -2098,7 +2136,7 @@ setRef: [
         fromChildToParent toNew or [currentSrc noMatterToCopy] && [
           currentSrc @currentDst set
         ] [
-          currentSrc toNew @processor @block copyOneVarWith @currentDst set
+          currentSrc fromChildToParent toNew @processor @block copyOneVarWith @currentDst set
 
           currentSrcVar: currentSrc getVar;
           currentDstVar: @currentDst getVar;
@@ -2199,7 +2237,7 @@ setRef: [
       shadowBegin: RefToVar;
       shadowEnd:   RefToVar;
 
-      makeShadowsResult: entry @shadowBegin @shadowEnd ShadowReasonInput @processor @block makeShadows; 
+      entry @shadowBegin @shadowEnd ShadowReasonInput @processor @block makeShadows
 
       shadowEnd @result set
       entry isForgotten [
@@ -2217,7 +2255,7 @@ setRef: [
         # it is for exports only
         # we have immutable reference, becouse it is a rule of signature
         # after deref we must force mutability
-        mutableOfPointee: VarRef result getVar.data.get.mutable;
+        mutableOfPointee: VarRef result getVar.data.get.refToVar.mutable;
         @result @processor @block getPointee @result set
         mutableOfPointee @result.setMutable
       ] when
@@ -2231,13 +2269,12 @@ setRef: [
       #add input
       newInput @block.@buildingMatchingInfo.@inputs.pushBack
 
-      makeShadowsResult [
-        newEvent: ShadowEvent;
-        ShadowReasonInput @newEvent.setTag
-        branch: ShadowReasonInput @newEvent.get;
-        newInput @branch set
-        @newEvent @block addShadowEvent
-      ] when
+      newEvent: ShadowEvent;
+      ShadowReasonInput @newEvent.setTag
+      branch: ShadowReasonInput @newEvent.get;
+      newInput @branch set
+      @block @result setShadowEventIndex
+      @newEvent @block addShadowEvent
 
       block.state NodeStateNew = [
         result noMatterToCopy ~ [
@@ -2400,14 +2437,14 @@ processMember: [
         "can not write to field of struct schema" @processor block compilerError
       ] [
         structVar: refToStruct getVar;
-        pointee: VarRef structVar.data.get;
+        pointee: VarRef structVar.data.get.refToVar;
         pointeeVar: pointee getVar;
         pointeeVar.data.getTag VarStruct = [
           fr: nameInfo pointee @processor block findField;
           fr.success [
             index: fr.index copy;
             field: index 0 cast VarStruct pointeeVar.data.get.get.fields.at.refToVar;
-            result: field VarRef TRUE dynamic TRUE dynamic TRUE dynamic @processor @block createVariableWithVirtual;
+            result: field makeRefBranch VarRef TRUE dynamic TRUE dynamic TRUE dynamic @processor @block createVariableWithVirtual;
             @result fullUntemporize
             read 1 = result.mutable and @result.setMutable
             result @block push
@@ -3438,7 +3475,7 @@ makeCompilerPosition: [
     var.usedInHeader [var.allocationInstructionIndex 0 <] || [
       refToVar isVirtual ~
       [isDeclaration ~] && [
-        refForArg: refToVar VarRef @processor @block createVariable;
+        refForArg: refToVar makeRefBranch VarRef @processor @block createVariable;
         refToVar @refForArg @processor @block createRefOperation
         refForArg TRUE
       ] [
@@ -3783,45 +3820,77 @@ makeCompilerPosition: [
   @processor @block addDebugLocationForLastInstruction
   checkPreStackDepth
 
+  fixArrShadow: [
+    refToVar:;
+    refToVar.assigned [refToVar noMatterToCopy ~] && [refToVar getVar.shadowBegin @refToVar set] when
+  ];
+
   fixArrShadows: [
-    [
-      current:;
-      current.refToVar.assigned [current.refToVar noMatterToCopy ~] && [current.refToVar getVar.shadowBegin @current.@refToVar set] when
-    ] each
+    [.@refToVar fixArrShadow] each
   ];
 
   @block.@buildingMatchingInfo.@inputs fixArrShadows
   @block.@buildingMatchingInfo.@captures fixArrShadows
 
+  @block.@buildingMatchingInfo.@shadowEvents [
+    event:;
+
+    (
+      ShadowReasonInput [
+        branch:;
+        @branch.@refToVar fixArrShadow
+      ]
+      ShadowReasonCapture [
+        branch:;
+        @branch.@refToVar fixArrShadow
+      ]
+      ShadowReasonFieldCapture [
+        branch:;
+        @branch.@object fixArrShadow
+      ]
+      ShadowReasonPointee [
+        branch:;
+        @branch.@pointer fixArrShadow
+        @branch.@pointee fixArrShadow
+      ]
+      ShadowReasonField [
+        branch:;
+        @branch.@object fixArrShadow
+        @branch.@field fixArrShadow
+      ]
+      []
+    ) @event.visit
+  ] each
+
   processor.options.verboseIR [
     "shadow events: " @block createComment
-    block.matchingInfo.shadowEvents [
-      event:;
+    block.buildingMatchingInfo.shadowEvents.size [
+      event: i block.buildingMatchingInfo.shadowEvents.at;
 
       (
         ShadowReasonInput [
           branch:;
-          "input" @block createComment
+          ("shadow event [" i "] input") assembleString @block createComment
         ]
         ShadowReasonCapture [
           branch:;
-          ("capture " branch.nameInfo processor.nameManager.getText " (" branch.nameOverloadDepth ")") assembleString @block createComment
+          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ")") assembleString @block createComment
         ]
         ShadowReasonFieldCapture [
           branch:;
-          ("fieldCapture " branch.nameInfo processor.nameManager.getText " (" branch.nameOverloadDepth ") [" branch.fieldIndex "]") assembleString @block createComment
+          ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "]") assembleString @block createComment
         ]
         ShadowReasonPointee [
           branch:;
-          ("pointee " branch.pointer getVar.shadowEventIndex)  assembleString @block createComment
+          ("shadow event [" i "] pointee " branch.pointer getVar.shadowEventIndex)  assembleString @block createComment
         ]
         ShadowReasonField [
           branch:;
-          ("field " branch.object getVar.shadowEventIndex " [" branch.mplFieldIndex "]") assembleString @block createComment
+          ("shadow event [" i "] field " branch.object getVar.shadowEventIndex " [" branch.mplFieldIndex "]") assembleString @block createComment
         ]
         []
       ) event.visit
-    ] each
+    ] times
 
     info: String;
     "labelNames: " @info.cat
