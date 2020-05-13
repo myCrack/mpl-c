@@ -131,7 +131,8 @@ Variable: [{
   tref:                              TRUE dynamic;
   shadowReason:                      ShadowReasonNo;
   globalId:                          -1 dynamic;
-  shadowEventIndex:                  -1 dynamic;
+  topologyIndex:                     -1 dynamic;
+  topologyIndexWhileMatching:        -1 dynamic;
   shadowBegin:                       RefToVar;
   shadowEnd:                         RefToVar;
   capturedHead:                      RefToVar;

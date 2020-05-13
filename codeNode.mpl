@@ -402,19 +402,15 @@ createVariableWithVirtual: [
   entry @block.@stack.pushBack
 ] "push" exportFunction
 
-setShadowEventIndex: [
+setTopologyIndex: [
   block: refToVar: ;;
   refToVar noMatterToCopy ~ [
     var: @refToVar getVar;
-    var.shadowEventIndex 0 < [
-      shadowEventIndex: block.buildingMatchingInfo.shadowEvents.size;
-      shadowEventIndex @var.@shadowEventIndex set
-
-      var.shadowBegin.assigned [
-        shadowEventIndex @var.@shadowBegin getVar.@shadowEventIndex set
-      ] [
-        "failed pointer case" print LF print
-      ] if
+    var.topologyIndex 0 < [
+      topologyIndex: @block.@buildingMatchingInfo.@lastTopologyIndex;
+      topologyIndex @var.@topologyIndex set
+      topologyIndex @var.@shadowBegin getVar.@topologyIndex set
+      topologyIndex 1 + @topologyIndex set
     ] when
   ] when
 ];
@@ -433,7 +429,7 @@ getStackEntryForPreInput: [
     branch: ShadowReasonInput @newEvent.get;
     shadowEnd @branch.@refToVar set
     ArgMeta   @branch.@argCase set
-    @block @shadowEnd setShadowEventIndex
+    @block @shadowEnd setTopologyIndex
     @newEvent @block addShadowEvent
 
     shadowEnd
@@ -540,7 +536,7 @@ getPointeeWith: [
       ] when
 
       sourceValueVar: var.sourceOfValue getVar;
-      var.sourceOfValue getVar.shadowEventIndex 0 < ~ [ #source can be local var in child scope, we must handle this case
+      var.sourceOfValue getVar.topologyIndex 0 < ~ [ #source can be local var in child scope, we must handle this case
         shadowUsed: VarRef @sourceValueVar.@data.get.@usedHere;
 
         refToVar noMatterToCopy ~ [sourceValueVar.capturedHead getVar.host block is ~] && [pointee noMatterToCopy ~] && [shadowUsed ~] && [
@@ -552,7 +548,7 @@ getPointeeWith: [
 
           var.sourceOfValue @branch.@pointer set
           pointee           @branch.@pointee set
-          @block @pointee setShadowEventIndex
+          @block @pointee setTopologyIndex
 
           @newEvent @block addShadowEvent
         ] when
@@ -661,7 +657,7 @@ getField: [
       mplFieldIndex @branch.@mplFieldIndex set
       fieldRefToVar @branch.@field set
 
-      @block @fieldRefToVar setShadowEventIndex
+      @block @fieldRefToVar setTopologyIndex
       @newEvent @block addShadowEvent
     ] when
 
@@ -1481,7 +1477,7 @@ captureName: [
             newCapture @block.@matchingInfo.@captures.pushBack
           ] when
 
-          @block @shadowEnd setShadowEventIndex
+          @block @shadowEnd setTopologyIndex
           @newEvent @block addShadowEvent
 
           processor.options.debug [shadowEnd isVirtual ~] && [shadowEnd isGlobal ~] && [
@@ -2275,7 +2271,7 @@ setRef: [
       ShadowReasonInput @newEvent.setTag
       branch: ShadowReasonInput @newEvent.get;
       newInput @branch set
-      @block @result setShadowEventIndex
+      @block @result setTopologyIndex
       @newEvent @block addShadowEvent
 
       block.state NodeStateNew = [
@@ -3295,8 +3291,8 @@ checkRecursionOfCodeNode: [
         @processor.@recursiveNodesStack.popBack
       ] [
         block.state NodeStateHasOutput = [
-          curToNested: RefToVarTable;
-          nestedToCur: RefToVarTable;
+          #curToNested: RefToVarTable;
+          #nestedToCur: RefToVarTable;
           comparingMessage: String;
           currentMatchingNodeIndex: block.id copy;
           currentMatchingNode: currentMatchingNodeIndex @processor.@blocks.at.get;
@@ -3307,7 +3303,7 @@ checkRecursionOfCodeNode: [
             se1: refToVar1 noMatterToCopy [refToVar1][refToVar1 getVar.shadowEnd] if;
             se2: refToVar2 noMatterToCopy [refToVar2][refToVar2 getVar.shadowEnd] if;
             [se1.assigned [se2.assigned] &&] "variables has no shadowEnd!" assert
-            se1 se2 currentMatchingNode @nestedToCur @curToNested @comparingMessage @processor @block compareEntriesRec
+            se1 se2 currentMatchingNode @comparingMessage @processor @block compareEntriesRec
           ];
 
           #compare inputs
@@ -3395,9 +3391,9 @@ checkRecursionOfCodeNode: [
                 i block.stack.getSize < [
                   current1: i block.stack.at;
                   current2: i block.outputs.at.refToVar;
-                  current1 current2 currentMatchingNode @nestedToCur @curToNested @comparingMessage @processor @block compareEntriesRec ~ [
-                    FALSE @result set
-                  ] when
+                  #current1 current2 currentMatchingNode @nestedToCur @curToNested @comparingMessage @processor @block compareEntriesRec ~ [
+                  #  FALSE @result set
+                  #] when
                   i 1 + @i set
                   result copy
                 ] &&
@@ -3875,23 +3871,23 @@ makeCompilerPosition: [
       (
         ShadowReasonInput [
           branch:;
-          ("shadow event [" i "] input as " branch.refToVar getVar.shadowEventIndex) assembleString @block createComment
+          ("shadow event [" i "] input as " branch.refToVar getVar.topologyIndex) assembleString @block createComment
         ]
         ShadowReasonCapture [
           branch:;
-          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.shadowEventIndex) assembleString @block createComment
+          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.topologyIndex) assembleString @block createComment
         ]
         ShadowReasonFieldCapture [
           branch:;
-          ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.shadowEventIndex) assembleString @block createComment
+          ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.topologyIndex) assembleString @block createComment
         ]
         ShadowReasonPointee [
           branch:;
-          ("shadow event [" i "] pointee " branch.pointer getVar.shadowEventIndex " as " branch.pointee getVar.shadowEventIndex)  assembleString @block createComment
+          ("shadow event [" i "] pointee " branch.pointer getVar.topologyIndex " as " branch.pointee getVar.topologyIndex)  assembleString @block createComment
         ]
         ShadowReasonField [
           branch:;
-          ("shadow event [" i "] field " branch.object getVar.shadowEventIndex " [" branch.mplFieldIndex "] as " branch.field getVar.shadowEventIndex) assembleString @block createComment
+          ("shadow event [" i "] field " branch.object getVar.topologyIndex " [" branch.mplFieldIndex "] as " branch.field getVar.topologyIndex) assembleString @block createComment
         ]
         []
       ) event.visit

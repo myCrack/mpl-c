@@ -129,7 +129,8 @@ MatchingInfo: [{
   fieldCaptures: FieldCapture Array;
   hasStackUnderflow: FALSE dynamic;
   unfoundedNames: UnfoundedName Cond HashTable; #nameInfos
-  shadowEvents:      ShadowEvent Array;
+  shadowEvents: ShadowEvent Array;
+  lastTopologyIndex: 0 dynamic;
 }];
 
 NameWithOverload: [{

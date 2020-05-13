@@ -116,8 +116,6 @@ compilerError: [processor: block:;; makeStringView block @processor compilerErro
   processor: Processor Ref;
 
   comparingMessage: String Ref;
-  curToNested: RefToVarTable Ref;
-  nestedToCur: RefToVarTable Ref;
   currentMatchingNode: Block Cref;
   cacheEntry: RefToVar Cref;
   stackEntry: RefToVar Cref;
