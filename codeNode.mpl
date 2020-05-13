@@ -409,7 +409,12 @@ setShadowEventIndex: [
     var.shadowEventIndex 0 < [
       shadowEventIndex: block.buildingMatchingInfo.shadowEvents.size;
       shadowEventIndex @var.@shadowEventIndex set
-      shadowEventIndex @var.@shadowBegin getVar.@shadowEventIndex set
+
+      var.shadowBegin.assigned [
+        shadowEventIndex @var.@shadowBegin getVar.@shadowEventIndex set
+      ] [
+        "failed pointer case" print LF print
+      ] if
     ] when
   ] when
 ];
@@ -535,25 +540,22 @@ getPointeeWith: [
       ] when
 
       sourceValueVar: var.sourceOfValue getVar;
-      shadowUsed: VarRef @sourceValueVar.@data.get.@usedHere;
+      var.sourceOfValue getVar.shadowEventIndex 0 < ~ [ #source can be local var in child scope, we must handle this case
+        shadowUsed: VarRef @sourceValueVar.@data.get.@usedHere;
 
-      cond1: refToVar noMatterToCopy ~;
-      cond2: sourceValueVar.capturedHead getVar.host block is ~;
-      cond3: pointee noMatterToCopy ~;
-      cond4: shadowUsed ~;
+        refToVar noMatterToCopy ~ [sourceValueVar.capturedHead getVar.host block is ~] && [pointee noMatterToCopy ~] && [shadowUsed ~] && [
+          TRUE @shadowUsed set
 
-      refToVar noMatterToCopy ~ [sourceValueVar.capturedHead getVar.host block is ~] && [pointee noMatterToCopy ~] && [shadowUsed ~] && [
-        TRUE @shadowUsed set
+          newEvent: ShadowEvent;
+          ShadowReasonPointee @newEvent.setTag
+          branch: ShadowReasonPointee @newEvent.get;
 
-        newEvent: ShadowEvent;
-        ShadowReasonPointee @newEvent.setTag
-        branch: ShadowReasonPointee @newEvent.get;
+          var.sourceOfValue @branch.@pointer set
+          pointee           @branch.@pointee set
+          @block @pointee setShadowEventIndex
 
-        var.sourceOfValue @branch.@pointer set
-        pointee           @branch.@pointee set
-        @block @pointee setShadowEventIndex
-
-        @newEvent @block addShadowEvent
+          @newEvent @block addShadowEvent
+        ] when
       ] when
     ] if
 
@@ -1468,16 +1470,16 @@ captureName: [
             TRUE !captureError
           ] when
 
+          newEvent: ShadowEvent;
+          ShadowReasonCapture @newEvent.setTag
+          branch: ShadowReasonCapture @newEvent.get;
+          newCapture @branch set
+
           newCapture @block.@buildingMatchingInfo.@captures.pushBack
           block.state NodeStateNew = [
             shadowBegin @newCapture.@refToVar set
             newCapture @block.@matchingInfo.@captures.pushBack
           ] when
-
-          newEvent: ShadowEvent;
-          ShadowReasonCapture @newEvent.setTag
-          branch: ShadowReasonCapture @newEvent.get;
-          newCapture @branch set
 
           @block @shadowEnd setShadowEventIndex
           @newEvent @block addShadowEvent
@@ -3822,7 +3824,10 @@ makeCompilerPosition: [
 
   fixArrShadow: [
     refToVar:;
-    refToVar.assigned [refToVar noMatterToCopy ~] && [refToVar getVar.shadowBegin @refToVar set] when
+    refToVar.assigned [refToVar noMatterToCopy ~] && [
+      refToVar getVar.shadowBegin @refToVar set
+      [refToVar.assigned] "ShadowEvent has no begin!" assert
+    ] when
   ];
 
   fixArrShadows: [
@@ -3870,23 +3875,23 @@ makeCompilerPosition: [
       (
         ShadowReasonInput [
           branch:;
-          ("shadow event [" i "] input") assembleString @block createComment
+          ("shadow event [" i "] input as " branch.refToVar getVar.shadowEventIndex) assembleString @block createComment
         ]
         ShadowReasonCapture [
           branch:;
-          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ")") assembleString @block createComment
+          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.shadowEventIndex) assembleString @block createComment
         ]
         ShadowReasonFieldCapture [
           branch:;
-          ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "]") assembleString @block createComment
+          ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.shadowEventIndex) assembleString @block createComment
         ]
         ShadowReasonPointee [
           branch:;
-          ("shadow event [" i "] pointee " branch.pointer getVar.shadowEventIndex)  assembleString @block createComment
+          ("shadow event [" i "] pointee " branch.pointer getVar.shadowEventIndex " as " branch.pointee getVar.shadowEventIndex)  assembleString @block createComment
         ]
         ShadowReasonField [
           branch:;
-          ("shadow event [" i "] field " branch.object getVar.shadowEventIndex " [" branch.mplFieldIndex "]") assembleString @block createComment
+          ("shadow event [" i "] field " branch.object getVar.shadowEventIndex " [" branch.mplFieldIndex "] as " branch.field getVar.shadowEventIndex) assembleString @block createComment
         ]
         []
       ) event.visit
