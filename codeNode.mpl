@@ -98,6 +98,7 @@
 "Var.VarBuiltin" use
 "Var.VarCode" use
 "Var.VarEnd" use
+"Var.VarInvalid" use
 "Var.VarImport" use
 "Var.VarInt16" use
 "Var.VarInt32" use
@@ -122,10 +123,11 @@
 "astNodeType.AstNodeType" use
 "astNodeType.IndexArray" use
 "declarations.callBuiltin" use
-"declarations.compareEntriesRec" use
+"declarations.compareOnePair" use
 "declarations.compilerError" use
 "declarations.createDtorForGlobalVar" use
 "declarations.createRefWith" use
+"declarations.compareOnePair" use
 "declarations.copyOneVar" use
 "declarations.copyOneVarWith" use
 "declarations.copyVar" use
@@ -165,6 +167,7 @@
 "defaultImpl.findNameInfo" use
 "defaultImpl.getStackDepth" use
 "defaultImpl.getStackEntry" use
+"defaultImpl.getStackEntryUnchecked" use
 "defaultImpl.makeVarRealCaptured" use
 "defaultImpl.nodeHasCode" use
 "defaultImpl.pop" use
@@ -321,14 +324,13 @@ makeStaticity: [
 ];
 
 makeStorageStaticity: [
-  copy staticity:;
-  copy refToVar:;
+  refToVar: staticity: processor: block:;;;;
 
   refToVar isVirtual ~ [
     staticity @refToVar getVar.@storageStaticity set
   ] when
 
-  refToVar
+  refToVar copy
 ];
 
 createVariable: [
@@ -408,8 +410,8 @@ setTopologyIndex: [
     var: @refToVar getVar;
     var.topologyIndex 0 < [
       topologyIndex: @block.@buildingMatchingInfo.@lastTopologyIndex;
-      topologyIndex @var.@topologyIndex set
-      topologyIndex @var.@shadowBegin getVar.@topologyIndex set
+      topologyIndex @var.@buildingTopologyIndex set
+      topologyIndex @var.@shadowBegin getVar.@buildingTopologyIndex set
       topologyIndex 1 + @topologyIndex set
     ] when
   ] when
@@ -1046,7 +1048,7 @@ makeVarTreeDynamicWith: [
       ] if
 
       dynamicStoraged [
-        lastRefToVar  Dynamic makeStorageStaticity @lastRefToVar set
+        lastRefToVar  Dynamic @processor block makeStorageStaticity @lastRefToVar set
         @lastRefToVar Dirty   @processor block makeStaticity  @lastRefToVar set
       ] [
         @lastRefToVar Dynamic @processor block makeStaticity  @lastRefToVar set
@@ -1298,6 +1300,7 @@ getNameAs: [
 
   unknownName: [
     forMatching [
+      processor.varForFails @result.@refToVar set
     ] [
       message: ("unknown name: " nameInfo processor.nameManager.getText) assembleString;
       @message nameInfo @processor catPossibleModulesList
@@ -1397,7 +1400,7 @@ captureName: [
     object: RefToVar;
   };
 
-  processor compilable [
+  processor compilable [getNameResult.nameCase NameCaseInvalid = ~] && [
     captureError: FALSE dynamic;
 
     captureRefToVar: [
@@ -1562,12 +1565,6 @@ captureName: [
         getNameResult.mplFieldIndex @newFieldCapture.@fieldIndex set
         file                        @newFieldCapture.@file.set
 
-        newFieldCapture @block.@buildingMatchingInfo.@fieldCaptures.pushBack
-
-        block.state NodeStateNew = [
-          newFieldCapture @block.@matchingInfo.@fieldCaptures.pushBack
-        ] when
-
         newEvent: ShadowEvent;
         ShadowReasonFieldCapture @newEvent.setTag
         branch: ShadowReasonFieldCapture @newEvent.get;
@@ -1592,7 +1589,18 @@ captureName: [
       "real function can not have real local capture" @processor block compilerError
     ] when
   ] [
-    getNameResult.refToVar @result.@refToVar set
+     newEvent: ShadowEvent;
+     ShadowReasonCapture @newEvent.setTag
+     branch: ShadowReasonCapture @newEvent.get;
+     NameCaseInvalid        @branch.@captureCase set
+     ArgMeta                @branch.@argCase set
+     getNameResult.nameInfo @branch.@nameInfo set
+     overloadDepth          @branch.@nameOverloadDepth set
+     file                   @branch.@file.set
+     processor.varForFails  @branch.@refToVar set
+     @newEvent @block addShadowEvent
+
+     processor.varForFails @result.@refToVar set
   ] if
 
   result
@@ -2225,7 +2233,12 @@ setRef: [
   overload failProc: @processor block FailProcForProcessor;
 
   block.stack.dataSize 0 = [
-    entryRef: 0 @processor block getStackEntry;
+    entryRef: forMatching [
+      0 @processor block getStackEntryUnchecked
+    ] [
+      0 @processor block getStackEntry
+    ] if;
+
     processor compilable [
       entry: entryRef copy;
       entry staticityOfVar Weak = [
@@ -2264,8 +2277,6 @@ setRef: [
 
       entry isGlobal [ArgGlobal @newInput.@argCase set] when
 
-      #add input
-      newInput @block.@buildingMatchingInfo.@inputs.pushBack
 
       newEvent: ShadowEvent;
       ShadowReasonInput @newEvent.setTag
@@ -2274,14 +2285,19 @@ setRef: [
       @block @result setTopologyIndex
       @newEvent @block addShadowEvent
 
-      block.state NodeStateNew = [
-        result noMatterToCopy ~ [
-          result getVar.shadowBegin @newInput.@refToVar set
+      #add input
+      result getVar.data.getTag VarInvalid = ~ [
+        newInput @block.@buildingMatchingInfo.@inputs.pushBack
+        block.state NodeStateNew = [
+          result noMatterToCopy ~ [
+            result getVar.shadowBegin @newInput.@refToVar set
+          ] when
+          newInput @block.@matchingInfo.@inputs.pushBack
         ] when
-        newInput @block.@matchingInfo.@inputs.pushBack
       ] when
     ] [
-      @block addStackUnderflowInfo
+      processor.varForFails @result set
+      @processor @block addStackUnderflowInfo
     ] if
   ] [
     block.stack.last @result set
@@ -2322,42 +2338,9 @@ pushName: [
   ] if
 ];
 
-addUnfoundedName: [
-  processor: block: ;;
-  nameInfo: nameOverloadDepth: ;;
-  file:;
-
-  newItem: UnfoundedName;
-  nameInfo @newItem.@nameInfo set
-  file     @newItem.@file.set
-
-  fr: newItem block.matchingInfo.unfoundedNames.find;
-  fr.success ~ [
-    newItem TRUE @block.@matchingInfo.@unfoundedNames.insert
-  ] when
-
-  block.state NodeStateNew = [
-    fr: newItem block.buildingMatchingInfo.unfoundedNames.find;
-    fr.success ~ [newItem TRUE @block.@buildingMatchingInfo.@unfoundedNames.insert] when
-  ] when
-
-  file nameInfo nameOverloadDepth @processor @block addEmptyCapture
-];
-
-checkFailedName: [
-  gnr:;
-  copy nameInfo:;
-  file:;
-
-  gnr.refToVar.assigned ~ [
-    file nameInfo 0 @processor @block addUnfoundedName
-  ] when
-];
-
 processNameNode: [
   data:;
   gnr: data.nameInfo @processor @block getName;
-  processor.positions.last.file data.nameInfo gnr checkFailedName
   cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
   refToVar: cnr.refToVar copy;
 
@@ -2369,7 +2352,6 @@ processNameNode: [
 processNameReadNode: [
   data:;
   gnr: data.nameInfo @processor @block getName;
-  processor.positions.last.file data.nameInfo gnr checkFailedName
   cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
   refToVar: cnr.refToVar;
 
@@ -2390,7 +2372,6 @@ processNameReadNode: [
 processNameWriteNode: [
   data:;
   gnr: data.nameInfo @processor @block getName;
-  processor.positions.last.file data.nameInfo gnr checkFailedName
   cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
   refToVar: cnr.refToVar;
 
@@ -2551,7 +2532,6 @@ addBlock: [
           [
             nameInfo: VarString var.data.get makeStringView @processor findNameInfo;
             getNameResult: nameInfo @processor @block getName;
-            processor.positions.last.file nameInfo getNameResult checkFailedName
             captureNameResult: @getNameResult 0 dynamic @processor @block processor.positions.last.file captureName;
             refToName: captureNameResult.refToVar copy;
           ]
@@ -3095,24 +3075,6 @@ unregCodeNodeNames: [
   @block.@fieldCaptureTable.release
 ];
 
-checkPreStackDepth: [
-  newMinStackDepth: @processor block getStackDepth block.stack.dataSize -;
-  preCountedStackDepth: block.minStackDepth copy;
-  i: preCountedStackDepth copy;
-  [
-    i newMinStackDepth < [
-      preInputDepth: i preCountedStackDepth - block.stack.dataSize +;
-      preInput: preInputDepth getStackEntryForPreInput;
-      preInput.assigned [
-        preInput noMatterToCopy ~ [preInput getVar.shadowBegin @preInput set] when
-        [preInput.assigned] "Invalid preInput!" assert
-      ] when
-      preInput @block.@buildingMatchingInfo.@preInputs.pushBack
-      i 1 + @i set TRUE
-    ] &&
-  ] loop
-];
-
 addMatchingNode: [
   block:;
   copy addr:;
@@ -3197,6 +3159,46 @@ clearRecursionStack: [
   processor.recursiveNodesStack.getSize 0 > [processor.recursiveNodesStack.last block.id =] && [
     @processor.@recursiveNodesStack.popBack
   ] when
+];
+
+changeTopologyIndexForAllVars: [
+  events: clearBuildingMatchingInfo: ;;
+
+  changeTopologyIndex: [
+    refToVar: clearBuildingMatchingInfo: ;;
+    refToVar noMatterToCopy ~ [
+      var: @refToVar getVar;
+      var.buildingTopologyIndex @var.@topologyIndex set
+      clearBuildingMatchingInfo [-1 @var.@buildingTopologyIndex set] when
+      var: @var.@shadowEnd getVar;
+      var.buildingTopologyIndex @var.@topologyIndex set
+      clearBuildingMatchingInfo [-1 @var.@buildingTopologyIndex set] when
+    ] when
+  ];
+
+  @events [
+    currentEvent:;
+
+    (
+      ShadowReasonInput [
+        branch:;
+        @branch.@refToVar clearBuildingMatchingInfo changeTopologyIndex
+      ]
+      ShadowReasonCapture [
+        branch:;
+        @branch.@refToVar clearBuildingMatchingInfo changeTopologyIndex
+      ]
+      ShadowReasonPointee [
+        branch:;
+        @branch.@pointee clearBuildingMatchingInfo changeTopologyIndex
+      ]
+      ShadowReasonField [
+        branch:;
+        @branch.@field clearBuildingMatchingInfo changeTopologyIndex
+      ]
+    []
+    ) @currentEvent.visit
+  ] each
 ];
 
 checkRecursionOfCodeNode: [
@@ -3303,102 +3305,79 @@ checkRecursionOfCodeNode: [
             se1: refToVar1 noMatterToCopy [refToVar1][refToVar1 getVar.shadowEnd] if;
             se2: refToVar2 noMatterToCopy [refToVar2][refToVar2 getVar.shadowEnd] if;
             [se1.assigned [se2.assigned] &&] "variables has no shadowEnd!" assert
-            se1 se2 currentMatchingNode @comparingMessage @processor @block compareEntriesRec
+            se1 se2 @comparingMessage currentMatchingNode @processor compareOnePair
           ];
 
-          #compare inputs
+          compareTopologyIndex: [
+            refToVar: buildingRefToVar: ;;
+            ti1: refToVar         noMatterToCopy [-1][refToVar getVar.topologyIndex copy] if;
+            ti2: buildingRefToVar noMatterToCopy [-1][buildingRefToVar getVar.buildingTopologyIndex copy] if;
+            ti1 ti2 =
+          ];
+
+          #compare shadow events
           result [
-            block.matchingInfo.inputs.getSize block.buildingMatchingInfo.inputs.getSize = ~ [
+            block.matchingInfo.shadowEvents.getSize block.buildingMatchingInfo.shadowEvents.getSize = ~ [
               FALSE @result set
             ] when
 
-            result [
-              i: 0 dynamic;
-              [
-                i block.matchingInfo.inputs.getSize < [
-                  current1: i block.matchingInfo.inputs.at.refToVar;
-                  current2: i block.buildingMatchingInfo.inputs.at.refToVar;
-                  current1 current2 compareShadows ~ [
-                    FALSE @result set
-                  ] when
-                  i 1 + @i set
-                  result copy
-                ] &&
-              ] loop
-            ] when
-          ] when
+            block.matchingInfo.shadowEvents.size [
+              result [
+                currentMatchingEvent:         i block.matchingInfo.shadowEvents.at;
+                currentBuildingMatchingEvent: i block.buildingMatchingInfo.shadowEvents.at;
 
-          #compare captures
-          result [
-            block.matchingInfo.captures.getSize block.buildingMatchingInfo.captures.getSize = ~ [
-              FALSE @result set
-            ] when
+                currentMatchingEvent.getTag currentBuildingMatchingEvent.getTag = [
+                  currentMatchingEvent.getTag (
+                    ShadowReasonInput [
+                      branch:         ShadowReasonInput currentMatchingEvent.get;
+                      buildingBranch: ShadowReasonInput currentBuildingMatchingEvent.get;
 
-            result [
-              i: 0 dynamic;
-              [
-                i block.matchingInfo.captures.getSize < [
-                  capture1: i block.matchingInfo.captures.at;
-                  capture2: i block.buildingMatchingInfo.captures.at;
+                      branch.refToVar buildingBranch.refToVar compareTopologyIndex
+                      [branch.refToVar buildingBranch.refToVar compareShadows] && ~ [FALSE !result] when
+                    ]
+                    ShadowReasonCapture [
+                      branch:         ShadowReasonCapture currentMatchingEvent.get;
+                      buildingBranch: ShadowReasonCapture currentBuildingMatchingEvent.get;
 
-                  capture1.captureCase capture2.captureCase =
-                  [capture1.nameInfo capture2.nameInfo =] &&
-                  [capture1.nameOverloadDepth capture2.nameOverloadDepth =] &&
-                  [capture1.refToVar capture2.refToVar compareShadows] && ~ [
-                    FALSE @result set
-                  ] when
-                  i 1 + @i set
-                  result copy
-                ] &&
-              ] loop
-            ] when
-          ] when
+                      branch.refToVar buildingBranch.refToVar compareTopologyIndex
+                      [branch.captureCase buildingBranch.captureCase =] &&
+                      [branch.nameInfo buildingBranch.nameInfo =] &&
+                      [branch.nameOverloadDepth buildingBranch.nameOverloadDepth =] &&
+                      [branch.refToVar buildingBranch.refToVar compareShadows] && ~ [FALSE !result] when
+                    ]
+                    ShadowReasonFieldCapture [
+                      branch:         ShadowReasonFieldCapture currentMatchingEvent.get;
+                      buildingBranch: ShadowReasonFieldCapture currentBuildingMatchingEvent.get;
 
-          #compare fieldCaptures
-          result [
-            block.matchingInfo.fieldCaptures.getSize block.buildingMatchingInfo.fieldCaptures.getSize = ~ [
-              FALSE @result set
-            ] when
+                      branch.captureCase buildingBranch.captureCase =
+                      [branch.nameInfo buildingBranch.nameInfo =] &&
+                      [branch.object buildingBranch.object compareTopologyIndex] &&
+                      [branch.nameOverloadDepth buildingBranch.nameOverloadDepth =] && ~ [FALSE !result] when
+                    ]
+                    ShadowReasonPointee [
+                      branch:         ShadowReasonPointee currentMatchingEvent.get;
+                      buildingBranch: ShadowReasonPointee currentBuildingMatchingEvent.get;
 
-            result [
-              i: 0 dynamic;
-              [
-                i block.matchingInfo.fieldCaptures.getSize < [
-                  capture1: i block.matchingInfo.fieldCaptures.at;
-                  capture2: i block.buildingMatchingInfo.fieldCaptures.at;
+                      branch.pointer buildingBranch.pointer compareTopologyIndex
+                      [branch.pointee buildingBranch.pointee compareTopologyIndex] &&
+                      [branch.pointee buildingBranch.pointee compareShadows] && ~ [FALSE !result] when
+                    ]
+                    ShadowReasonField [
+                      branch:         ShadowReasonField currentMatchingEvent.get;
+                      buildingBranch: ShadowReasonField currentBuildingMatchingEvent.get;
 
-                  capture1.captureCase capture2.captureCase =
-                  [capture1.nameInfo capture2.nameInfo =] &&
-                  [capture1.nameOverloadDepth capture2.nameOverloadDepth =] && ~ [
-                    FALSE @result set
-                  ] when
-                  i 1 + @i set
-                  result copy
-                ] &&
-              ] loop
-            ] when
-          ] when
-
-          #compareOutputs
-          result [
-            block.stack.getSize block.outputs.getSize = ~ [
-              FALSE @result set
-            ] when
-
-            result [
-              i: 0 dynamic;
-              [
-                i block.stack.getSize < [
-                  current1: i block.stack.at;
-                  current2: i block.outputs.at.refToVar;
-                  #current1 current2 currentMatchingNode @nestedToCur @curToNested @comparingMessage @processor @block compareEntriesRec ~ [
-                  #  FALSE @result set
-                  #] when
-                  i 1 + @i set
-                  result copy
-                ] &&
-              ] loop
-            ] when
+                      branch.object buildingBranch.object compareTopologyIndex
+                      [branch.mplFieldIndex buildingBranch.mplFieldIndex =] &&
+                      [branch.field buildingBranch.field compareTopologyIndex] &&
+                      [branch.field buildingBranch.field compareShadows] && ~ [FALSE !result] when
+                    ]
+                    []
+                  ) case
+                ] [
+                  FALSE !result
+                ] if
+              ] when
+            ] times
           ] when
 
           result [
@@ -3413,7 +3392,9 @@ checkRecursionOfCodeNode: [
     ] if
   ] if
 
+  block.buildingMatchingInfo.shadowEvents clearBuildingMatchingInfo changeTopologyIndexForAllVars
   block.buildingMatchingInfo @block.@matchingInfo set
+
   clearBuildingMatchingInfo [
     MatchingInfo @block.@buildingMatchingInfo set
     0            @block.@lastLambdaName set
@@ -3626,13 +3607,64 @@ makeCompilerPosition: [
   String @block.@header set
   String @block.@signature set
 
+  validInputCount: 0;
+  processor compilable [
+    i: 0 dynamic;
+    [
+      i block.buildingMatchingInfo.inputs.dataSize < [
+        # const to plain make copy
+        current: i @block.@buildingMatchingInfo.@inputs.at;
+
+        current.refToVar getVar.data.getTag VarInvalid = [
+          ArgMeta @current.@argCase set
+        ] [
+          validInputCount 1 + !validInputCount
+          current.refToVar isVirtual [
+            ArgVirtual @current.@argCase set
+          ] [
+            current.argCase ArgGlobal = [
+              TRUE @hasEffect set
+            ] [
+              currentVar: current.refToVar getVar;
+              needToCopy: hasForcedSignature [
+                i forcedSignature.inputs.at getVar.data.getTag VarRef = ~
+              ] [
+                current.refToVar argRecommendedToCopy
+              ] if;
+
+              needToCopy [current.refToVar argAbleToCopy ~] && [isRealFunction copy] && [
+                "getting huge agrument by copy; mpl's export function can not have this signature" @processor block compilerError
+              ] when
+
+              needToCopy [
+                regNameId: @processor @block generateRegisterIRName;
+                ArgCopy @current.@argCase set
+                current.refToVar regNameId addCopyArg
+
+                current.refToVar getVar.allocationInstructionIndex 0 < [
+                  regNameId @current.@refToVar @processor @block createAllocIR @processor @block createStoreFromRegister
+                  TRUE @block.@program.last.@alloca set #fake for good sotring
+                ] when
+              ] [
+                ArgRef @current.@argCase set
+                current.refToVar FALSE addRefArg
+              ] if
+            ] if
+          ] if
+        ] if
+
+        i 1 + @i set processor compilable
+      ] &&
+    ] loop
+  ] when
+
   inputCountMismatch: [
     ("In signature there are " forcedSignature.inputs.getSize " inputs, but really here " block.buildingMatchingInfo.inputs.getSize " inputs") assembleString @processor block compilerError
   ];
 
   hasForcedSignature [
-    block.buildingMatchingInfo.inputs.getSize forcedSignature.inputs.getSize = ~ [
-      block.buildingMatchingInfo.inputs.getSize 1 + forcedSignature.inputs.getSize =
+    validInputCount forcedSignature.inputs.getSize = ~ [
+      validInputCount 1 + forcedSignature.inputs.getSize =
       [forcedSignature.outputs.getSize 0 >] &&
       [0 forcedSignature.outputs.at forcedSignature.inputs.last variablesAreSame] && [
         #todo for MPL signature check each
@@ -3643,51 +3675,6 @@ makeCompilerPosition: [
     ] when
 
     forcedSignature @block.@csignature set
-  ] when
-
-  processor compilable [
-    i: 0 dynamic;
-    [
-      i block.buildingMatchingInfo.inputs.dataSize < [
-        # const to plain make copy
-        current: i @block.@buildingMatchingInfo.@inputs.at;
-
-        current.refToVar isVirtual [
-          ArgVirtual @current.@argCase set
-        ] [
-          current.argCase ArgGlobal = [
-            TRUE @hasEffect set
-          ] [
-            currentVar: current.refToVar getVar;
-            needToCopy: hasForcedSignature [
-              i forcedSignature.inputs.at getVar.data.getTag VarRef = ~
-            ] [
-              current.refToVar argRecommendedToCopy
-            ] if;
-
-            needToCopy [current.refToVar argAbleToCopy ~] && [isRealFunction copy] && [
-              "getting huge agrument by copy; mpl's export function can not have this signature" @processor block compilerError
-            ] when
-
-            needToCopy [
-              regNameId: @processor @block generateRegisterIRName;
-              ArgCopy @current.@argCase set
-              current.refToVar regNameId addCopyArg
-
-              current.refToVar getVar.allocationInstructionIndex 0 < [
-                regNameId @current.@refToVar @processor @block createAllocIR @processor @block createStoreFromRegister
-                TRUE @block.@program.last.@alloca set #fake for good sotring
-              ] when
-            ] [
-              ArgRef @current.@argCase set
-              current.refToVar FALSE addRefArg
-            ] if
-          ] if
-        ] if
-
-        i 1 + @i set processor compilable
-      ] &&
-    ] loop
   ] when
 
   block.parent 0 =
@@ -3816,7 +3803,6 @@ makeCompilerPosition: [
   ] || @block.@empty set
 
   @processor @block addDebugLocationForLastInstruction
-  checkPreStackDepth
 
   fixArrShadow: [
     refToVar:;
@@ -3871,23 +3857,23 @@ makeCompilerPosition: [
       (
         ShadowReasonInput [
           branch:;
-          ("shadow event [" i "] input as " branch.refToVar getVar.topologyIndex) assembleString @block createComment
+          ("shadow event [" i "] input as " branch.refToVar getVar.buildingTopologyIndex) assembleString @block createComment
         ]
         ShadowReasonCapture [
           branch:;
-          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.topologyIndex) assembleString @block createComment
+          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.buildingTopologyIndex) assembleString @block createComment
         ]
         ShadowReasonFieldCapture [
           branch:;
-          ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.topologyIndex) assembleString @block createComment
+          ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.buildingTopologyIndex) assembleString @block createComment
         ]
         ShadowReasonPointee [
           branch:;
-          ("shadow event [" i "] pointee " branch.pointer getVar.topologyIndex " as " branch.pointee getVar.topologyIndex)  assembleString @block createComment
+          ("shadow event [" i "] pointee " branch.pointer getVar.buildingTopologyIndex " as " branch.pointee getVar.buildingTopologyIndex)  assembleString @block createComment
         ]
         ShadowReasonField [
           branch:;
-          ("shadow event [" i "] field " branch.object getVar.topologyIndex " [" branch.mplFieldIndex "] as " branch.field getVar.topologyIndex) assembleString @block createComment
+          ("shadow event [" i "] field " branch.object getVar.buildingTopologyIndex " [" branch.mplFieldIndex "] as " branch.field getVar.buildingTopologyIndex) assembleString @block createComment
         ]
         []
       ) event.visit
@@ -3918,15 +3904,10 @@ makeCompilerPosition: [
     info @block createComment
 
     info: String;
-    "fieldCaptureNames: " @info.cat
-    block.fieldCaptureNames @info addNames
-    info @block createComment
-
-    info: String;
-    "failedCaptures: " @info.cat
-    block.matchingInfo.unfoundedNames [
-      un: .key;
-      (un.nameInfo processor.nameManager.getText ", ") @info.catMany
+    "outputs: " @info.cat
+    block.outputs [
+      c:;
+      (c.refToVar @processor @block getMplType ", ") @info.catMany
     ] each
 
     info @block createComment
@@ -4244,7 +4225,6 @@ addIndexArrayToProcess: [
     processor compilable [
       functionName compilerPositionInfo forcedSignature @processor @block finalizeCodeNode
     ] [
-      checkPreStackDepth
       unregCodeNodeNames
       block.id @processor deleteNode
       clearRecursionStack

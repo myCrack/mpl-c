@@ -20,8 +20,11 @@
 "builtins.initBuiltins" use
 "codeNode.addBlock" use
 "codeNode.astNodeToCodeNode" use
+"codeNode.createVariable" use
 "codeNode.finalizeCodeNode" use
 "codeNode.killStruct" use
+"codeNode.makeStaticity" use
+"codeNode.makeStorageStaticity" use
 "debugWriter.addDebugProlog" use
 "debugWriter.addDebugReserve" use
 "debugWriter.addFileDebugInfo" use
@@ -48,8 +51,11 @@
 "processor.ProcessorOptions" use
 "processSubNodes.clearProcessorResult" use
 "Var.getVar" use
+"Var.Dirty" use
+"Var.Dynamic" use
 "Var.RefToVar" use
 "Var.ShadowReasonCapture" use
+"Var.VarInvalid" use
 "Var.VarStruct" use
 "Var.VarSchema" use
 
@@ -94,6 +100,14 @@
   TRUE dynamic @processor.@blocks.last.get.@root set
 
   @processor initBuiltins
+
+  [
+    block: @processor.@blocks.last.get;
+    0n8 VarInvalid @processor @block createVariable
+    Dynamic @processor block makeStorageStaticity
+    Dirty   @processor block makeStaticity
+    @processor.@varForFails set
+  ] call
 
   s1: String;
   s2: String;

@@ -88,7 +88,7 @@ makeVariableSchema: [
     VariableSchemaTags.VIRTUAL_VALUE_SCHEMA @varSchema.@data.setTag
     virtualValueSchema: VariableSchemaTags.VIRTUAL_VALUE_SCHEMA @varSchema.@data.get;
     schemaId copy @virtualValueSchema.!schemaId
-    refToVar getVirtualValue @virtualValueSchema.!vitrualValue
+    refToVar getVirtualValue @virtualValueSchema.!virtualValue
   ] when
 
   @varSchema
@@ -204,9 +204,9 @@ FunctionSchema: [{
 VirtualValueSchema: [{
   VIRTUAL_VALUE_SCHEMA: ();
   schemaId: Int32;
-  vitrualValue: String;
+  virtualValue: String;
 
-  equal: [other:; schemaId other.schemaId = [vitrualValue other.vitrualValue =] &&];
+  equal: [other:; schemaId other.schemaId = [virtualValue other.virtualValue =] &&];
 }];
 
 StructSchema: [{
@@ -258,7 +258,7 @@ hashSchema: ["VIRTUAL_VALUE_SCHEMA" has] [
   virtualValueSchema:;
   seed:;
   @seed virtualValueSchema.schemaId hashCombine
-  @seed virtualValueSchema.vitrualValue.hash hashCombine
+  @seed virtualValueSchema.virtualValue.hash hashCombine
 ] pfunc;
 
 hashSchema: ["STRUCT_SCHEMA" has] [

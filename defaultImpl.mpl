@@ -149,8 +149,9 @@ defaultMakeConstWith: [
 ];
 
 getStackEntryWith: [
-  depth: check: block: ;; copy;
-  result: RefToVar @block isConst [Cref] [Ref] uif; #ref to 0nx
+  depth: check: processor: block: ;; copy; copy;
+
+  result: @block isConst [processor.varForFails] [@processor.@varForFails] uif;
   currentBlock: @block; [
     currentBlock.root [
       check ["stack underflow" @processor block compilerError] when
@@ -160,7 +161,7 @@ getStackEntryWith: [
         currentBlock.stack.dataSize 1 - depth - @currentBlock.@stack.at !result
         FALSE
       ] [
-        depth currentBlock.stack.dataSize - currentBlock.buildingMatchingInfo.inputs.dataSize + @depth set
+        depth currentBlock.stack.dataSize - currentBlock.buildingMatchingInfo.inputs.size + @depth set
         currentBlock.parent @processor.@blocks.at.get !currentBlock
         TRUE
       ] if
@@ -170,8 +171,8 @@ getStackEntryWith: [
   @result
 ];
 
-getStackEntry:          [depth: processor: block:;; copy; depth TRUE  @block getStackEntryWith];
-getStackEntryUnchecked: [depth: processor: block:;; copy; depth FALSE block  getStackEntryWith];
+getStackEntry:          [depth: processor: block:;; copy; depth TRUE  @processor @block getStackEntryWith];
+getStackEntryUnchecked: [depth: processor: block:;; copy; depth FALSE processor block  getStackEntryWith];
 
 getStackDepth: [
   processor: block:;;
@@ -180,7 +181,7 @@ getStackDepth: [
   [
     block.root ~ [
       depth block.stack.dataSize + @depth set
-      inputsCount block.buildingMatchingInfo.inputs.dataSize + @inputsCount set
+      inputsCount block.buildingMatchingInfo.inputs.size + @inputsCount set
       block.parent processor.blocks.at.get !block
       TRUE
     ] &&
@@ -235,16 +236,12 @@ findNameInfo: [
 ];
 
 addStackUnderflowInfo: [
-  block:;
-  TRUE @block.@buildingMatchingInfo.@hasStackUnderflow set
-  block.state NodeStateNew = [
-    TRUE @block.@matchingInfo.@hasStackUnderflow set
-  ] when
+  processor: block:;;
 
   newEvent: ShadowEvent;
   ShadowReasonInput @newEvent.setTag
   branch: ShadowReasonInput @newEvent.get;
-  RefToVar @branch.@refToVar set
+  processor.varForFails @branch.@refToVar set
   ArgMeta   @branch.@argCase set
   @newEvent @block addShadowEvent
 ];

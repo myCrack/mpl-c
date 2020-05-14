@@ -140,6 +140,7 @@ Processor: [{
   globalVarCount:         0 dynamic;
   globalVarId:            0 dynamic;
   globalInitializer:      -1 dynamic; # index of func for calling all initializers
+  varForFails:            RefToVar;
   globalDestructibleVars: RefToVar Array;
   exportDepth:            0 dynamic;
 
@@ -164,7 +165,7 @@ Processor: [{
 
   acquireVarRefArray: [
     varRefArrays.size 0 = [
-      varRefArrayCount 11 = ["Too many varRef arrays requested\00" failProc] when
+      varRefArrayCount 15 = ["Too many varRef arrays requested\00" failProc] when
       varRefArrayCount 1 + !varRefArrayCount
       RefToVar Array
     ] [

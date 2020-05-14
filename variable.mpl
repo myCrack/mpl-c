@@ -42,6 +42,7 @@
 "Var.VarBuiltin" use
 "Var.VarCode" use
 "Var.VarCond" use
+"Var.VarInvalid" use
 "Var.VarImport" use
 "Var.VarInt8" use
 "Var.VarInt16" use
@@ -238,16 +239,20 @@ getNonrecursiveDataIRType: [
   ] [
     result: String;
     var: refToVar getVar;
-    var.data.getTag VarString = [
-      "i8" toString @result set
+    var.data.getTag VarInvalid = [
+      "INVALID" toString @result set
     ] [
-      var.data.getTag VarImport = [
-        VarImport var.data.get getFuncIrType toString @result set
+      var.data.getTag VarString = [
+        "i8" toString @result set
       ] [
-        var.data.getTag VarCode = [var.data.getTag VarBuiltin =] ||  [
-          "ERROR" toString @result set
+        var.data.getTag VarImport = [
+          VarImport var.data.get getFuncIrType toString @result set
         ] [
-          "Unknown nonrecursive struct" @processor block compilerError
+          var.data.getTag VarCode = [var.data.getTag VarBuiltin =] ||  [
+            "ERROR" toString @result set
+          ] [
+            "Unknown nonrecursive struct" @processor block compilerError
+          ] if
         ] if
       ] if
     ] if
@@ -272,10 +277,14 @@ getNonrecursiveDataMPLType: [
         var.data.getTag VarBuiltin = [
           "b" toString @result set
         ] [
-          var.data.getTag VarImport = [
-            ("F" VarImport var.data.get block getFuncMplType) assembleString @result set
+          var.data.getTag VarInvalid = [
+            "I" toString @result set
           ] [
-            "Unknown nonrecursive struct" @processor block compilerError
+            var.data.getTag VarImport = [
+              ("F" VarImport var.data.get block getFuncMplType) assembleString @result set
+            ] [
+              "Unknown nonrecursive struct" @processor block compilerError
+            ] if
           ] if
         ] if
       ] if

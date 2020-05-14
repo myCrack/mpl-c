@@ -112,14 +112,12 @@ compilerError: [processor: block:;; makeStringView block @processor compilerErro
 } Int32 {} "processExportFunction" importFunction
 
 {
-  block: Block Cref;
-  processor: Processor Ref;
-
-  comparingMessage: String Ref;
+  processor: Processor Cref;
   currentMatchingNode: Block Cref;
+  comparingMessage: String Ref;
   cacheEntry: RefToVar Cref;
   stackEntry: RefToVar Cref;
-} Cond {} "compareEntriesRec" importFunction
+} Cond {} "compareOnePair" importFunction
 
 {
   block: Block Cref;

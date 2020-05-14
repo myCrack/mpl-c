@@ -123,12 +123,8 @@ ShadowEvent: [(
 ) Variant];
 
 MatchingInfo: [{
-  inputs: Argument Array;
-  preInputs: RefToVar Array;
-  captures: Capture Array;
-  fieldCaptures: FieldCapture Array;
-  hasStackUnderflow: FALSE dynamic;
-  unfoundedNames: UnfoundedName Cond HashTable; #nameInfos
+  inputs: Argument Array; #for generating signatures
+  captures: Capture Array; #for generating signatures, for finding 'self'
   shadowEvents: ShadowEvent Array;
   lastTopologyIndex: 0 dynamic;
 }];

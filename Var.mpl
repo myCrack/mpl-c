@@ -131,8 +131,10 @@ Variable: [{
   tref:                              TRUE dynamic;
   shadowReason:                      ShadowReasonNo;
   globalId:                          -1 dynamic;
+  buildingTopologyIndex:             -1 dynamic;
   topologyIndex:                     -1 dynamic;
   topologyIndexWhileMatching:        -1 dynamic;
+  topologyIndexWhileMatching2:       -1 dynamic;
   shadowBegin:                       RefToVar;
   shadowEnd:                         RefToVar;
   capturedHead:                      RefToVar;
@@ -199,9 +201,11 @@ isVirtualType: [
   var: refToVar getVar;
   var.data.getTag VarBuiltin =
   [var.data.getTag VarCode =] ||
+  [var.data.getTag VarInvalid =] ||
   [var.data.getTag VarStruct = [VarStruct var.data.get.get.fullVirtual copy] &&] ||
   [refToVar isSchema] ||
 ];
+
 isInt: [
   var: getVar;
   var.data.getTag VarInt8 =
@@ -283,6 +287,7 @@ getVirtualValue: [
   result: String;
 
   var.data.getTag (
+    VarInvalid ["INVALID" toString @result set]
     VarStruct [
       "{" @result.cat
       struct: VarStruct var.data.get.get;
@@ -357,6 +362,7 @@ isNonrecursiveType: [
   refToVar isPlain [
     var: refToVar getVar;
     var.data.getTag VarString =
+    [var.data.getTag VarInvalid =] ||
     [var.data.getTag VarCode =] ||
     [var.data.getTag VarBuiltin =] ||
     [var.data.getTag VarImport =] ||
