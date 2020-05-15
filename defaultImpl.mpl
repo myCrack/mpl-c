@@ -272,6 +272,8 @@ addEmptyCapture: [
 addShadowEvent: [
   event: block: ;;
 
+  #begin of var go to matching
+
   event @block.@buildingMatchingInfo.@shadowEvents.pushBack
 
   block.state NodeStateNew = [

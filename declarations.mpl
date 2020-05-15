@@ -115,6 +115,7 @@ compilerError: [processor: block:;; makeStringView block @processor compilerErro
   processor: Processor Cref;
   currentMatchingNode: Block Cref;
   comparingMessage: String Ref;
+  checkConstness: Cond;
   cacheEntry: RefToVar Cref;
   stackEntry: RefToVar Cref;
 } Cond {} "compareOnePair" importFunction

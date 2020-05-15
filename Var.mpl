@@ -473,7 +473,6 @@ getStructStorageSize: [
   struct.structStorageSize copy
 ];
 
-
 getStorageSize: [
   refToVar: processor: ;;
   refToVar isSingle [

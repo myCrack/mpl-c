@@ -127,7 +127,6 @@
 "declarations.compilerError" use
 "declarations.createDtorForGlobalVar" use
 "declarations.createRefWith" use
-"declarations.compareOnePair" use
 "declarations.copyOneVar" use
 "declarations.copyOneVarWith" use
 "declarations.copyVar" use
@@ -411,7 +410,13 @@ setTopologyIndex: [
     var.topologyIndex 0 < [
       topologyIndex: @block.@buildingMatchingInfo.@lastTopologyIndex;
       topologyIndex @var.@buildingTopologyIndex set
-      topologyIndex @var.@shadowBegin getVar.@buildingTopologyIndex set
+      topologyIndex @var.@shadowEnd getVar.@buildingTopologyIndex set
+
+      block.state NodeStateNew = [
+        topologyIndex @var.@topologyIndex set
+        topologyIndex @var.@shadowEnd getVar.@topologyIndex set
+      ] when
+
       topologyIndex 1 + @topologyIndex set
     ] when
   ] when
@@ -429,9 +434,9 @@ getStackEntryForPreInput: [
     newEvent: ShadowEvent;
     ShadowReasonInput @newEvent.setTag
     branch: ShadowReasonInput @newEvent.get;
-    shadowEnd @branch.@refToVar set
-    ArgMeta   @branch.@argCase set
-    @block @shadowEnd setTopologyIndex
+    shadowBegin @branch.@refToVar set
+    ArgMeta     @branch.@argCase set
+    @block @shadowBegin setTopologyIndex
     @newEvent @block addShadowEvent
 
     shadowEnd
@@ -453,6 +458,18 @@ makeVarNat64:  [VarNat64  @processor @block checkValue VarNat64  @processor @blo
 makeVarNatX:   [VarNatX   @processor @block checkValue VarNatX   @processor @block createVariable @processor @block createPlainIR];
 makeVarReal32: [VarReal32 @processor @block checkValue VarReal32 @processor @block createVariable @processor @block createPlainIR];
 makeVarReal64: [VarReal64 @processor @block checkValue VarReal64 @processor @block createVariable @processor @block createPlainIR];
+
+getShadowBegin: [
+  refToVar:;
+  refToVar noMatterToCopy [
+    refToVar copy
+  ] [
+    [refToVar getVar.shadowBegin.assigned] "Var has no ShadowBegin!" assert
+    result: refToVar getVar.shadowBegin copy;
+    refToVar.mutable @result.setMutable
+    result
+  ] if
+];
 
 getPointeeForMatching: [
   processor: block: ;;
@@ -548,9 +565,11 @@ getPointeeWith: [
           ShadowReasonPointee @newEvent.setTag
           branch: ShadowReasonPointee @newEvent.get;
 
-          var.sourceOfValue @branch.@pointer set
-          pointee           @branch.@pointee set
-          @block @pointee setTopologyIndex
+          [var.sourceOfValue getVar.data.getTag VarRef =] "Source of value is not pointer!" assert
+
+          var.sourceOfValue getShadowBegin @branch.@pointer set
+          pointee getShadowBegin           @branch.@pointee set
+          @block @branch.@pointee setTopologyIndex
 
           @newEvent @block addShadowEvent
         ] when
@@ -588,17 +607,17 @@ getFieldForMatching: [
 
   var: refToVar getVar;
   [var.data.getTag VarStruct =] "Not a combined!" assert
-  struct: VarStruct @var.@data.get.get;
+  structInfo: VarStruct @var.@data.get.get;
 
   mplFieldIndex 0 < ~ [
-    fieldRefToVar: mplFieldIndex struct.fields.at.refToVar copy;
+    fieldRefToVar: mplFieldIndex structInfo.fields.at.refToVar copy;
     refToVar.mutable @fieldRefToVar.setMutable
     @fieldRefToVar @processor block unglobalize
 
     fieldVar: @fieldRefToVar getVar;
     fieldVar.data.getTag VarStruct = [
       fieldStruct: VarStruct @fieldVar.@data.get.get;
-      struct.forgotten @fieldStruct.@forgotten set
+      structInfo.forgotten @fieldStruct.@forgotten set
     ] when
 
     fieldRefToVar
@@ -608,18 +627,18 @@ getFieldForMatching: [
   ] if
 ];
 
-getField: [
-  mplFieldIndex: refToVar: processor: block: ;;;;
+getFieldWith: [
+  whileMakingTreeDynamicStoraged: mplFieldIndex: refToVar: processor: block: ;;;;;
   var: @refToVar getVar;
   [var.data.getTag VarStruct =] "Not a combined!" assert
-  struct: VarStruct @var.@data.get.get;
+  structInfo: VarStruct @var.@data.get.get;
 
-  mplFieldIndex 0 < ~ [mplFieldIndex struct.fields.getSize <] && [
-    fieldRefToVar: mplFieldIndex @struct.@fields.at.@refToVar;
+  mplFieldIndex 0 < ~ [mplFieldIndex structInfo.fields.getSize <] && [
+    fieldRefToVar: mplFieldIndex @structInfo.@fields.at.@refToVar;
     fieldVar: @fieldRefToVar getVar;
     fieldVar.data.getTag VarStruct = [
       fieldStruct: VarStruct @fieldVar.@data.get.get;
-      struct.forgotten @fieldStruct.@forgotten set
+      structInfo.forgotten @fieldStruct.@forgotten set
     ] when
 
     fieldRefToVar noMatterToCopy [fieldVar.host block is] || ~ [ # capture or argument
@@ -637,6 +656,13 @@ getField: [
         psEnd: RefToVar;
         fieldShadow @psBegin @psEnd ShadowReasonField @processor @block makeShadows
 
+        fieldShadow getVar.data.getTag VarStruct = [
+          beginStruct: VarStruct @psBegin getVar.@data.get.get;
+          endStruct:   VarStruct @psEnd   getVar.@data.get.get;
+          structInfo.forgotten @beginStruct.@forgotten set
+          structInfo.forgotten @endStruct  .@forgotten set
+        ] when
+
         psBegin @fieldShadow set
         psEnd @fieldRefToVar set
       ] if
@@ -648,18 +674,20 @@ getField: [
 
     refToVar.mutable @fieldRefToVar.setMutable
 
-    refToVar noMatterToCopy ~ [var.capturedHead getVar.host block is ~] && [fieldRefToVar noMatterToCopy ~] && [mplFieldIndex struct.fields.at.usedHere ~] &&  [
-      TRUE mplFieldIndex @struct.@fields.at.!usedHere
+    var.buildingTopologyIndex 0 < ~ [refToVar noMatterToCopy ~] && [var.capturedHead getVar.host block is ~] && [fieldRefToVar noMatterToCopy ~] && [mplFieldIndex structInfo.fields.at.usedHere ~] &&  [
+      TRUE mplFieldIndex @structInfo.@fields.at.!usedHere
 
       newEvent: ShadowEvent;
       ShadowReasonField @newEvent.setTag
       branch: ShadowReasonField @newEvent.get;
 
-      refToVar      @branch.@object set
-      mplFieldIndex @branch.@mplFieldIndex set
-      fieldRefToVar @branch.@field set
+      refToVar getShadowBegin      @branch.@object set
+      mplFieldIndex                @branch.@mplFieldIndex set
+      fieldRefToVar getShadowBegin @branch.@field set
 
-      @block @fieldRefToVar setTopologyIndex
+      ("field result has type " fieldRefToVar @processor @block getMplType " as " fieldRefToVar getVar storageAddress) assembleString print LF print
+
+      @block @branch.@field setTopologyIndex
       @newEvent @block addShadowEvent
     ] when
 
@@ -669,6 +697,11 @@ getField: [
     failResult: RefToVar Ref;
     @failResult
   ] if
+];
+
+getField: [
+  mplFieldIndex: refToVar: processor: block: ;;;;
+  FALSE dynamic mplFieldIndex refToVar @processor @block getFieldWith
 ];
 
 captureEntireStruct: [
@@ -1029,7 +1062,7 @@ makeVarTreeDynamicWith: [
         [
           j struct.fields.dataSize < [
             j struct.fields.at.refToVar isVirtual ~ [
-              j @lastRefToVar @processor @block getField @unfinishedVars.pushBack
+              dynamicStoraged j @lastRefToVar @processor @block getFieldWith @unfinishedVars.pushBack
             ] when
             j 1 + @j set TRUE
           ] &&
@@ -1236,6 +1269,7 @@ findNameStackObject: [
   [
     i file nameInfo processor.nameManager.findItem !i
     i 0 < [
+      processor.varForFails @result set
       FALSE
     ] [
       item: i nameInfo processor.nameManager.getItem;
@@ -1473,14 +1507,14 @@ captureName: [
           ShadowReasonCapture @newEvent.setTag
           branch: ShadowReasonCapture @newEvent.get;
           newCapture @branch set
+          shadowBegin @branch.@refToVar set
 
           newCapture @block.@buildingMatchingInfo.@captures.pushBack
           block.state NodeStateNew = [
-            shadowBegin @newCapture.@refToVar set
             newCapture @block.@matchingInfo.@captures.pushBack
           ] when
 
-          @block @shadowEnd setTopologyIndex
+          @block @shadowBegin setTopologyIndex
           @newEvent @block addShadowEvent
 
           processor.options.debug [shadowEnd isVirtual ~] && [shadowEnd isGlobal ~] && [
@@ -1569,6 +1603,7 @@ captureName: [
         ShadowReasonFieldCapture @newEvent.setTag
         branch: ShadowReasonFieldCapture @newEvent.get;
         newFieldCapture @branch set
+        result.object getShadowBegin @branch.@object set
         @newEvent @block addShadowEvent
       ] when
     ] [
@@ -2077,6 +2112,7 @@ setRef: [
     # manually copy only nececcary fields
     dstStruct: Struct;
     srcStruct.fields          @dstStruct.@fields set
+    @dstStruct.@fields [field:; FALSE @field.@usedHere set] each
     @dstStruct move owner VarStruct src isVirtual src isSchema FALSE dynamic @processor @block createVariableWithVirtual
     src checkedStaticityOfVar @processor block makeStaticity @result set
     dstStructAc: VarStruct @result getVar.@data.get.get;
@@ -2097,7 +2133,11 @@ setRef: [
       ] when
     ] staticCall
 
-    srcVar.data.getTag VarRef = [srcVar.shadowBegin @result getVar.@shadowBegin set] when  #for ttest48
+    srcVar.data.getTag VarRef = [
+      dstVar: @result getVar;
+      FALSE VarRef @dstVar.@data.get.@usedHere set
+      srcVar.shadowEnd   @dstVar.@shadowEnd set
+    ] when  #for ttest48
   ] if
 
   src.mutable @result.setMutable
@@ -2277,21 +2317,18 @@ setRef: [
 
       entry isGlobal [ArgGlobal @newInput.@argCase set] when
 
-
       newEvent: ShadowEvent;
       ShadowReasonInput @newEvent.setTag
       branch: ShadowReasonInput @newEvent.get;
       newInput @branch set
-      @block @result setTopologyIndex
+      shadowBegin @branch.@refToVar set
+      @block @shadowBegin setTopologyIndex
       @newEvent @block addShadowEvent
 
       #add input
       result getVar.data.getTag VarInvalid = ~ [
         newInput @block.@buildingMatchingInfo.@inputs.pushBack
         block.state NodeStateNew = [
-          result noMatterToCopy ~ [
-            result getVar.shadowBegin @newInput.@refToVar set
-          ] when
           newInput @block.@matchingInfo.@inputs.pushBack
         ] when
       ] when
@@ -3274,7 +3311,6 @@ checkRecursionOfCodeNode: [
     #recursion successful
   ];
 
-
   block.state NodeStateNew = [
     NodeStateCompiled @block.@state set
   ] [
@@ -3300,12 +3336,13 @@ checkRecursionOfCodeNode: [
           currentMatchingNode: currentMatchingNodeIndex @processor.@blocks.at.get;
 
           compareShadows: [
+            checkConstness:;
             refToVar2:;
             refToVar1:;
             se1: refToVar1 noMatterToCopy [refToVar1][refToVar1 getVar.shadowEnd] if;
             se2: refToVar2 noMatterToCopy [refToVar2][refToVar2 getVar.shadowEnd] if;
             [se1.assigned [se2.assigned] &&] "variables has no shadowEnd!" assert
-            se1 se2 @comparingMessage currentMatchingNode @processor compareOnePair
+            se1 se2 checkConstness @comparingMessage currentMatchingNode @processor compareOnePair
           ];
 
           compareTopologyIndex: [
@@ -3333,7 +3370,7 @@ checkRecursionOfCodeNode: [
                       buildingBranch: ShadowReasonInput currentBuildingMatchingEvent.get;
 
                       branch.refToVar buildingBranch.refToVar compareTopologyIndex
-                      [branch.refToVar buildingBranch.refToVar compareShadows] && ~ [FALSE !result] when
+                      [branch.refToVar buildingBranch.refToVar TRUE compareShadows] && ~ [FALSE !result] when
                     ]
                     ShadowReasonCapture [
                       branch:         ShadowReasonCapture currentMatchingEvent.get;
@@ -3343,7 +3380,7 @@ checkRecursionOfCodeNode: [
                       [branch.captureCase buildingBranch.captureCase =] &&
                       [branch.nameInfo buildingBranch.nameInfo =] &&
                       [branch.nameOverloadDepth buildingBranch.nameOverloadDepth =] &&
-                      [branch.refToVar buildingBranch.refToVar compareShadows] && ~ [FALSE !result] when
+                      [branch.refToVar buildingBranch.refToVar TRUE compareShadows] && ~ [FALSE !result] when
                     ]
                     ShadowReasonFieldCapture [
                       branch:         ShadowReasonFieldCapture currentMatchingEvent.get;
@@ -3360,7 +3397,7 @@ checkRecursionOfCodeNode: [
 
                       branch.pointer buildingBranch.pointer compareTopologyIndex
                       [branch.pointee buildingBranch.pointee compareTopologyIndex] &&
-                      [branch.pointee buildingBranch.pointee compareShadows] && ~ [FALSE !result] when
+                      [branch.pointee buildingBranch.pointee TRUE compareShadows] && ~ [FALSE !result] when
                     ]
                     ShadowReasonField [
                       branch:         ShadowReasonField currentMatchingEvent.get;
@@ -3369,7 +3406,7 @@ checkRecursionOfCodeNode: [
                       branch.object buildingBranch.object compareTopologyIndex
                       [branch.mplFieldIndex buildingBranch.mplFieldIndex =] &&
                       [branch.field buildingBranch.field compareTopologyIndex] &&
-                      [branch.field buildingBranch.field compareShadows] && ~ [FALSE !result] when
+                      [branch.field buildingBranch.field FALSE compareShadows] && ~ [FALSE !result] when
                     ]
                     []
                   ) case
@@ -3391,6 +3428,43 @@ checkRecursionOfCodeNode: [
       ] if
     ] if
   ] if
+
+
+
+   ("shadow events before recursion shift in : " block storageAddress) assembleString print LF print
+  block.buildingMatchingInfo.shadowEvents.size [
+    event: i block.buildingMatchingInfo.shadowEvents.at;
+
+    (
+      ShadowReasonInput [
+        branch:;
+        ("shadow event [" i "] input as " branch.refToVar getVar.buildingTopologyIndex) assembleString print LF print
+      ]
+      ShadowReasonCapture [
+        branch:;
+        ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.buildingTopologyIndex) assembleString  print LF print
+      ]
+      ShadowReasonFieldCapture [
+        branch:;
+        ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.buildingTopologyIndex) assembleString  print LF print
+      ]
+      ShadowReasonPointee [
+        branch:;
+        ("shadow event [" i "] pointee " branch.pointer getVar.buildingTopologyIndex " as " branch.pointee getVar.buildingTopologyIndex)  assembleString  print LF print
+      ]
+      ShadowReasonField [
+        branch:;
+        ("shadow event [" i "] field " branch.object getVar.buildingTopologyIndex " [" branch.mplFieldIndex "] as " branch.field getVar.buildingTopologyIndex) assembleString  print LF print
+      ]
+      []
+    ) event.visit
+  ] times
+
+
+
+
+
+
 
   block.buildingMatchingInfo.shadowEvents clearBuildingMatchingInfo changeTopologyIndexForAllVars
   block.buildingMatchingInfo @block.@matchingInfo set
@@ -3607,7 +3681,34 @@ makeCompilerPosition: [
   String @block.@header set
   String @block.@signature set
 
+  inputCountMismatch: [
+    ("In signature there are " forcedSignature.inputs.getSize " inputs, but really here " block.buildingMatchingInfo.inputs.getSize " inputs") assembleString @processor block compilerError
+  ];
+
   validInputCount: 0;
+  block.buildingMatchingInfo.inputs [
+    current:;
+    current.refToVar getVar.data.getTag VarInvalid = ~ [
+      validInputCount 1 + !validInputCount
+    ] when
+  ] each
+
+  hasForcedSignature [
+    validInputCount forcedSignature.inputs.getSize = ~ [
+      validInputCount 1 + forcedSignature.inputs.getSize =
+      [forcedSignature.outputs.getSize 0 >] &&
+      [0 forcedSignature.outputs.at forcedSignature.inputs.last variablesAreSame] && [
+        #todo for MPL signature check each
+        @processor @block pop @block push
+        validInputCount 1 + !validInputCount
+      ] [
+        inputCountMismatch
+      ] if
+    ] when
+
+    forcedSignature @block.@csignature set
+  ] when
+
   processor compilable [
     i: 0 dynamic;
     [
@@ -3618,7 +3719,6 @@ makeCompilerPosition: [
         current.refToVar getVar.data.getTag VarInvalid = [
           ArgMeta @current.@argCase set
         ] [
-          validInputCount 1 + !validInputCount
           current.refToVar isVirtual [
             ArgVirtual @current.@argCase set
           ] [
@@ -3656,25 +3756,6 @@ makeCompilerPosition: [
         i 1 + @i set processor compilable
       ] &&
     ] loop
-  ] when
-
-  inputCountMismatch: [
-    ("In signature there are " forcedSignature.inputs.getSize " inputs, but really here " block.buildingMatchingInfo.inputs.getSize " inputs") assembleString @processor block compilerError
-  ];
-
-  hasForcedSignature [
-    validInputCount forcedSignature.inputs.getSize = ~ [
-      validInputCount 1 + forcedSignature.inputs.getSize =
-      [forcedSignature.outputs.getSize 0 >] &&
-      [0 forcedSignature.outputs.at forcedSignature.inputs.last variablesAreSame] && [
-        #todo for MPL signature check each
-        @processor @block pop @block push
-      ] [
-        inputCountMismatch
-      ] if
-    ] when
-
-    forcedSignature @block.@csignature set
   ] when
 
   block.parent 0 =
@@ -3803,51 +3884,6 @@ makeCompilerPosition: [
   ] || @block.@empty set
 
   @processor @block addDebugLocationForLastInstruction
-
-  fixArrShadow: [
-    refToVar:;
-    refToVar.assigned [refToVar noMatterToCopy ~] && [
-      refToVar getVar.shadowBegin @refToVar set
-      [refToVar.assigned] "ShadowEvent has no begin!" assert
-    ] when
-  ];
-
-  fixArrShadows: [
-    [.@refToVar fixArrShadow] each
-  ];
-
-  @block.@buildingMatchingInfo.@inputs fixArrShadows
-  @block.@buildingMatchingInfo.@captures fixArrShadows
-
-  @block.@buildingMatchingInfo.@shadowEvents [
-    event:;
-
-    (
-      ShadowReasonInput [
-        branch:;
-        @branch.@refToVar fixArrShadow
-      ]
-      ShadowReasonCapture [
-        branch:;
-        @branch.@refToVar fixArrShadow
-      ]
-      ShadowReasonFieldCapture [
-        branch:;
-        @branch.@object fixArrShadow
-      ]
-      ShadowReasonPointee [
-        branch:;
-        @branch.@pointer fixArrShadow
-        @branch.@pointee fixArrShadow
-      ]
-      ShadowReasonField [
-        branch:;
-        @branch.@object fixArrShadow
-        @branch.@field fixArrShadow
-      ]
-      []
-    ) @event.visit
-  ] each
 
   processor.options.verboseIR [
     "shadow events: " @block createComment
@@ -4156,6 +4192,7 @@ addIndexArrayToProcess: [
   copy parentIndex:;
   functionName:;
   compileOnce
+
 
   @processor addBlock
   codeNode: @processor.@blocks.last.get;

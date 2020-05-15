@@ -1199,7 +1199,17 @@ parseNode: [
 } () {} [
   splittedString: splitString;
   mainResult:;
+  
+  [ mainResult.success x:;] call
+    
+  f: [ compileOnce
+    x: mainResult;
+  ];
+
+  f f
+
   splittedString.success [
+
     currentPosition: PositionInfo;
     prevPosition: PositionInfo;
 
@@ -1217,7 +1227,8 @@ parseNode: [
     IndexArray @unfinishedNodes.pushBack
     ascii.null @unfinishedTerminators.pushBack
 
-    iterate parseNode
+    iterate
+    parseNode
   ] [
     FALSE @mainResult.@success set
     ("wrong encoding, can not recognize line and column, offset in bytes: " splittedString.errorOffset) assembleString @mainResult.@errorInfo.@message set

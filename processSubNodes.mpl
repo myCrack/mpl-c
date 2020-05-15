@@ -239,10 +239,10 @@
   refToVar getVar.host currentMatchingNode is ~ [refToVar noMatterToCopy ~] &&
 ] "variableIsUnused" exportFunction
 
-{processor: Processor Cref; currentMatchingNode: Block Cref; comparingMessage: String Ref; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
-  stackEntry: cacheEntry: comparingMessage: currentMatchingNode:  processor:;;;;;
+{processor: Processor Cref; currentMatchingNode: Block Cref; comparingMessage: String Ref; checkConstness: Cond; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
+  stackEntry: cacheEntry: checkConstness: comparingMessage: currentMatchingNode:  processor:;;;;;;
 
-  cacheEntry.mutable stackEntry.mutable = [
+  checkConstness ~ [cacheEntry.mutable stackEntry.mutable =] || [
     stackEntry cacheEntry processor variablesAreEqualForMatching [
       TRUE
     ] [
@@ -384,7 +384,7 @@ tryMatchNode: [
             stackEntry: matchingNodeStackDepth @processor block getStackEntryUnchecked;
             cacheEntry: branch.refToVar;
 
-            stackEntry cacheEntry @comparingMessage currentMatchingNode processor compareOnePair
+            stackEntry cacheEntry TRUE @comparingMessage currentMatchingNode processor compareOnePair
             [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
               currentMatchingNode.nodeCompileOnce [
                 ("in compiled-once func input " matchingNodeStackDepth 1 +) assembleString mismatchMessage
@@ -399,10 +399,9 @@ tryMatchNode: [
             branch:;
 
             cacheEntry: branch.refToVar;
-            overloadIndex: outOverloadDepth: branch.refToVar.assigned ~ [-1 -1] [branch @block branch.file TRUE getOverloadIndex] if;;
+            overloadIndex: outOverloadDepth: branch @block branch.file TRUE getOverloadIndex;;
             stackEntry: branch.nameInfo branch overloadIndex @processor @block branch.file getNameForMatchingWithOverloadIndex.refToVar;
-
-            stackEntry cacheEntry @comparingMessage currentMatchingNode processor compareOnePair
+            stackEntry cacheEntry TRUE @comparingMessage currentMatchingNode processor compareOnePair
             [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
               currentMatchingNode.nodeCompileOnce [
                 ("in compiled-once func capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ")") assembleString mismatchMessage
@@ -431,7 +430,7 @@ tryMatchNode: [
             cacheEntry: branch.pointee;
             stackEntry: branch.pointer getVar.topologyIndex eventVars.at @processor @block getPointeeForMatching;
 
-            stackEntry cacheEntry @comparingMessage currentMatchingNode processor compareOnePair
+            stackEntry cacheEntry TRUE @comparingMessage currentMatchingNode processor compareOnePair
             [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
               currentMatchingNode.nodeCompileOnce [
                 "in compiled-once func pointers " mismatchMessage
@@ -446,7 +445,7 @@ tryMatchNode: [
             cacheEntry: branch.field;
             stackEntry: branch.mplFieldIndex branch.object getVar.topologyIndex eventVars.at @processor @block getFieldForMatching;
 
-            stackEntry cacheEntry @comparingMessage currentMatchingNode processor compareOnePair
+            stackEntry cacheEntry FALSE @comparingMessage currentMatchingNode processor compareOnePair
             [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
               currentMatchingNode.nodeCompileOnce [
                 "in compiled-once func fields " mismatchMessage
@@ -622,22 +621,26 @@ fixRef: [
   pointee: VarRef @var.@data.get.@refToVar;
   pointeeVar: pointee getVar;
   pointeeIsLocal: pointeeVar.capturedHead getVar.host currentChangesNode is;
-
+  pointeeWasNotUsed: pointeeVar.host currentChangesNode is ~;
   fixed: pointee copy;
-  pointeeIsLocal ~ [ # has shadow - captured from top
-    index: pointeeVar.shadowBegin getVar.topologyIndex copy;
-    index 0 < ~ [
-      index appliedVars.stackVars.at @fixed set
+
+  pointeeWasNotUsed [
+  ] [
+    pointeeIsLocal ~ [ # has shadow - captured from top
+      index: pointeeVar.shadowBegin getVar.topologyIndex copy;
+      index 0 < ~ [
+        index appliedVars.stackVars.at @fixed set
+      ] [
+        pointee @processor @block copyVarFromChild @fixed set
+        TRUE dynamic @makeDynamic set
+      ] if
     ] [
+      # dont have shadow - to deref of captured dynamic pointer
+      # must by dynamic
+      var.staticity Static = [pointeeVar.storageStaticity Static =] && ["returning pointer to local variable" @processor block compilerError] when
       pointee @processor @block copyVarFromChild @fixed set
       TRUE dynamic @makeDynamic set
     ] if
-  ] [
-    # dont have shadow - to deref of captured dynamic pointer
-    # must by dynamic
-    var.staticity Static = [pointeeVar.storageStaticity Static =] && ["returning pointer to local variable" @processor block compilerError] when
-    pointee @processor @block copyVarFromChild @fixed set
-    TRUE dynamic @makeDynamic set
   ] if
 
   @fixed.var @pointee.setVar
@@ -749,10 +752,42 @@ applyNodeChanges: [
         topologyIndex 1 + @appliedVars.@stackVars.enlarge
         topologyIndex 1 + @appliedVars.@cacheVars.enlarge
         stackEntry topologyIndex @appliedVars.@stackVars.at set
+        [cacheEntry getVar.shadowEnd.assigned] "Shadow event var has no shadowEnd!" assert
         cacheEntry getVar.shadowEnd topologyIndex @appliedVars.@cacheVars.at set
       ] when
     ] when
   ];
+
+   ("shadow events before applying vars : " currentChangesNode storageAddress) assembleString print LF print
+  currentChangesNode.matchingInfo.shadowEvents.size [
+    event: i currentChangesNode.matchingInfo.shadowEvents.at;
+
+    (
+      ShadowReasonInput [
+        branch:;
+        ("shadow event [" i "] input as " branch.refToVar getVar.topologyIndex) assembleString print LF print
+      ]
+      ShadowReasonCapture [
+        branch:;
+        ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.topologyIndex) assembleString  print LF print
+      ]
+      ShadowReasonFieldCapture [
+        branch:;
+        ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.topologyIndex) assembleString  print LF print
+      ]
+      ShadowReasonPointee [
+        branch:;
+        ("shadow event [" i "] pointee " branch.pointer getVar.topologyIndex " as " branch.pointee getVar.topologyIndex)  assembleString  print LF print
+      ]
+      ShadowReasonField [
+        branch:;
+        ("shadow event [" i "] field " branch.object getVar.topologyIndex " [" branch.mplFieldIndex "] as " branch.field getVar.topologyIndex) assembleString  print LF print
+      ]
+      []
+    ) event.visit
+  ] times
+
+
 
   currentChangesNode.matchingInfo.shadowEvents.size [
     processor compilable [
@@ -783,6 +818,7 @@ applyNodeChanges: [
         ShadowReasonPointee [
           branch:;
           cacheEntry: branch.pointee;
+          ("cacheEntry pointer type is" branch.pointer @processor @block getMplType " as " branch.pointer getVar storageAddress) assembleString print LF print
           stackEntry: branch.pointer getVar.topologyIndex appliedVars.stackVars.at @processor @block getPointeeNoDerefIR;
           stackEntry cacheEntry @appliedVars addAppliedVar
         ]
@@ -815,7 +851,7 @@ applyNodeChanges: [
     i currentChangesNode.outputs.dataSize < [
       currentOutput: i currentChangesNode.outputs.at;
       outputRef: currentOutput.refToVar @processor @block copyVarFromChild; # output is to inner var
-      outputRef appliedVars fixOutputRefsRec
+      outputRef appliedVars fixOutputRefsRec # it is End
       outputRef @appliedVars.@fixedOutputs.pushBack
       i 1 + @i set processor compilable
     ] &&
@@ -836,7 +872,7 @@ applyNodeChanges: [
         pVar.globalId @nVar.@globalId set
       ] when
 
-      cacheCopy appliedVars fixCaptureRef @cacheEntry set
+      cacheCopy appliedVars fixCaptureRef @cacheEntry set #here cacheCopy is END
     ] when
   ] times
 
@@ -1187,6 +1223,18 @@ processCallByNode: [
     ] when
 
     pops: @processor.acquireVarRefArray;
+    eventVars: @processor.acquireVarRefArray;
+
+    addEventVar: [
+      stackEntry: cacheEntry: ;;
+      stackEntry noMatterToCopy ~ [
+        index: cacheEntry getVar.topologyIndex;
+        index eventVars.size < ~ [
+          index 1 + @eventVars.resize
+          stackEntry index @eventVars.at set
+        ] when
+      ] when
+    ];
 
     newNode: newNodeIndex processor.blocks.at.get;
     newNode.buildingMatchingInfo.shadowEvents [
@@ -1194,18 +1242,41 @@ processCallByNode: [
       (
         ShadowReasonInput [
           branch:;
+          cacheEntry: branch.refToVar;
           stackEntry: @processor @block popForMatching;
           stackEntry getVar.data.getTag VarInvalid = ~ [stackEntry @pops.pushBack] when
+          stackEntry cacheEntry addEventVar
         ]
         ShadowReasonCapture [
           branch:;
-
+          cacheEntry: branch.refToVar;
           overloadIndex: outOverloadDepth: branch @block branch.file TRUE getOverloadIndex;;
           gnr: branch.nameInfo branch overloadIndex @processor @block branch.file getNameForMatchingWithOverloadIndex;
-          gnr outOverloadDepth @processor @block branch.file captureName drop
+          stackEntry: gnr outOverloadDepth @processor @block branch.file captureName.refToVar;
+          stackEntry cacheEntry addEventVar
         ]
+        ShadowReasonFieldCapture [
+          branch:;
+          overloadIndex: outOverloadDepth: branch @block branch.file FALSE getOverloadIndex;;
+          fieldCnr: branch.nameInfo overloadIndex @processor @block branch.file getNameWithOverloadIndex outOverloadDepth @processor @block branch.file captureName;
+        ]
+        ShadowReasonPointee [
+          branch:;
+          cacheEntry: branch.pointee;
+          stackEntry: branch.pointer getVar.topologyIndex eventVars.at @processor @block getPointeeNoDerefIR;
+          stackEntry cacheEntry addEventVar
+        ]
+        ShadowReasonField [
+          branch:;
+          cacheEntry: branch.field;
+          stackEntry: branch.mplFieldIndex branch.object getVar.topologyIndex eventVars.at @processor @block getField;
+          stackEntry cacheEntry addEventVar
+        ]
+        []
       ) event.visit
     ] each
+
+    @eventVars @processor.releaseVarRefArray
 
     i: 0 dynamic;
     [
@@ -1375,16 +1446,16 @@ processIf: [
 
             [value1 value2 variablesAreSame] "captures changed to different types!" assert
             value1 staticityOfVar Dynamic = value2 staticityOfVar Dynamic = or [
-              @refToDst @processor @block makeVarDynamic
               @value1 @processor @block makePointeeDirtyIfRef
               @value2 @processor @block makePointeeDirtyIfRef
+              @refToDst @processor @block makeVarDynamic
             ] [
               value1 value2 processor variablesAreEqual [ # both are static, same value
                 value1 @refToDst changeVarValue
               ] [
-                @refToDst @processor @block makeVarDynamic
                 @value1 @processor @block makePointeeDirtyIfRef
                 @value2 @processor @block makePointeeDirtyIfRef
+                @refToDst @processor @block makeVarDynamic
               ] if
             ] if
           ];
@@ -1410,6 +1481,9 @@ processIf: [
                 @unfinishedD.popBack
                 @unfinishedV1.popBack
                 @unfinishedV2.popBack
+
+                v1Var: lastV1 getVar;
+                v2Var: lastV2 getVar;
 
                 @lastV1 @lastV2 lastD mergeValues
 
@@ -1801,11 +1875,13 @@ processDynamicLoop: [
                 curNodeInput: i inputs.at @processor @block copyVar;
                 curNodeInput @nodeInputs.pushBack
 
-                (curNodeInput @processor getIrType "*") assembleString makeStringView # with *
-                curNodeInput @processor getIrName
-                i inputs.at @processor getIrName
-                inputs.dataSize 1 - i - outputs.at @processor getIrName
-                1 @block createPhiNode
+                curNodeInput isVirtual ~ [
+                  (curNodeInput @processor getIrType "*") assembleString makeStringView # with *
+                  curNodeInput @processor getIrName
+                  i inputs.at @processor getIrName
+                  inputs.dataSize 1 - i - outputs.at @processor getIrName
+                  1 @block createPhiNode
+                ] when
 
                 i 1 + @i set TRUE
               ] &&
@@ -1940,6 +2016,22 @@ processDynamicLoop: [
     name block.id nodeCase indexArray file positionInfo signature @processor astNodeToCodeNode @newNodeIndex set
     processor.exportDepth 1 - @processor.@exportDepth set
   ] when
+
+  newNode: newNodeIndex processor.blocks.at.get;
+
+  newNode.matchingInfo.shadowEvents [
+    currentEvent:;
+    (
+      ShadowReasonCapture [
+        branch:;
+
+        overloadIndex: outOverloadDepth: branch @block branch.file TRUE getOverloadIndex;;
+        gnr: branch.nameInfo branch overloadIndex @processor @block branch.file getNameForMatchingWithOverloadIndex;
+        stackEntry: gnr outOverloadDepth @processor @block branch.file captureName.refToVar;
+      ]
+      []
+    ) currentEvent.visit
+  ] each
 
   processor compilable [
     newNodeIndex changeNewExportNodeState

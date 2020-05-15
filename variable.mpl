@@ -304,16 +304,20 @@ getNonrecursiveDataDBGType: [
     var.data.getTag VarString = [
       "s" toString @result set
     ] [
-      var.data.getTag VarCode = [
-        "c" toString @result set
+      var.data.getTag VarInvalid = [
+        "I" toString @result set
       ] [
-        var.data.getTag VarBuiltin = [
-          "b" toString @result set
+        var.data.getTag VarCode = [
+          "c" toString @result set
         ] [
-          var.data.getTag VarImport = [
-            ("F" VarImport var.data.get getFuncDbgType) assembleString @result set
+          var.data.getTag VarBuiltin = [
+            "b" toString @result set
           ] [
-            "Unknown nonrecursive struct" @processor block compilerError
+            var.data.getTag VarImport = [
+              ("F" VarImport var.data.get getFuncDbgType) assembleString @result set
+            ] [
+              "Unknown nonrecursive struct" @processor block compilerError
+            ] if
           ] if
         ] if
       ] if
