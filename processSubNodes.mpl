@@ -654,8 +654,17 @@ fixRef: [
   @refToVar
 ];
 
+hasGoodSource: [
+  refToVar:;
+  var: refToVar getVar;
+
+  var.host var.sourceOfValue getVar.host is
+];
+
 fixOutputRefsRec: [
   stackEntry: appliedVars: ;;
+
+  [stackEntry hasGoodSource] "stackEntry source invariant failed!" assert
 
   unfinishedStack: @processor.acquireVarRefArray;
   stackEntry @unfinishedStack.pushBack
@@ -672,6 +681,7 @@ fixOutputRefsRec: [
           stackPointee getVar.host currentChangesNode is [
             fixed: currentFromStack appliedVars fixRef @processor @block getPointeeNoDerefIR;
             fixed @unfinishedStack.pushBack
+            [fixed hasGoodSource] "Fixed ref source invariant failed!" assert
           ] when
         ] when
       ] [
@@ -682,6 +692,7 @@ fixOutputRefsRec: [
             j stackStruct.fields.dataSize < [
               stackField: j stackStruct.fields.at.refToVar;
               stackField @unfinishedStack.pushBack
+              [stackField hasGoodSource] "Stack field source invariant failed!" assert
               j 1 + @j set TRUE
             ] &&
           ] loop
@@ -753,41 +764,17 @@ applyNodeChanges: [
         topologyIndex 1 + @appliedVars.@cacheVars.enlarge
         stackEntry topologyIndex @appliedVars.@stackVars.at set
         [cacheEntry getVar.shadowEnd.assigned] "Shadow event var has no shadowEnd!" assert
-        cacheEntry getVar.shadowEnd topologyIndex @appliedVars.@cacheVars.at set
+        newCacheVar: cacheEntry getVar.shadowEnd;
+        newCacheVar topologyIndex @appliedVars.@cacheVars.at set
+        [newCacheVar noMatterToCopy [newCacheVar getVar.host newCacheVar getVar.sourceOfValue getVar.host is] ||] "Val source incorrest!" assert
+      ] when
+
+      cacheEntry getVar.shadowEnd getVar.capturedAsMutable [
+        TRUE stackEntry getVar.@capturedAsMutable set
       ] when
     ] when
+
   ];
-
-   ("shadow events before applying vars : " currentChangesNode storageAddress) assembleString print LF print
-  currentChangesNode.matchingInfo.shadowEvents.size [
-    event: i currentChangesNode.matchingInfo.shadowEvents.at;
-
-    (
-      ShadowReasonInput [
-        branch:;
-        ("shadow event [" i "] input as " branch.refToVar getVar.topologyIndex) assembleString print LF print
-      ]
-      ShadowReasonCapture [
-        branch:;
-        ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.topologyIndex) assembleString  print LF print
-      ]
-      ShadowReasonFieldCapture [
-        branch:;
-        ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.topologyIndex) assembleString  print LF print
-      ]
-      ShadowReasonPointee [
-        branch:;
-        ("shadow event [" i "] pointee " branch.pointer getVar.topologyIndex " as " branch.pointee getVar.topologyIndex)  assembleString  print LF print
-      ]
-      ShadowReasonField [
-        branch:;
-        ("shadow event [" i "] field " branch.object getVar.topologyIndex " [" branch.mplFieldIndex "] as " branch.field getVar.topologyIndex) assembleString  print LF print
-      ]
-      []
-    ) event.visit
-  ] times
-
-
 
   currentChangesNode.matchingInfo.shadowEvents.size [
     processor compilable [
@@ -817,9 +804,11 @@ applyNodeChanges: [
         ]
         ShadowReasonPointee [
           branch:;
+
           cacheEntry: branch.pointee;
-          ("cacheEntry pointer type is" branch.pointer @processor @block getMplType " as " branch.pointer getVar storageAddress) assembleString print LF print
-          stackEntry: branch.pointer getVar.topologyIndex appliedVars.stackVars.at @processor @block getPointeeNoDerefIR;
+          stackPointer: branch.pointer getVar.topologyIndex appliedVars.stackVars.at;
+
+          stackEntry: stackPointer @processor @block getPointeeNoDerefIR;
           stackEntry cacheEntry @appliedVars addAppliedVar
         ]
         ShadowReasonField [
@@ -866,10 +855,19 @@ applyNodeChanges: [
 
     cacheVar.data.getTag VarRef = [
       cacheCopy: cacheEntry @processor @block copyOneVar;
+      cacheCopyVar: cacheCopy getVar;
+
+      cacheCopy noMatterToCopy ~ [
+        topologyIndex: cacheCopyVar.sourceOfValue getVar.topologyIndex;
+        topologyIndex 0 < [
+          cacheCopy @cacheCopyVar.@sourceOfValue set # source is inner variable
+        ] [
+          topologyIndex appliedVars.stackVars.at @cacheCopyVar.@sourceOfValue set
+        ] if
+      ] when
+
       cacheEntry isGlobal [
-        pVar: cacheVar;
-        nVar: @cacheCopy getVar;
-        pVar.globalId @nVar.@globalId set
+        cacheVar.globalId @cacheCopyVar.@globalId set
       ] when
 
       cacheCopy appliedVars fixCaptureRef @cacheEntry set #here cacheCopy is END

@@ -405,10 +405,12 @@ createVariableWithVirtual: [
 
 setTopologyIndex: [
   block: refToVar: ;;
+
   refToVar noMatterToCopy ~ [
     var: @refToVar getVar;
-    var.topologyIndex 0 < [
+    var.buildingTopologyIndex 0 < [
       topologyIndex: @block.@buildingMatchingInfo.@lastTopologyIndex;
+
       topologyIndex @var.@buildingTopologyIndex set
       topologyIndex @var.@shadowEnd getVar.@buildingTopologyIndex set
 
@@ -466,6 +468,18 @@ getShadowBegin: [
   ] [
     [refToVar getVar.shadowBegin.assigned] "Var has no ShadowBegin!" assert
     result: refToVar getVar.shadowBegin copy;
+    refToVar.mutable @result.setMutable
+    result
+  ] if
+];
+
+getShadowEnd: [
+  refToVar:;
+  refToVar noMatterToCopy [
+    refToVar copy
+  ] [
+    [refToVar getVar.shadowEnd.assigned] "Var has no ShadowEnd!" assert
+    result: refToVar getVar.shadowEnd copy;
     refToVar.mutable @result.setMutable
     result
   ] if
@@ -555,7 +569,7 @@ getPointeeWith: [
       ] when
 
       sourceValueVar: var.sourceOfValue getVar;
-      var.sourceOfValue getVar.topologyIndex 0 < ~ [ #source can be local var in child scope, we must handle this case
+      var.sourceOfValue getVar.buildingTopologyIndex 0 < ~ [ #source can be local var in child scope, we must handle this case
         shadowUsed: VarRef @sourceValueVar.@data.get.@usedHere;
 
         refToVar noMatterToCopy ~ [sourceValueVar.capturedHead getVar.host block is ~] && [pointee noMatterToCopy ~] && [shadowUsed ~] && [
@@ -565,7 +579,7 @@ getPointeeWith: [
           ShadowReasonPointee @newEvent.setTag
           branch: ShadowReasonPointee @newEvent.get;
 
-          [var.sourceOfValue getVar.data.getTag VarRef =] "Source of value is not pointer!" assert
+          [var.sourceOfValue getVar.host var.host is] "Source of value is from another node!" assert
 
           var.sourceOfValue getShadowBegin @branch.@pointer set
           pointee getShadowBegin           @branch.@pointee set
@@ -685,8 +699,6 @@ getFieldWith: [
       mplFieldIndex                @branch.@mplFieldIndex set
       fieldRefToVar getShadowBegin @branch.@field set
 
-      ("field result has type " fieldRefToVar @processor @block getMplType " as " fieldRefToVar getVar storageAddress) assembleString print LF print
-
       @block @branch.@field setTopologyIndex
       @newEvent @block addShadowEvent
     ] when
@@ -751,6 +763,7 @@ setOneVar: [
     ] staticCall
   ] when
 
+  [srcVar.sourceOfValue getVar.host dstVar.sourceOfValue getVar.host is] "Source of value is from another node!" assert
   srcVar.sourceOfValue @dstVar.@sourceOfValue set
 
   refDst staticityOfVar Dirty > [
@@ -834,6 +847,8 @@ makeVirtualVarReal: [
 
           varSrc: lastSrc  getVar;
           varDst: @lastDst getVar;
+
+          lastDst noMatterToCopy ~ [lastDst @varDst.@sourceOfValue set] when
 
           # noMatterToCopy
           lastSrc getVar.host block is ~ [varDst.shadowBegin.assigned ~] && [
@@ -2145,6 +2160,7 @@ setRef: [
 
   fromChildToParent ~ [
     srcVar.sourceOfValue @dstVar.@sourceOfValue set
+    [srcVar.sourceOfValue getVar.host dstVar.sourceOfValue getVar.host is] "Source of value is from another node!" assert
   ] when
 
   srcVar.mplSchemaId @dstVar.@mplSchemaId set
@@ -2163,7 +2179,7 @@ setRef: [
   result:;
   overload failProc: @processor block FailProcForProcessor;
 
-  fromChildToParent toNew or [refToVar noMatterToCopy refToVar isUnallocable or] && [
+  refToVar noMatterToCopy [fromChildToParent toNew or refToVar isUnallocable and] || [
     refToVar @result set
   ] [
     RefToVar @result set
@@ -2179,7 +2195,7 @@ setRef: [
         currentSrc: i uncopiedSrc.at copy;
         currentDst: i @uncopiedDst.at.@data;
 
-        fromChildToParent toNew or [currentSrc noMatterToCopy] && [
+        currentSrc noMatterToCopy [
           currentSrc @currentDst set
         ] [
           currentSrc fromChildToParent toNew @processor @block copyOneVarWith @currentDst set
@@ -2233,7 +2249,7 @@ setRef: [
     i uncopiedSrc.dataSize < [
       currentSrc: i uncopiedSrc.at copy;
       currentDst: i @uncopiedDst.at.@data;
-      @currentSrc @currentDst i 0 = setOneVar
+      currentSrc noMatterToCopy ~ [@currentSrc @currentDst i 0 = setOneVar] when
 
       currentSrcVar: currentSrc getVar;
       currentDstVar: currentDst getVar;
@@ -3428,43 +3444,6 @@ checkRecursionOfCodeNode: [
       ] if
     ] if
   ] if
-
-
-
-   ("shadow events before recursion shift in : " block storageAddress) assembleString print LF print
-  block.buildingMatchingInfo.shadowEvents.size [
-    event: i block.buildingMatchingInfo.shadowEvents.at;
-
-    (
-      ShadowReasonInput [
-        branch:;
-        ("shadow event [" i "] input as " branch.refToVar getVar.buildingTopologyIndex) assembleString print LF print
-      ]
-      ShadowReasonCapture [
-        branch:;
-        ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.buildingTopologyIndex) assembleString  print LF print
-      ]
-      ShadowReasonFieldCapture [
-        branch:;
-        ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.buildingTopologyIndex) assembleString  print LF print
-      ]
-      ShadowReasonPointee [
-        branch:;
-        ("shadow event [" i "] pointee " branch.pointer getVar.buildingTopologyIndex " as " branch.pointee getVar.buildingTopologyIndex)  assembleString  print LF print
-      ]
-      ShadowReasonField [
-        branch:;
-        ("shadow event [" i "] field " branch.object getVar.buildingTopologyIndex " [" branch.mplFieldIndex "] as " branch.field getVar.buildingTopologyIndex) assembleString  print LF print
-      ]
-      []
-    ) event.visit
-  ] times
-
-
-
-
-
-
 
   block.buildingMatchingInfo.shadowEvents clearBuildingMatchingInfo changeTopologyIndexForAllVars
   block.buildingMatchingInfo @block.@matchingInfo set

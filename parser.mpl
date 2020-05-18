@@ -1199,14 +1199,6 @@ parseNode: [
 } () {} [
   splittedString: splitString;
   mainResult:;
-  
-  [ mainResult.success x:;] call
-    
-  f: [ compileOnce
-    x: mainResult;
-  ];
-
-  f f
 
   splittedString.success [
 
