@@ -70,7 +70,6 @@ Struct: [{
   hasPreField:   FALSE dynamic;
   unableToDie:   FALSE dynamic;
   hasDestructor: FALSE dynamic;
-  forgotten:     TRUE  dynamic;
   realFieldIndexes: Int32 Array;
   fields: FieldArray;
   structStorageSize: 0nx dynamic;
@@ -114,6 +113,14 @@ RefToVar: [{
   hash: [address: var storageAddress; address 32n32 rshift address + Nat32 cast];
 }];
 
+makeValuePair: [
+  type:;
+  {
+    begin: type copy;
+    end: type copy;
+  }
+];
+
 Variable: [{
   VARIABLE: ();
 
@@ -122,21 +129,16 @@ Variable: [{
   irNameId:                          -1 dynamic;
   mplSchemaId:                       -1 dynamic;
   storageStaticity:                  Static;
-  staticity:                         Static;
   global:                            FALSE dynamic;
-  temporary:                         TRUE dynamic;
   usedInHeader:                      FALSE dynamic;
   capturedAsMutable:                 FALSE dynamic;
   capturedAsRealValue:               FALSE dynamic;
-  tref:                              TRUE dynamic;
   shadowReason:                      ShadowReasonNo;
   globalId:                          -1 dynamic;
   buildingTopologyIndex:             -1 dynamic;
   topologyIndex:                     -1 dynamic;
   topologyIndexWhileMatching:        -1 dynamic;
   topologyIndexWhileMatching2:       -1 dynamic;
-  shadowBegin:                       RefToVar;
-  shadowEnd:                         RefToVar;
   capturedHead:                      RefToVar;
   capturedTail:                      RefToVar;
   capturedPrev:                      RefToVar;
@@ -146,27 +148,32 @@ Variable: [{
   allocationInstructionIndex:        -1 dynamic;
   getInstructionIndex:               -1 dynamic;
 
+  staticity:                         Static makeValuePair;
+  tref:                              TRUE dynamic;
+  temporary:                         TRUE dynamic;
+  forgotten:                         FALSE dynamic makeValuePair;
+
   data: (
-    Nat8             #VarInvalid
-    Cond             #VarCond
-    Nat64            #VarNat8
-    Nat64            #VarNat16
-    Nat64            #VarNat32
-    Nat64            #VarNat64
-    Nat64            #VarNatX
-    Int64            #VarInt8
-    Int64            #VarInt16
-    Int64            #VarInt32
-    Int64            #VarInt64
-    Int64            #VarIntX
-    Real64           #VarReal32
-    Real64           #VarReal64
-    CodeNodeInfo     #VarCode; id of node
-    Int32            #VarBuiltin
-    Int32            #VarImport
-    String           #VarString
-    RefBranch        #VarRef
-    Struct Owner     #VarStruct
+    Nat8                   #VarInvalid
+    Cond        makeValuePair  #VarCond
+    Nat64       makeValuePair  #VarNat8
+    Nat64       makeValuePair  #VarNat16
+    Nat64       makeValuePair  #VarNat32
+    Nat64       makeValuePair  #VarNat64
+    Nat64       makeValuePair  #VarNatX
+    Int64       makeValuePair  #VarInt8
+    Int64       makeValuePair  #VarInt16
+    Int64       makeValuePair  #VarInt32
+    Int64       makeValuePair  #VarInt64
+    Int64       makeValuePair  #VarIntX
+    Real64      makeValuePair  #VarReal32
+    Real64      makeValuePair  #VarReal64
+    CodeNodeInfo               #VarCode; id of node
+    Int32                      #VarBuiltin
+    Int32                      #VarImport
+    String                     #VarString
+    RefBranch                  #VarRef
+    Struct Owner               #VarStruct
   ) Variant;
 
   INIT: [];
@@ -185,14 +192,14 @@ isVirtual: [
   refToVar:;
 
   var: refToVar getVar;
-  var.staticity Virtual < ~
+  var.staticity.end Virtual < ~
   [refToVar isVirtualType] ||
 ];
 
 isSchema: [
   refToVar:;
   var: refToVar getVar;
-  var.data.getTag VarRef = [var.staticity Schema =] &&
+  var.data.getTag VarRef = [var.staticity.end Schema =] &&
 ];
 
 isVirtualType: [
@@ -308,7 +315,7 @@ getVirtualValue: [
     VarRef     [
       pointee: VarRef var.data.get.refToVar;
       pointeeVar: pointee getVar;
-      var.staticity Schema = [
+      var.staticity.end Schema = [
         "." @result.cat
       ] [
         pointeeVar.data.getTag (
@@ -383,20 +390,20 @@ getPlainConstantIR: [
   var: getVar;
   result: String;
   var.data.getTag VarCond = [
-    VarCond var.data.get ["true" toString] ["false" toString] if @result set
+    VarCond var.data.get.end ["true" toString] ["false" toString] if @result set
   ] [
-    var.data.getTag VarInt8 = [VarInt8 var.data.get toString @result set] [
-      var.data.getTag VarInt16 = [VarInt16 var.data.get toString @result set] [
-        var.data.getTag VarInt32 = [VarInt32 var.data.get toString @result set] [
-          var.data.getTag VarInt64 = [VarInt64 var.data.get toString @result set] [
-            var.data.getTag VarIntX = [VarIntX var.data.get toString @result set] [
-              var.data.getTag VarNat8 = [VarNat8 var.data.get toString @result set] [
-                var.data.getTag VarNat16 = [VarNat16 var.data.get toString @result set] [
-                  var.data.getTag VarNat32 = [VarNat32 var.data.get toString @result set] [
-                    var.data.getTag VarNat64 = [VarNat64 var.data.get toString @result set] [
-                      var.data.getTag VarNatX = [VarNatX var.data.get toString @result set] [
-                        var.data.getTag VarReal32 = [VarReal32 var.data.get 0.0r32 cast 0.0r64 cast bitView @result set] [
-                          var.data.getTag VarReal64 = [VarReal64 var.data.get bitView @result set] [
+    var.data.getTag VarInt8 = [VarInt8 var.data.get.end toString @result set] [
+      var.data.getTag VarInt16 = [VarInt16 var.data.get.end toString @result set] [
+        var.data.getTag VarInt32 = [VarInt32 var.data.get.end toString @result set] [
+          var.data.getTag VarInt64 = [VarInt64 var.data.get.end toString @result set] [
+            var.data.getTag VarIntX = [VarIntX var.data.get.end toString @result set] [
+              var.data.getTag VarNat8 = [VarNat8 var.data.get.end toString @result set] [
+                var.data.getTag VarNat16 = [VarNat16 var.data.get.end toString @result set] [
+                  var.data.getTag VarNat32 = [VarNat32 var.data.get.end toString @result set] [
+                    var.data.getTag VarNat64 = [VarNat64 var.data.get.end toString @result set] [
+                      var.data.getTag VarNatX = [VarNatX var.data.get.end toString @result set] [
+                        var.data.getTag VarReal32 = [VarReal32 var.data.get.end 0.0r32 cast 0.0r64 cast bitView @result set] [
+                          var.data.getTag VarReal64 = [VarReal64 var.data.get.end bitView @result set] [
                             ("Tag = " makeStringView var.data.getTag 0 cast) addLog
                             [FALSE] "Unknown plain struct while getting IR value" assert
                           ] if
@@ -521,7 +528,7 @@ isForgotten: [
   refToVar:;
   var: refToVar getVar;
   var.data.getTag VarStruct = [
-    VarStruct var.data.get.get.forgotten copy
+    var.forgotten.end copy
   ] [
     FALSE
   ] if
@@ -536,7 +543,7 @@ variablesAreSame: [
 staticityOfVar: [
   refToVar:;
   var: refToVar getVar;
-  var.staticity copy
+  var.staticity.end copy
 ];
 
 fullUntemporize: [
@@ -544,6 +551,24 @@ fullUntemporize: [
   var: @refToVar getVar;
   FALSE @var.@temporary set
   var.data.getTag VarStruct = [
-    FALSE VarStruct @var.@data.get.get.@forgotten set
+    FALSE @var.@forgotten.@end set
+  ] when
+];
+
+fullUntemporizeBegin: [
+  refToVar:;
+  var: @refToVar getVar;
+  FALSE @var.@temporary set
+  var.data.getTag VarStruct = [
+    FALSE @var.@forgotten.@begin set
+  ] when
+];
+
+fullUntemporizeEnd: [
+  refToVar:;
+  var: @refToVar getVar;
+  FALSE @var.@temporary set
+  var.data.getTag VarStruct = [
+    FALSE @var.@forgotten.@end set
   ] when
 ];

@@ -17,6 +17,7 @@
 "Block.NodeCaseCode" use
 "Block.NodeCaseDeclaration" use
 "Block.NodeCaseDtor" use
+"Block.ShadowEvent" use
 "builtins.initBuiltins" use
 "codeNode.addBlock" use
 "codeNode.astNodeToCodeNode" use
@@ -53,6 +54,7 @@
 "Var.getVar" use
 "Var.Dirty" use
 "Var.Dynamic" use
+"Var.Field" use
 "Var.RefToVar" use
 "Var.ShadowReasonCapture" use
 "Var.VarInvalid" use
@@ -284,6 +286,70 @@
 
     ("max depth of recursion=" processor.maxDepthOfRecursion) addLog
 
+    varHeadMemory: 0nx;
+    varShadowMemory: 0nx;
+    totalFieldCount: 0;
+
+    varStaticStoragedMemory:  0nx;
+    varDynamicStoragedHeadMemory:  0nx;
+    varDynamicStoragedShadowMemory:  0nx;
+
+    getVariableUsedMemory: [
+      var:;
+
+      var.data.getTag VarStruct = [
+        struct: VarStruct var.data.get.get;
+        struct storageSize struct.fields.size Natx cast Field storageSize * +
+        var storageSize +
+      ] [
+        var storageSize
+      ] if
+    ];
+
+    processor.variables [
+      [
+        var:;
+        varSize: var getVariableUsedMemory;
+
+        var.capturedHead getVar.host var.host is ~ [
+          varSize varShadowMemory + !varShadowMemory
+        ] [
+          varSize varHeadMemory + !varHeadMemory
+        ] if
+
+        var.data.getTag VarStruct = [
+          VarStruct var.data.get.get.fields.size totalFieldCount + !totalFieldCount
+        ] when
+
+        var.storageStaticity Dynamic = [
+          var.topologyIndex 0 < ~ [
+            varSize varDynamicStoragedShadowMemory + !varDynamicStoragedShadowMemory
+          ] [
+            varSize varDynamicStoragedHeadMemory + !varDynamicStoragedHeadMemory
+          ] if
+        ] [
+          varSize varStaticStoragedMemory + !varStaticStoragedMemory
+        ] if
+      ] each
+    ] each
+
+    eventCount: 0;
+
+    processor.blocks [
+      block: .get;
+      block.buildingMatchingInfo.shadowEvents.size eventCount + !eventCount
+      block.matchingInfo.shadowEvents.size eventCount + !eventCount
+    ] each
+
+    (
+      "varShadowMemory=" varShadowMemory "; varHeadMemory=" varHeadMemory
+      "; varDynamicStoragedHeadMemory=" varDynamicStoragedHeadMemory
+      "; varDynamicStoragedShadowMemory=" varDynamicStoragedShadowMemory
+      "; varStaticStoragedMemory=" varStaticStoragedMemory
+      "; totalFieldCount=" totalFieldCount "; fieldSize=" Field storageSize
+      "; eventCount=" eventCount "; eventSize=" ShadowEvent storageSize
+    ) addLog
+
     processor.usedFloatBuiltins [@processor createFloatBuiltins] when
     processor.options.callTrace processor.options.threadModel 1 = and @processor createCtors
     @processor createDtors
@@ -387,14 +453,13 @@
     @processor addDebugReserve @codeNode.@funcDbgIndex set
   ] when
 
-  begin: RefToVar;
-  end: RefToVar;
-  refToVar @begin @end ShadowReasonCapture @processor @block makeShadows
+  shadow: RefToVar;
+  @shadow refToVar ShadowReasonCapture @processor @block makeShadows
 
   VarStruct refToVar getVar.data .get.get .unableToDie
-  VarStruct @end     getVar.@data.get.get.@unableToDie set # fake becouse it is fake shadow
+  VarStruct @shadow  getVar.@data.get.get.@unableToDie set # fake becouse it is fake shadow
 
-  end @processor @block killStruct
+  shadow @processor @block killStruct
   dtorName: ("dtor." refToVar getVar.globalId) assembleString;
   dtorNameStringView: dtorName makeStringView;
   dtorNameStringView compilerPositionInfo forcedSignature @processor @block finalizeCodeNode

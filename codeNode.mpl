@@ -70,6 +70,8 @@
 "Var.Dynamic" use
 "Var.Field" use
 "Var.fullUntemporize" use
+"Var.fullUntemporizeBegin" use
+"Var.fullUntemporizeEnd" use
 "Var.getVar" use
 "Var.getPlainConstantIR" use
 "Var.isForgotten" use
@@ -84,6 +86,7 @@
 "Var.makeRefBranch" use
 "Var.makeStringId" use
 "Var.markAsUnableToDie" use
+"Var.makeValuePair" use
 "Var.staticityOfVar" use
 "Var.variablesAreSame" use
 "Var.RefToVar" use
@@ -96,6 +99,7 @@
 "Var.Static" use
 "Var.Struct" use
 "Var.VarBuiltin" use
+"Var.VarCond" use
 "Var.VarCode" use
 "Var.VarEnd" use
 "Var.VarInvalid" use
@@ -313,7 +317,21 @@ makeStaticity: [
   refToVar: staticity: processor: block:;;;;
   refToVar isVirtual ~ [
     var: @refToVar getVar;
-    staticity @var.@staticity set
+    staticity @var.@staticity.@begin set
+    staticity @var.@staticity.@end set
+    staticity Virtual < ~ [
+      @refToVar @processor block makeVariableType
+    ] when
+  ] when
+
+  refToVar copy
+];
+
+makeEndStaticity: [
+  refToVar: staticity: processor: block:;;;;
+  refToVar isVirtual ~ [
+    var: @refToVar getVar;
+    staticity @var.@staticity.@end set
     staticity Virtual < ~ [
       @refToVar @processor block makeVariableType
     ] when
@@ -372,14 +390,16 @@ createVariableWithVirtual: [
   result @result getVar.@sourceOfValue set
 
   makeVirtual [
-    makeSchema [Schema] [Virtual] if @result getVar.@staticity set
+    makeSchema [Schema] [Virtual] if @result getVar.@staticity.@begin set
   ] [
     result isPlain [processor.options.staticLiterals ~] && [
-      Weak @result getVar.@staticity set
+      Weak @result getVar.@staticity.@begin set
     ] [
-      Static @result getVar.@staticity set
+      Static @result getVar.@staticity.@begin set
     ] if
   ] if
+
+  result getVar.staticity.begin @result getVar.@staticity.@end set
 
   result @result getVar.@capturedHead set
   result @result getVar.@capturedTail set
@@ -412,13 +432,7 @@ setTopologyIndex: [
       topologyIndex: @block.@buildingMatchingInfo.@lastTopologyIndex;
 
       topologyIndex @var.@buildingTopologyIndex set
-      topologyIndex @var.@shadowEnd getVar.@buildingTopologyIndex set
-
-      block.state NodeStateNew = [
-        topologyIndex @var.@topologyIndex set
-        topologyIndex @var.@shadowEnd getVar.@topologyIndex set
-      ] when
-
+      block.state NodeStateNew = [topologyIndex @var.@topologyIndex set] when
       topologyIndex 1 + @topologyIndex set
     ] when
   ] when
@@ -448,42 +462,18 @@ getStackEntryForPreInput: [
 ];
 
 makeVarCode:   [VarCode   @processor @block createVariable];
-makeVarInt8:   [VarInt8   @processor @block checkValue VarInt8   @processor @block createVariable @processor @block createPlainIR];
-makeVarInt16:  [VarInt16  @processor @block checkValue VarInt16  @processor @block createVariable @processor @block createPlainIR];
-makeVarInt32:  [VarInt32  @processor @block checkValue VarInt32  @processor @block createVariable @processor @block createPlainIR];
-makeVarInt64:  [VarInt64  @processor @block checkValue VarInt64  @processor @block createVariable @processor @block createPlainIR];
-makeVarIntX:   [VarIntX   @processor @block checkValue VarIntX   @processor @block createVariable @processor @block createPlainIR];
-makeVarNat8:   [VarNat8   @processor @block checkValue VarNat8   @processor @block createVariable @processor @block createPlainIR];
-makeVarNat16:  [VarNat16  @processor @block checkValue VarNat16  @processor @block createVariable @processor @block createPlainIR];
-makeVarNat32:  [VarNat32  @processor @block checkValue VarNat32  @processor @block createVariable @processor @block createPlainIR];
-makeVarNat64:  [VarNat64  @processor @block checkValue VarNat64  @processor @block createVariable @processor @block createPlainIR];
-makeVarNatX:   [VarNatX   @processor @block checkValue VarNatX   @processor @block createVariable @processor @block createPlainIR];
-makeVarReal32: [VarReal32 @processor @block checkValue VarReal32 @processor @block createVariable @processor @block createPlainIR];
-makeVarReal64: [VarReal64 @processor @block checkValue VarReal64 @processor @block createVariable @processor @block createPlainIR];
-
-getShadowBegin: [
-  refToVar:;
-  refToVar noMatterToCopy [
-    refToVar copy
-  ] [
-    [refToVar getVar.shadowBegin.assigned] "Var has no ShadowBegin!" assert
-    result: refToVar getVar.shadowBegin copy;
-    refToVar.mutable @result.setMutable
-    result
-  ] if
-];
-
-getShadowEnd: [
-  refToVar:;
-  refToVar noMatterToCopy [
-    refToVar copy
-  ] [
-    [refToVar getVar.shadowEnd.assigned] "Var has no ShadowEnd!" assert
-    result: refToVar getVar.shadowEnd copy;
-    refToVar.mutable @result.setMutable
-    result
-  ] if
-];
+makeVarInt8:   [VarInt8   @processor @block checkValue makeValuePair VarInt8   @processor @block createVariable @processor @block createPlainIR];
+makeVarInt16:  [VarInt16  @processor @block checkValue makeValuePair VarInt16  @processor @block createVariable @processor @block createPlainIR];
+makeVarInt32:  [VarInt32  @processor @block checkValue makeValuePair VarInt32  @processor @block createVariable @processor @block createPlainIR];
+makeVarInt64:  [VarInt64  @processor @block checkValue makeValuePair VarInt64  @processor @block createVariable @processor @block createPlainIR];
+makeVarIntX:   [VarIntX   @processor @block checkValue makeValuePair VarIntX   @processor @block createVariable @processor @block createPlainIR];
+makeVarNat8:   [VarNat8   @processor @block checkValue makeValuePair VarNat8   @processor @block createVariable @processor @block createPlainIR];
+makeVarNat16:  [VarNat16  @processor @block checkValue makeValuePair VarNat16  @processor @block createVariable @processor @block createPlainIR];
+makeVarNat32:  [VarNat32  @processor @block checkValue makeValuePair VarNat32  @processor @block createVariable @processor @block createPlainIR];
+makeVarNat64:  [VarNat64  @processor @block checkValue makeValuePair VarNat64  @processor @block createVariable @processor @block createPlainIR];
+makeVarNatX:   [VarNatX   @processor @block checkValue makeValuePair VarNatX   @processor @block createVariable @processor @block createPlainIR];
+makeVarReal32: [VarReal32 @processor @block checkValue makeValuePair VarReal32 @processor @block createVariable @processor @block createPlainIR];
+makeVarReal64: [VarReal64 @processor @block checkValue makeValuePair VarReal64 @processor @block createVariable @processor @block createPlainIR];
 
 getPointeeForMatching: [
   processor: block: ;;
@@ -514,13 +504,11 @@ getPointeeWith: [
       # create new var of dynamic dereference
       fromParent [
         pointeeCopy: pointee @processor @block copyOneVar;
-        psBegin: RefToVar;
-        psEnd:   RefToVar;
-        pointeeCopy @psBegin @psEnd ShadowReasonPointee @processor @block makeShadowsDynamic
-        @psBegin @processor block unglobalize
-        @psEnd   @processor block unglobalize
-        dynamize ~ [psEnd @processor @block makeVarTreeDynamicStoraged] when
-        psEnd @pointee set
+        result: RefToVar;
+        @result pointeeCopy ShadowReasonPointee @processor @block makeShadowsDynamic
+        @result @processor block unglobalize
+        dynamize ~ [result @processor @block makeVarTreeDynamicStoraged] when
+        result @pointee set
       ] [
         pointeeCopy: pointee @processor @block copyVar; # lost info that pointee is from parent # noMatterToCopy
         @pointeeCopy @processor block unglobalize
@@ -532,36 +520,12 @@ getPointeeWith: [
     ] [
       pointeeGDI: pointee getVar.globalDeclarationInstructionIndex;
       fromParent [ # capture or argument
-        varShadow: refToVar copy;
-        refToVar noMatterToCopy ~ [
-          [var.shadowBegin.assigned] "Ref got from parent, but dont have shadow!" assert
-          var.shadowBegin @varShadow set
-        ] when
-        pointeeOfShadow: VarRef @varShadow getVar.@data.get.@refToVar;
+        result: RefToVar;
+        @result pointee ShadowReasonPointee @processor @block makeShadows
+        @result fullUntemporize
+        result @pointee set
 
-        pointeeOfShadow getVar.host block is [ # just made deref from another place
-          pointeeOfShadowVar: pointeeOfShadow getVar;
-          [pointeeOfShadowVar.shadowEnd.assigned] "Pointee of shadow is not a shadow!" assert
-          pointeeOfShadowVar.shadowEnd @pointee set
-        ] [
-          psBegin: RefToVar;
-          psEnd:   RefToVar;
-
-          pointeeOfShadow pointee = [
-            pointeeOfShadow @psBegin @psEnd ShadowReasonPointee @processor @block makeShadows
-            psBegin @pointeeOfShadow set
-            psEnd @pointee set
-          ] [
-            #we changed ref, pointeeOFShadow is another pointer to another var!
-            pointee @psBegin @psEnd ShadowReasonPointee @processor @block makeShadows
-            psEnd @pointee set
-          ] if
-
-          @psBegin fullUntemporize
-          @psEnd   fullUntemporize
-
-          TRUE @needReallyDeref set
-        ] if
+        TRUE @needReallyDeref set
       ] when
 
       pointee isGlobal [
@@ -581,8 +545,8 @@ getPointeeWith: [
 
           [var.sourceOfValue getVar.host var.host is] "Source of value is from another node!" assert
 
-          var.sourceOfValue getShadowBegin @branch.@pointer set
-          pointee getShadowBegin           @branch.@pointee set
+          var.sourceOfValue @branch.@pointer set
+          pointee           @branch.@pointee set
           @block @branch.@pointee setTopologyIndex
 
           @newEvent @block addShadowEvent
@@ -631,7 +595,7 @@ getFieldForMatching: [
     fieldVar: @fieldRefToVar getVar;
     fieldVar.data.getTag VarStruct = [
       fieldStruct: VarStruct @fieldVar.@data.get.get;
-      structInfo.forgotten @fieldStruct.@forgotten set
+      var.forgotten.end @fieldVar.@forgotten.@end set
     ] when
 
     fieldRefToVar
@@ -652,37 +616,27 @@ getFieldWith: [
     fieldVar: @fieldRefToVar getVar;
     fieldVar.data.getTag VarStruct = [
       fieldStruct: VarStruct @fieldVar.@data.get.get;
-      structInfo.forgotten @fieldStruct.@forgotten set
+      var.forgotten.end @fieldVar.@forgotten.@end set
     ] when
 
     fieldRefToVar noMatterToCopy [fieldVar.host block is] || ~ [ # capture or argument
-      var.shadowBegin.assigned ~ [
+      var.capturedHead getVar.host block is ~ [
         [refToVar noMatterToCopy] "Field got from parent, but dont have shadow!" assert
         fieldRefToVar @processor @block copyVarFromChild @fieldRefToVar set
       ] [
-        varShadow: @var.@shadowBegin getVar;
-        [varShadow.data.getTag VarStruct =] "Shadow is not a combined!" assert
-        structShadow: VarStruct @varShadow.@data.get.get;
-        fieldShadow: mplFieldIndex @structShadow.@fields.at.@refToVar;
-        @fieldShadow @processor block unglobalize
-
-        psBegin: RefToVar;
-        psEnd: RefToVar;
-        fieldShadow @psBegin @psEnd ShadowReasonField @processor @block makeShadows
+        fieldShadow: RefToVar;
+        @fieldShadow fieldRefToVar ShadowReasonField @processor @block makeShadows
 
         fieldShadow getVar.data.getTag VarStruct = [
-          beginStruct: VarStruct @psBegin getVar.@data.get.get;
-          endStruct:   VarStruct @psEnd   getVar.@data.get.get;
-          structInfo.forgotten @beginStruct.@forgotten set
-          structInfo.forgotten @endStruct  .@forgotten set
+          fieldStruct: VarStruct @fieldShadow getVar.@data.get.get;
+          var.forgotten.end @fieldShadow getVar.@forgotten.@end set
         ] when
 
-        psBegin @fieldShadow set
-        psEnd @fieldRefToVar set
+        fieldShadow @fieldRefToVar set
       ] if
 
-      var.staticity fieldRefToVar getVar.staticity < [
-        var.staticity @fieldRefToVar getVar.@staticity set
+      var.staticity.end fieldRefToVar getVar.staticity.end < [
+        var.staticity.end @fieldRefToVar getVar.@staticity.@end set
       ] when
     ] when
 
@@ -695,9 +649,9 @@ getFieldWith: [
       ShadowReasonField @newEvent.setTag
       branch: ShadowReasonField @newEvent.get;
 
-      refToVar getShadowBegin      @branch.@object set
-      mplFieldIndex                @branch.@mplFieldIndex set
-      fieldRefToVar getShadowBegin @branch.@field set
+      refToVar      @branch.@object set
+      mplFieldIndex @branch.@mplFieldIndex set
+      fieldRefToVar @branch.@field set
 
       @block @branch.@field setTopologyIndex
       @newEvent @block addShadowEvent
@@ -756,11 +710,16 @@ setOneVar: [
   [refDst.mutable] "Constness mismatch!" assert
 
   srcVar.data.getTag VarStruct = ~ [
-    srcVar.data.getTag VarInvalid VarRef 1 + [
+    srcVar.data.getTag VarCond VarReal64 1 + [
       copy tag:;
-      tag srcVar.data.get
-      tag @dstVar.@data.get set
+      tag srcVar.data.get.end
+      tag @dstVar.@data.get.@end set
     ] staticCall
+
+    srcVar.data.getTag VarRef = [
+      VarRef srcVar.data.get
+      VarRef @dstVar.@data.get set
+    ] when
   ] when
 
   [srcVar.sourceOfValue getVar.host dstVar.sourceOfValue getVar.host is] "Source of value is from another node!" assert
@@ -796,7 +755,7 @@ setOneVar: [
   ] [
     pointee: refToVar copy;
     var: @pointee getVar;
-    pointee staticityOfVar Weak = [Dynamic @var.@staticity set] when
+    pointee staticityOfVar Weak = [Dynamic @var.@staticity.@end set] when
     @pointee fullUntemporize
 
     pointee.mutable [mutable copy] && @pointee.setMutable
@@ -832,7 +791,7 @@ makeVirtualVarReal: [
     result: refToVar @processor @block copyOneVar;
 
     result isVirtualType ~ [
-      Static @result getVar.@staticity set
+      Static makeValuePair @result getVar.@staticity set
 
       refToVar @unfinishedSrc.pushBack
       result @unfinishedDst.pushBack
@@ -851,13 +810,6 @@ makeVirtualVarReal: [
           lastDst noMatterToCopy ~ [lastDst @varDst.@sourceOfValue set] when
 
           # noMatterToCopy
-          lastSrc getVar.host block is ~ [varDst.shadowBegin.assigned ~] && [
-            shadowBegin: lastDst @processor @block copyOneVar;
-            shadowBeginVar: @shadowBegin getVar;
-            lastDst @shadowBeginVar.@shadowEnd set
-            shadowBegin @varDst.@shadowBegin set
-          ] when
-
           varSrc.data.getTag VarStruct = [
             struct: VarStruct varSrc.data.get.get;
             j: 0 dynamic;
@@ -1038,7 +990,7 @@ makeVarTreeDirty: [
 makePointeeDirtyIfRef: [
   refToVar: processor: block: ;;;
   var: refToVar getVar;
-  var.data.getTag VarRef = [var.staticity Static =] && [
+  var.data.getTag VarRef = [var.staticity.end Static =] && [
     pointee: @refToVar @processor @block getPointeeWhileDynamize;
     @pointee makeVarRealCaptured
     pointee.mutable [pointee @processor @block makeVarTreeDirty] when
@@ -1097,9 +1049,9 @@ makeVarTreeDynamicWith: [
 
       dynamicStoraged [
         lastRefToVar  Dynamic @processor block makeStorageStaticity @lastRefToVar set
-        @lastRefToVar Dirty   @processor block makeStaticity  @lastRefToVar set
+        @lastRefToVar Dirty   @processor block makeEndStaticity  @lastRefToVar set
       ] [
-        @lastRefToVar Dynamic @processor block makeStaticity  @lastRefToVar set
+        @lastRefToVar Dynamic @processor block makeEndStaticity  @lastRefToVar set
       ] if
 
       processor compilable
@@ -1121,7 +1073,7 @@ createNamedVariable: [
     block.nextLabelIsVirtual [
       refToVar isVirtual ~ [
         staticity Dynamic > ~ ["value for virtual label must be static" @processor block compilerError] when
-        staticity Weak = [Static @var.@staticity set] when
+        staticity Weak = [Static @var.@staticity.@end set] when
       ] when
     ] when
 
@@ -1136,8 +1088,8 @@ createNamedVariable: [
     ] when
 
     var.temporary block.nextLabelIsSchema ~ and [
-      staticity @var.@staticity set
-      staticity Weak = [Dynamic @var.@staticity set] when
+      staticity @var.@staticity.@end set
+      staticity Weak = [Dynamic @var.@staticity.@end set] when
     ] [
       newRefToVar noMatterToCopy block.nextLabelIsVirtual or newRefToVar isUnallocable ~ and [
         refToVar @processor @block copyVarToNew @newRefToVar set
@@ -1498,12 +1450,11 @@ captureName: [
 
           refToVar @result.@refToVar set
         ] || [
-          shadowBegin: RefToVar;
-          shadowEnd: RefToVar;
-          refToVar @shadowBegin @shadowEnd ShadowReasonCapture @processor @block makeShadows
+          shadow: RefToVar;
+          @shadow refToVar ShadowReasonCapture @processor @block makeShadows
 
           newCapture: Capture;
-          shadowEnd @newCapture.@refToVar set
+          shadow @newCapture.@refToVar set
           nameInfo @newCapture.@nameInfo set
           [getNameResult.overloadIndex 0 < ~] "name overload not initialized!" assert
 
@@ -1522,19 +1473,19 @@ captureName: [
           ShadowReasonCapture @newEvent.setTag
           branch: ShadowReasonCapture @newEvent.get;
           newCapture @branch set
-          shadowBegin @branch.@refToVar set
+          shadow @branch.@refToVar set
 
           newCapture @block.@buildingMatchingInfo.@captures.pushBack
           block.state NodeStateNew = [
             newCapture @block.@matchingInfo.@captures.pushBack
           ] when
 
-          @block @shadowBegin setTopologyIndex
+          @block @shadow setTopologyIndex
           @newEvent @block addShadowEvent
 
-          processor.options.debug [shadowEnd isVirtual ~] && [shadowEnd isGlobal ~] && [
-            fakePointer: shadowEnd makeRefBranch VarRef @processor @block createVariable;
-            shadowEnd @fakePointer @processor @block createRefOperation
+          processor.options.debug [shadow isVirtual ~] && [shadow isGlobal ~] && [
+            fakePointer: shadow makeRefBranch VarRef @processor @block createVariable;
+            shadow @fakePointer @processor @block createRefOperation
             nameInfo fakePointer @processor @block addVariableMetadata
             programSize: block.program.getSize;
             TRUE programSize 3 - @block.@program.at.@fakePointer set
@@ -1543,15 +1494,15 @@ captureName: [
             @processor @block addDebugLocationForLastInstruction
           ] when
 
-          shadowEnd @result.@refToVar set
+          shadow @result.@refToVar set
           TRUE @result.@newVar set
 
-          @shadowEnd fullUntemporize
+          @shadow fullUntemporize
           refToVar isForgotten ~ [
-            @shadowBegin fullUntemporize
+            @shadow fullUntemporizeBegin
           ] when
 
-          [shadowEnd getVar.temporary ~] "Captured var must not be temporary!" assert
+          [shadow getVar.temporary ~] "Captured var must not be temporary!" assert
         ] when
       ] if
 
@@ -1618,7 +1569,7 @@ captureName: [
         ShadowReasonFieldCapture @newEvent.setTag
         branch: ShadowReasonFieldCapture @newEvent.get;
         newFieldCapture @branch set
-        result.object getShadowBegin @branch.@object set
+        result.object @branch.@object set
         @newEvent @block addShadowEvent
       ] when
     ] [
@@ -2008,23 +1959,20 @@ setRef: [
   dynamicStoraged: Cond;
 
   reason: Int32;
-  end: RefToVar Ref;
-  begin: RefToVar Ref;
   refToVar: RefToVar Cref;
+  result: RefToVar Ref;
 } () {} [
   block:;
   processor:;
   dynamicStoraged:;
   reason:;
-  end:;
-  begin:;
   refToVar:;
+  result:;
 
   overload failProc: @processor block FailProcForProcessor;
 
   refToVar noMatterToCopy [
-    refToVar @begin set
-    refToVar @end set
+    refToVar @result set
   ] [
     var: refToVar getVar;
     head: var.capturedHead copy;
@@ -2034,68 +1982,51 @@ setRef: [
       shadowSrc: headVar.capturedTail copy;
       refToVar.mutable @shadowSrc.setMutable
 
-      shadowSrc @processor @block copyOneVar @begin set
-      shadowSrc @processor @block copyOneVar @end set
+      shadowSrc @processor @block copyOneVar @result set
 
-      beginVar: @begin getVar;
-      endVar: @end getVar;
+      resultVar: @result getVar;
       global: refToVar isGlobal;
 
-      var.storageStaticity @beginVar.@storageStaticity set
-      var.storageStaticity @endVar  .@storageStaticity set
+      var.storageStaticity @resultVar.@storageStaticity set
 
       global [
         reason ShadowReasonField = ~ [
-          var.irNameId @endVar.@irNameId set
+          var.irNameId @resultVar.@irNameId set
         ] when
 
-        TRUE @beginVar.@global set
-        TRUE @endVar.@global set
-
+        TRUE @resultVar.@global set
       ] [
-        @begin @processor block unglobalize
-        @end   @processor block unglobalize
+        @result @processor block unglobalize
       ] if
 
-      begin @endVar  .@shadowBegin set
-      end   @beginVar.@shadowEnd   set
-      end   @endVar.@sourceOfValue set
+      result   @resultVar.@sourceOfValue set
 
-      var.globalId @beginVar.@globalId set
-      var.globalId   @endVar.@globalId set
-      var.globalDeclarationInstructionIndex @beginVar.@globalDeclarationInstructionIndex set
-      var.globalDeclarationInstructionIndex   @endVar.@globalDeclarationInstructionIndex set
+      var.globalId @resultVar.@globalId set
+      var.globalDeclarationInstructionIndex @resultVar.@globalDeclarationInstructionIndex set
 
-      reason @beginVar.@shadowReason set
-      reason   @endVar.@shadowReason set
+      reason @resultVar.@shadowReason set
 
       # add info  to linked list, link to end (changed value)
-      headVar.capturedTail @endVar.@capturedPrev set # newTail->oldTail
-      end                 @headVar.@capturedTail set # head->newTail
-      head                 @endVar.@capturedHead set # newTail->head
-      head               @beginVar.@capturedHead set # newTail->head
-      end @block.@capturedVars.pushBack       # remember
+      headVar.capturedTail @resultVar.@capturedPrev set # newTail->oldTail
+      result               @headVar.@capturedTail set # head->newTail
+      head                 @resultVar.@capturedHead set # newTail->head
+      result @block.@capturedVars.pushBack       # remember
     ];
 
     dynamicStoraged [
       reallyCreateShadows
     ] [
       headVar.capturedTail getVar.host block is [
-        headVar.capturedTail @end set
-        end getVar.shadowBegin @begin set
+        headVar.capturedTail @result set
 
-        refToVar.mutable @begin.setMutable
-        refToVar.mutable @end.setMutable
+        refToVar.mutable @result.setMutable
 
-        beginVar: @begin getVar;
-        endVar: @end getVar;
-        reason beginVar.shadowReason < [
-          reason @beginVar.@shadowReason set
-          reason @endVar  .@shadowReason set
+        resultVar: @result getVar;
+        reason resultVar.shadowReason < [
+          reason @resultVar.@shadowReason set
         ] when
 
-        [begin getVar.host block is] "Begin hostId incorrect in makeShadows!" assert
-        [end getVar.host block is] "End hostId incorrect in makeShadows!" assert
+        [result getVar.host block is] "Begin hostId incorrect in makeShadows!" assert
       ] [
         reallyCreateShadows
       ] if
@@ -2151,7 +2082,6 @@ setRef: [
     srcVar.data.getTag VarRef = [
       dstVar: @result getVar;
       FALSE VarRef @dstVar.@data.get.@usedHere set
-      srcVar.shadowEnd   @dstVar.@shadowEnd set
     ] when  #for ttest48
   ] if
 
@@ -2301,18 +2231,12 @@ setRef: [
         @entry Dynamic @processor block makeStaticity @entry set
       ] when
 
-      shadowBegin: RefToVar;
-      shadowEnd:   RefToVar;
+      @result entry ShadowReasonInput @processor @block makeShadows
 
-      entry @shadowBegin @shadowEnd ShadowReasonInput @processor @block makeShadows
-
-      shadowEnd @result set
       entry isForgotten [
-        @shadowBegin untemporize
-        @shadowEnd   untemporize
+        @result untemporize
       ] [
-        @shadowBegin fullUntemporize
-        @shadowEnd   fullUntemporize
+        @result fullUntemporize
       ] if
 
       [result noMatterToCopy [result getVar.host block is] ||] "Shadow host incorrect!" assert
@@ -2337,8 +2261,8 @@ setRef: [
       ShadowReasonInput @newEvent.setTag
       branch: ShadowReasonInput @newEvent.get;
       newInput @branch set
-      shadowBegin @branch.@refToVar set
-      @block @shadowBegin setTopologyIndex
+      result @branch.@refToVar set
+      @block @result setTopologyIndex
       @newEvent @block addShadowEvent
 
       #add input
@@ -3223,9 +3147,6 @@ changeTopologyIndexForAllVars: [
       var: @refToVar getVar;
       var.buildingTopologyIndex @var.@topologyIndex set
       clearBuildingMatchingInfo [-1 @var.@buildingTopologyIndex set] when
-      var: @var.@shadowEnd getVar;
-      var.buildingTopologyIndex @var.@topologyIndex set
-      clearBuildingMatchingInfo [-1 @var.@buildingTopologyIndex set] when
     ] when
   ];
 
@@ -3355,10 +3276,7 @@ checkRecursionOfCodeNode: [
             checkConstness:;
             refToVar2:;
             refToVar1:;
-            se1: refToVar1 noMatterToCopy [refToVar1][refToVar1 getVar.shadowEnd] if;
-            se2: refToVar2 noMatterToCopy [refToVar2][refToVar2 getVar.shadowEnd] if;
-            [se1.assigned [se2.assigned] &&] "variables has no shadowEnd!" assert
-            se1 se2 checkConstness @comparingMessage currentMatchingNode @processor compareOnePair
+            refToVar1 refToVar2 checkConstness @comparingMessage currentMatchingNode @processor compareOnePair
           ];
 
           compareTopologyIndex: [

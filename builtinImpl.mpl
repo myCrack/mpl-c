@@ -101,6 +101,7 @@
 "Var.getStorageSize" use
 "Var.makeRefBranch" use
 "Var.makeStringId" use
+"Var.makeValuePair" use
 "Var.markAsUnableToDie" use
 "Var.RefToVar" use
 "Var.ShadowReasonField" use
@@ -189,7 +190,7 @@ mplBuiltinProcessAtList: [
         [indexVar.data.getTag VarInt32 = ~ ["index must be Int32" @processor block compilerError] when ]
         [refToIndex staticityOfVar Weak < [ "index must be static" @processor block compilerError] when ]
         [
-          index: VarInt32 indexVar.data.get 0 cast;
+          index: VarInt32 indexVar.data.get.end 0 cast;
           struct: VarStruct pointeeVar.data.get.get;
           index 0 < [index struct.fields.getSize < ~] || ["index is out of bounds" @processor block compilerError] when
         ] [
@@ -221,10 +222,9 @@ mplBuiltinProcessAtList: [
                 firstField: 0 realStruct.fields.at.refToVar;
                 fieldRef: firstField @processor @block copyVarFromParent;
                 firstField getVar.host block is ~ [
-                  fBegin: RefToVar;
-                  fEnd: RefToVar;
-                  fieldRef @fBegin @fEnd ShadowReasonField @processor @block makeShadowsDynamic
-                  fEnd @fieldRef set
+                  shadow: RefToVar;
+                  @shadow fieldRef ShadowReasonField @processor @block makeShadowsDynamic
+                  shadow @fieldRef set
                 ] when
 
                 refToStruct.mutable @fieldRef.setMutable
@@ -250,7 +250,7 @@ mplBuiltinProcessAtList: [
               "dynamic index in non-homogeneous combined" @processor block compilerError
             ] if
           ] [
-            index: VarInt32 indexVar.data.get 0 cast;
+            index: VarInt32 indexVar.data.get.end 0 cast;
             index @refToStruct @processor @block processStaticAt @result set
           ] if
         ]
@@ -290,12 +290,12 @@ mplNumberBinaryOp: [
       arg1 staticityOfVar Dynamic > arg2 staticityOfVar Dynamic > and [
         var1.data.getTag firstTag lastTag [
           copy tag:;
-          value1: tag var1.data.get copy;
-          value2: tag var2.data.get copy;
+          value1: tag var1.data.get.end copy;
+          value2: tag var2.data.get.end copy;
           resultType: tag @getResultType call;
           value1 value2 @exValidator call
           processor compilable [
-            value1 value2 @opFunc call resultType @processor cutValue resultType @processor @block createVariable
+            value1 value2 @opFunc call resultType @processor cutValue makeValuePair resultType @processor @block createVariable
             arg1 staticityOfVar arg2 staticityOfVar staticityOfBinResult @processor block makeStaticity
             @processor @block createPlainIR @block push
           ] when
@@ -306,10 +306,10 @@ mplNumberBinaryOp: [
         opName: arg1 arg2 @getOpName call;
         var1.data.getTag firstTag lastTag [
           copy tag:;
-          value1: tag var1.data.get copy;
-          value2: tag var2.data.get copy;
+          value1: tag var1.data.get.end copy;
+          value2: tag var2.data.get.end copy;
           resultType: tag @getResultType call;
-          result: resultType zeroValue resultType @processor @block createVariable
+          result: resultType zeroValue makeValuePair resultType @processor @block createVariable
           Dynamic @processor block makeStaticity
           @processor @block createAllocIR;
           arg1 arg2 @result opName @processor @block createBinaryOperation
@@ -335,11 +335,11 @@ mplNumberBuiltinOp: [
       arg staticityOfVar Dynamic > [
         var.data.getTag VarReal32 VarReal64 1 + [
           copy tag:;
-          value: tag var.data.get copy;
+          value: tag var.data.get.end copy;
           resultType: tag copy;
           value @exValidator call
           processor compilable [
-            value @opFunc call resultType @processor cutValue resultType @processor @block createVariable
+            value @opFunc call resultType @processor cutValue makeValuePair resultType @processor @block createVariable
             arg staticityOfVar @processor block makeStaticity
             @processor @block createPlainIR @block push
           ] when
@@ -349,9 +349,9 @@ mplNumberBuiltinOp: [
         opName: arg @getOpName call;
         var.data.getTag VarReal32 VarReal64 1 + [
           copy tag:;
-          value: tag var.data.get copy;
+          value: tag var.data.get.end copy;
           resultType: tag copy;
-          result: resultType zeroValue resultType @processor @block createVariable
+          result: resultType zeroValue makeValuePair resultType @processor @block createVariable
           Dynamic @processor block makeStaticity
           @processor @block createAllocIR;
 
@@ -392,11 +392,11 @@ mplNumberUnaryOp: [
       arg staticityOfVar Dynamic > [
         var.data.getTag firstTag lastTag [
           copy tag:;
-          value: tag var.data.get copy;
+          value: tag var.data.get.end copy;
           resultType: tag copy;
           value @exValidator call
           processor compilable [
-            value @opFunc call resultType @processor cutValue resultType @processor @block createVariable
+            value @opFunc call resultType @processor cutValue makeValuePair resultType @processor @block createVariable
             arg staticityOfVar @processor block makeStaticity
             @processor @block createPlainIR @block push
           ] when
@@ -407,9 +407,9 @@ mplNumberUnaryOp: [
         mopName: arg @getMidOpName call;
         var.data.getTag firstTag lastTag [
           copy tag:;
-          value: tag var.data.get copy;
+          value: tag var.data.get.end copy;
           resultType: tag copy;
-          result: resultType zeroValue resultType @processor @block createVariable
+          result: resultType zeroValue makeValuePair resultType @processor @block createVariable
           Dynamic @processor block makeStaticity
           @processor @block createAllocIR;
           arg @result opName mopName @processor @block createUnaryOperation
@@ -443,13 +443,13 @@ mplShiftBinaryOp: [
           copy tag1:;
           var2.data.getTag VarNat8 VarNatX 1 + [
             copy tag2:;
-            value1: tag1 var1.data.get copy;
-            value2: tag2 var2.data.get copy;
+            value1: tag1 var1.data.get.end copy;
+            value2: tag2 var2.data.get.end copy;
             resultType: tag1 copy;
             value2 63n64 > ["shift value must be less than 64" @processor block compilerError] when
 
             processor compilable [
-              value1 value2 @opFunc call resultType @processor cutValue resultType @processor @block createVariable
+              value1 value2 @opFunc call resultType @processor cutValue makeValuePair resultType @processor @block createVariable
               arg1 staticityOfVar arg2 staticityOfVar staticityOfBinResult @processor @block makeStaticity
               @processor @block createPlainIR @block push
             ] when
@@ -463,7 +463,7 @@ mplShiftBinaryOp: [
         var1.data.getTag VarNat8 VarIntX 1 + [
           copy tag:;
           resultType: tag copy;
-          result: resultType zeroValue resultType @processor @block createVariable
+          result: resultType zeroValue makeValuePair resultType @processor @block createVariable
           Dynamic @processor @block makeStaticity
           @processor @block createAllocIR;
           arg1 @processor getStorageSize arg2 @processor getStorageSize = [
@@ -517,7 +517,7 @@ parseSignature: [
               [processor compilable]
               [variadicVar.data.getTag VarCond = ~ ["value must be Cond" @processor block compilerError] when]
               [variadicRefToVar staticityOfVar Weak < ["value must be Static" @processor block compilerError] when]
-              [VarCond variadicVar.data.get @result.@variadic set]
+              [VarCond variadicVar.data.get.end @result.@variadic set]
             ) sequence
           ]
           processor.conventionNameInfo [
@@ -662,17 +662,17 @@ staticityOfBinResult: [
     processor compilable [
       arg1 staticityOfVar Dynamic > arg2 staticityOfVar Dynamic > and [
         var1.data.getTag VarString = [
-          value1: VarString var1.data.get copy;
-          value2: VarString var2.data.get copy;
-          value1 value2 = VarCond @processor @block createVariable
+          value1: VarString var1.data.get;
+          value2: VarString var2.data.get;
+          value1 value2 = makeValuePair VarCond @processor @block createVariable
           arg1 staticityOfVar arg2 staticityOfVar staticityOfBinResult @processor block makeStaticity
           @processor @block createPlainIR @block push
         ] [
           var1.data.getTag VarCond VarReal64 1 + [
             copy tag:;
-            value1: tag var1.data.get copy;
-            value2: tag var2.data.get copy;
-            value1 value2 = VarCond @processor @block createVariable
+            value1: tag var1.data.get.end copy;
+            value2: tag var2.data.get.end copy;
+            value1 value2 = makeValuePair VarCond @processor @block createVariable
             arg1 staticityOfVar arg2 staticityOfVar staticityOfBinResult @processor block makeStaticity
             @processor @block createPlainIR @block push
           ] staticCall
@@ -682,21 +682,21 @@ staticityOfBinResult: [
         @arg2 makeVarRealCaptured
 
         var1.data.getTag VarString = [
-          result: FALSE VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
+          result: FALSE makeValuePair VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
           arg1 arg2 @result "icmp eq" makeStringView @processor @block createBinaryOperation
           result @block push
         ] [
           arg1 isReal [
             var1.data.getTag VarReal32 VarReal64 1 + [
               copy tag:;
-              result: FALSE VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
+              result: FALSE makeValuePair VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
               arg1 arg2 @result "fcmp oeq" @processor @block createBinaryOperation
               result @block push
             ] staticCall
           ] [
             var1.data.getTag VarCond VarIntX 1 + [
               copy tag:;
-              result: FALSE VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
+              result: FALSE makeValuePair VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
               arg1 arg2 @result "icmp eq" @processor @block createBinaryOperation
               result @block push
             ] staticCall
@@ -722,19 +722,19 @@ staticityOfBinResult: [
 ] "mplBuiltinAt" @declareBuiltin ucall
 
 [
-  COMPILER_SOURCE_VERSION 0i64 cast VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+  COMPILER_SOURCE_VERSION 0i64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
 ] "mplBuiltinCompilerVersion" @declareBuiltin ucall
 
 [
-  processor.options.debug VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+  processor.options.debug makeValuePair VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
 ] "mplBuiltinDebug" @declareBuiltin ucall
 
 [
-  FALSE VarCond @processor @block createVariable @processor @block createPlainIR @block push
+  FALSE makeValuePair VarCond @processor @block createVariable @processor @block createPlainIR @block push
 ] "mplBuiltinFalse" @declareBuiltin ucall
 
 [
-  processor.options.logs VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+  processor.options.logs makeValuePair VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
 ] "mplBuiltinHasLogs" @declareBuiltin ucall
 
 [
@@ -742,7 +742,7 @@ staticityOfBinResult: [
 ] "mplBuiltinLF" @declareBuiltin ucall
 
 [
-  TRUE VarCond @processor @block createVariable @processor @block createPlainIR @block push
+  TRUE makeValuePair VarCond @processor @block createVariable @processor @block createPlainIR @block push
 ] "mplBuiltinTrue" @declareBuiltin ucall
 
 [
@@ -768,12 +768,12 @@ staticityOfBinResult: [
       arg1 staticityOfVar Dynamic > arg2 staticityOfVar Dynamic > and [
         var1.data.getTag VarReal32 VarReal64 1 + [
           copy tag:;
-          value1: tag var1.data.get copy;
-          value2: tag var2.data.get copy;
+          value1: tag var1.data.get.end copy;
+          value2: tag var2.data.get.end copy;
           resultType: tag copy;
 
           processor compilable [
-            value1 value2 ^ resultType @processor cutValue resultType @processor @block createVariable
+            value1 value2 ^ resultType @processor cutValue makeValuePair resultType @processor @block createVariable
             arg1 staticityOfVar arg2 staticityOfVar staticityOfBinResult @processor @block makeStaticity
             @processor @block createPlainIR @block push
           ] when
@@ -785,7 +785,7 @@ staticityOfBinResult: [
         var1.data.getTag VarReal32 VarReal64 1 + [
           copy tag:;
           resultType: tag copy;
-          result: resultType zeroValue resultType @processor @block createVariable
+          result: resultType zeroValue makeValuePair resultType @processor @block createVariable
           Dynamic @processor @block makeStaticity
           @processor @block createAllocIR;
 
@@ -837,7 +837,7 @@ staticityOfBinResult: [
         "pointee is virtual, cannot cast" @processor block compilerError
       ] [
         refToDst: schemaOfResult makeRefBranch VarRef @processor @block createVariable;
-        Dirty @refToDst getVar.@staticity set
+        Dirty makeValuePair @refToDst getVar.@staticity set
         refToVar @refToDst "inttoptr" @processor @block createCastCopyToNew
         @refToDst @processor @block derefAndPush
       ] if
@@ -867,7 +867,7 @@ staticityOfBinResult: [
       refToVar @processor getAlignment
     ] if
 
-    0n64 cast VarNatX @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+    0n64 cast makeValuePair VarNatX @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
   ] when
 ] "mplBuiltinAlignment" @declareBuiltin ucall
 
@@ -885,7 +885,7 @@ staticityOfBinResult: [
     processor compilable [
       refToCount staticityOfVar Dynamic > ~ ["count must be static" @processor block compilerError] when
       processor compilable [
-        count: VarInt32 varCount.data.get 0 cast;
+        count: VarInt32 varCount.data.get.end 0 cast;
         count 0 < [
           "count must not be negative" @processor block compilerError
         ] when
@@ -978,26 +978,26 @@ staticityOfBinResult: [
 
           varSrc.data.getTag VarNat8 VarReal64 1 + [
             copy tagSrc:;
-            branchSrc: tagSrc varSrc.data.get;
+            branchSrc: tagSrc varSrc.data.get.end;
             varSchema.data.getTag VarNat8 VarReal64 1 + [
               copy tagDst:;
-              branchSchema: tagDst @varSchema.@data.get;
-              branchSrc branchSchema cast tagDst @processor cutValue tagDst @processor @block createVariable @processor @block createPlainIR @refToDst set
+              branchSchema: tagDst @varSchema.@data.get.end;
+              branchSrc branchSchema cast tagDst @processor cutValue makeValuePair tagDst @processor @block createVariable @processor @block createPlainIR @refToDst set
             ] staticCall
           ] staticCall
 
-          refToVar staticityOfVar @refToDst getVar.@staticity set
+          refToVar staticityOfVar makeValuePair @refToDst getVar.@staticity set
           refToDst @block push
         ] [
           refToDst: RefToVar;
           varSchema: refToSchema getVar;
           varSchema.data.getTag VarNat8 VarReal64 1 + [
             copy tagDst:;
-            branchSchema: tagDst @varSchema.@data.get;
-            branchSchema tagDst @processor @block createVariable @refToDst set
+            branchSchema: tagDst @varSchema.@data.get.end;
+            branchSchema makeValuePair tagDst @processor @block createVariable @refToDst set
           ] staticCall
 
-          Dynamic @refToDst getVar.@staticity set
+          Dynamic makeValuePair @refToDst getVar.@staticity set
 
           # a lot of cases for different casts
           refToVar isReal refToSchema isReal or [
@@ -1232,12 +1232,12 @@ staticityOfBinResult: [
       pointeeVar: pointee getVar;
       pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
       processor compilable [
-        VarStruct pointeeVar.data.get.get.fields.dataSize 0i64 cast VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+        VarStruct pointeeVar.data.get.get.fields.dataSize 0i64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
       ] when
     ] [
       var.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
       processor compilable [
-        VarStruct var.data.get.get.fields.dataSize 0i64 cast VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+        VarStruct var.data.get.get.fields.dataSize 0i64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
       ] when
     ] if
   ] when
@@ -1263,7 +1263,7 @@ staticityOfBinResult: [
     ] [
       fr.success ~ [(refToStruct @processor block getMplType " has no field " string) assembleString @processor block compilerError] when
     ] [
-      fr.index Int64 cast VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+      fr.index Int64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
     ]
   ) sequence
 ] "mplBuiltinFieldIndex" @declareBuiltin ucall
@@ -1277,7 +1277,7 @@ staticityOfBinResult: [
     processor compilable [
       refToCount staticityOfVar Dynamic > ~ ["index must be static" @processor block compilerError] when
       processor compilable [
-        count: VarInt32 varCount.data.get 0 cast;
+        count: VarInt32 varCount.data.get.end 0 cast;
         var: refToVar getVar;
         refToVar isSchema [
           pointee: VarRef var.data.get.refToVar;
@@ -1308,11 +1308,11 @@ staticityOfBinResult: [
 ] "mplBuiltinFloor" @declareBuiltin ucall
 
 [
-  varPrev:   0n64 VarNatX @processor @block createVariable;
-  varNext:   0n64 VarNatX @processor @block createVariable;
+  varPrev:   0n64 makeValuePair VarNatX @processor @block createVariable;
+  varNext:   0n64 makeValuePair VarNatX @processor @block createVariable;
   varName:   String @processor @block makeVarString TRUE dynamic @processor @block createRefNoOp;
-  varLine:   0i64 VarInt32 @processor @block createVariable;
-  varColumn: 0i64 VarInt32 @processor @block createVariable;
+  varLine:   0i64 makeValuePair VarInt32 @processor @block createVariable;
+  varColumn: 0i64 makeValuePair VarInt32 @processor @block createVariable;
 
   @varPrev   @processor @block makeVarDirty
   @varNext   @processor @block makeVarDirty
@@ -1378,10 +1378,10 @@ staticityOfBinResult: [
         string: VarString varName.data.get;
         fr: string makeStringView @processor findNameInfo refToStruct @processor block findField;
         processor compilable [
-          fr.success VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+          fr.success makeValuePair VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
         ] when
       ] [
-        FALSE VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+        FALSE makeValuePair VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
       ] if
     ]
   ) sequence
@@ -1403,7 +1403,7 @@ staticityOfBinResult: [
 
     processor compilable [
       condition staticityOfVar Weak > [
-        value: VarCond varCond.data.get copy;
+        value: VarCond varCond.data.get.end copy;
         value [
           VarCode varThen.data.get.index VarCode varThen.data.get.file "staticIfThen" makeStringView @processor @block processCall
         ] [
@@ -1502,11 +1502,11 @@ staticityOfBinResult: [
       ] if
 
       cmpResult 0 = [
-        result: FALSE VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
+        result: FALSE makeValuePair VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
         refToVar1 refToVar2 result "icmp eq" @processor @block createDirectBinaryOperation
         result @block push
       ] [
-        cmpResult 1 = VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+        cmpResult 1 = makeValuePair VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
       ] if
     ] [
       ("different arguments, left: " refToVar1 @processor block getMplType ", right: " refToVar2 @processor block getMplType) assembleString @processor block compilerError
@@ -1517,14 +1517,14 @@ staticityOfBinResult: [
 [
   refToVar: @processor @block pop;
   processor compilable [
-    refToVar getVar.data.getTag VarStruct = VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+    refToVar getVar.data.getTag VarStruct = makeValuePair VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
   ] when
 ] "mplBuiltinIsCombined" @declareBuiltin ucall
 
 [
   refToVar: @processor @block pop;
   processor compilable [
-    refToVar.mutable ~ VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+    refToVar.mutable ~ makeValuePair VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
   ] when
 ] "mplBuiltinIsConst" @declareBuiltin ucall
 
@@ -1533,7 +1533,7 @@ staticityOfBinResult: [
   processor compilable [
     refToVar @block push
     refToVar isForgotten
-    VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+    makeValuePair VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
   ] when
 ] "mplBuiltinIsMoved" @declareBuiltin ucall
 
@@ -1598,7 +1598,7 @@ staticityOfBinResult: [
       ] [
         var: @refToVar getVar;
         var.data.getTag VarStruct = [
-          TRUE VarStruct @var.@data.get.get.@forgotten set
+          TRUE @var.@forgotten.@end set
         ] when
 
         refToVar @block push
@@ -1617,14 +1617,14 @@ staticityOfBinResult: [
     processor compilable [
       refToVar: @processor @block pop;
       processor compilable [
-        VarCond condVar.data.get [
+        VarCond condVar.data.get.end [
           refToVar.mutable [
             refToVar isVirtual [
               refToVar @block push
             ] [
               var: @refToVar getVar;
               var.data.getTag VarStruct = [
-                TRUE VarStruct @var.@data.get.get.@forgotten set
+                TRUE @var.@forgotten.@end set
               ] when
 
               refToVar @block push
@@ -1719,7 +1719,7 @@ staticityOfBinResult: [
   refToVar1: @processor @block pop;
   refToVar2: @processor @block pop;
   processor compilable [
-    refToVar1 refToVar2 variablesAreSame VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+    refToVar1 refToVar2 variablesAreSame makeValuePair VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
   ] when
 ] "mplBuiltinSame" @declareBuiltin ucall
 
@@ -1761,8 +1761,8 @@ staticityOfBinResult: [
       TRUE @refToVar getVar.@capturedAsMutable set #we need ref
       @refToVar makeVarRealCaptured
       refToVar @processor @block makeVarTreeDirty
-      refToDst: 0n64 VarNatX @processor @block createVariable;
-      Dynamic @refToDst getVar.@staticity set
+      refToDst: 0n64 makeValuePair VarNatX @processor @block createVariable;
+      Dynamic makeValuePair @refToDst getVar.@staticity set
       var: refToVar getVar;
       refToVar @refToDst "ptrtoint" @processor @block createCastCopyPtrToNew
       refToDst @block push
@@ -1790,7 +1790,7 @@ staticityOfBinResult: [
       refToVar @processor getStorageSize
     ] if
 
-    0n64 cast VarNatX @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+    0n64 cast makeValuePair VarNatX @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
   ] when
 ] "mplBuiltinStorageSize" @declareBuiltin ucall
 
@@ -1804,12 +1804,12 @@ staticityOfBinResult: [
     ]
     [
       refToName staticityOfVar Weak < [
-        result: 0n64 VarNatX @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
+        result: 0n64 makeValuePair VarNatX @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
         refToName result @processor @block createGetTextSizeIR
         result @block push
       ] [
         string: VarString varName.data.get;
-        string.size 0i64 cast 0n64 cast VarNatX @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+        string.size 0i64 cast 0n64 cast makeValuePair VarNatX @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
       ] if
     ]
   ) sequence
@@ -1909,7 +1909,7 @@ staticityOfBinResult: [
 
     processor compilable [
       condition staticityOfVar Weak > [
-        value: VarCond varCond.data.get copy;
+        value: VarCond varCond.data.get.end copy;
         code: value [VarCode varThen.data.get] [VarCode varElse.data.get] if;
         astNode: code.index processor.multiParserResult.memory.at;
         [astNode.data.getTag AstNodeType.Code =] "Not a code!" assert

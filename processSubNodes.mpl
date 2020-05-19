@@ -120,6 +120,7 @@
 "Var.isVirtual" use
 "Var.fullUntemporize" use
 "Var.getVar" use
+"Var.isPlain" use
 "Var.staticityOfVar" use
 "Var.RefToVar" use
 "Var.ShadowReasonInput" use
@@ -135,8 +136,10 @@
 "Var.VarRef" use
 "Var.VarString" use
 "Var.VarStruct" use
+"Var.VarReal64" use
 "Var.Virtual" use
 "Var.Weak" use
+"Var.makeValuePair" use
 "Var.variablesAreSame" use
 "variable.isStaticData" use
 "variable.isGlobal" use
@@ -171,8 +174,10 @@
   ] if
 ] "variablesHaveSameGlobality" exportFunction
 
-{processor: Processor Cref; checkRefs: Cond; stackDynamicBorder: Nat8; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
-  stackEntry: cacheEntry: stackDynamicBorder: checkRefs: processor:;;;;;
+{processor: Processor Cref; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
+  stackEntry: cacheEntry: processor:;;;
+
+  stackDynamicBorder: Weak;
 
   cacheEntry stackEntry variablesAreSame [cacheEntry stackEntry processor variablesHaveSameGlobality] && [
     cacheEntryVar: cacheEntry getVar;
@@ -180,41 +185,77 @@
 
     stackEntryVar.data.getTag VarStruct = [
       cacheStruct: VarStruct cacheEntryVar.data.get.get;
-      stackStruct: VarStruct stackEntryVar.data.get.get;
-      cacheStruct.hasDestructor ~ [cacheStruct.forgotten stackStruct.forgotten =] ||
+      cacheStruct.hasDestructor ~ [cacheEntryVar.forgotten.begin stackEntryVar.forgotten.end =] ||
     ] [
-      cacheStaticity: cacheEntry staticityOfVar;
-      stackStaticity: stackEntry staticityOfVar;
+      cacheStaticity: cacheEntry getVar.staticity.begin;
+      stackStaticity: stackEntry getVar.staticity.end;
+
+      cacheStaticity Weak > ~ stackStaticity stackDynamicBorder > ~ and [ # both dynamic
+        cacheStaticity Weak > stackStaticity stackDynamicBorder > and [ # both static
+          cacheEntry isPlain [
+            result: TRUE;
+
+            cacheEntryVar.data.getTag VarCond VarReal64 1 + [
+              tag:;
+              tag cacheEntryVar.data.get.begin
+              tag stackEntryVar.data.get.end =
+              !result
+            ] staticCall
+
+            result
+          ] [
+            cacheEntryVar.data.getTag VarBuiltin = [
+              [FALSE] "Impossible to create var with builtin!" assert
+              FALSE
+            ] [
+              TRUE # go recursive
+            ] if
+          ] if
+        ] && # both static and are equal
+      ] || # both dynamic
+    ] if
+  ] &&
+] "variablesAreEqualForMatching" exportFunction
+
+{processor: Processor Cref; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
+  stackEntry: cacheEntry: processor:;;;  
+  stackDynamicBorder: Dynamic;
+
+  cacheEntry stackEntry variablesAreSame [cacheEntry stackEntry processor variablesHaveSameGlobality] && [
+    cacheEntryVar: cacheEntry getVar;
+    stackEntryVar: stackEntry getVar;
+
+    stackEntryVar.data.getTag VarStruct = [
+      cacheStruct: VarStruct cacheEntryVar.data.get.get;
+      cacheStruct.hasDestructor ~ [cacheEntryVar.forgotten.end stackEntryVar.forgotten.end =] ||
+    ] [
+      cacheStaticity: cacheEntry getVar.staticity.end;
+      stackStaticity: stackEntry getVar.staticity.end;
 
       cacheStaticity Weak > ~ stackStaticity stackDynamicBorder > ~ and [ # both dynamic
         cacheStaticity Weak > stackStaticity stackDynamicBorder > and [ # both static
           cacheEntry isSemiplainNonrecursiveType [
             result: TRUE;
 
-            cacheEntryVar.data.getTag VarCond VarImport 1 + [
+            cacheEntryVar.data.getTag VarCond VarReal64 1 + [
               tag:;
-              tag cacheEntryVar.data.get
-              tag stackEntryVar.data.get =
+              tag cacheEntryVar.data.get.end
+              tag stackEntryVar.data.get.end =
               !result
             ] staticCall
 
             result
           ] [
-            cacheEntryVar.data.getTag VarBuiltin = cacheEntryVar.data.getTag VarImport = or [
-              [FALSE] "Impossible to create var with builtin or import!" assert
+            cacheEntryVar.data.getTag VarBuiltin =  [
+              [FALSE] "Impossible to create var with builtin!" assert
               FALSE
             ] [
-              cacheEntryVar.data.getTag VarString = [
-                VarString cacheEntryVar.data.get
-                VarString stackEntryVar.data.get =
+              cacheEntryVar.data.getTag VarRef = [cacheEntry staticityOfVar Virtual <] && [
+                r1: VarRef cacheEntryVar.data.get.refToVar;
+                r2: VarRef stackEntryVar.data.get.refToVar;
+                r1.var r2.var is [r1.mutable r2.mutable =] && [r1 getVar.staticity.end r2 getVar.staticity.end =] &&
               ] [
-                checkRefs [cacheEntryVar.data.getTag VarRef =] && [cacheEntry staticityOfVar Virtual <] && [
-                  r1: VarRef cacheEntryVar.data.get.refToVar;
-                  r2: VarRef stackEntryVar.data.get.refToVar;
-                  r1.var r2.var is [r1.mutable r2.mutable =] && [r1 staticityOfVar r2 staticityOfVar =] &&
-                ] [
-                  TRUE # go recursive
-                ] if
+                TRUE # go recursive
               ] if
             ] if
           ] if
@@ -222,16 +263,6 @@
       ] || # both dynamic
     ] if
   ] &&
-] "variablesAreEqualWith" exportFunction
-
-{processor: Processor Cref; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
-  stackEntry: cacheEntry: processor:;;;
-  stackEntry cacheEntry Weak FALSE processor variablesAreEqualWith
-] "variablesAreEqualForMatching" exportFunction
-
-{processor: Processor Cref; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
-  stackEntry: cacheEntry: processor:;;;
-  stackEntry cacheEntry Dynamic TRUE processor variablesAreEqualWith
 ] "variablesAreEqual" exportFunction
 
 {processor: Processor Cref; currentMatchingNode: Block Cref; refToVar: RefToVar Cref;} Cond {} [
@@ -627,7 +658,7 @@ fixRef: [
   pointeeWasNotUsed [
   ] [
     pointeeIsLocal ~ [ # has shadow - captured from top
-      index: pointeeVar.shadowBegin getVar.topologyIndex copy;
+      index: pointeeVar.topologyIndex copy;
       index 0 < ~ [
         index appliedVars.stackVars.at @fixed set
       ] [
@@ -637,7 +668,7 @@ fixRef: [
     ] [
       # dont have shadow - to deref of captured dynamic pointer
       # must by dynamic
-      var.staticity Static = [pointeeVar.storageStaticity Static =] && ["returning pointer to local variable" @processor block compilerError] when
+      var.staticity.end Static = [pointeeVar.storageStaticity Static =] && ["returning pointer to local variable" @processor block compilerError] when
       pointee @processor @block copyVarFromChild @fixed set
       TRUE dynamic @makeDynamic set
     ] if
@@ -763,17 +794,14 @@ applyNodeChanges: [
         topologyIndex 1 + @appliedVars.@stackVars.enlarge
         topologyIndex 1 + @appliedVars.@cacheVars.enlarge
         stackEntry topologyIndex @appliedVars.@stackVars.at set
-        [cacheEntry getVar.shadowEnd.assigned] "Shadow event var has no shadowEnd!" assert
-        newCacheVar: cacheEntry getVar.shadowEnd;
-        newCacheVar topologyIndex @appliedVars.@cacheVars.at set
-        [newCacheVar noMatterToCopy [newCacheVar getVar.host newCacheVar getVar.sourceOfValue getVar.host is] ||] "Val source incorrest!" assert
+        cacheEntry topologyIndex @appliedVars.@cacheVars.at set
+        [cacheEntry noMatterToCopy [cacheEntry getVar.host cacheEntry getVar.sourceOfValue getVar.host is] ||] "Val source incorrest!" assert
       ] when
 
-      cacheEntry getVar.shadowEnd getVar.capturedAsMutable [
+      cacheEntry getVar.capturedAsMutable [
         TRUE stackEntry getVar.@capturedAsMutable set
       ] when
     ] when
-
   ];
 
   currentChangesNode.matchingInfo.shadowEvents.size [
@@ -892,12 +920,12 @@ changeVarValue: [
     varDst: @dst getVar;
 
     varSrc.staticity @varDst.@staticity set
-    dst isNonrecursiveType [
-      varDst.data.getTag VarCond VarString 1 + [
+    dst isPlain [
+      varDst.data.getTag VarCond VarReal64 1 + [
         copy tag:;
         srcBranch: tag varSrc.data.get;
         dstBranch: tag @varDst.@data.get;
-        srcBranch @dstBranch set
+        srcBranch.end @dstBranch.@end set
       ] staticCall
     ] [
       varDst.data.getTag VarRef = [
@@ -1300,7 +1328,7 @@ processCallByNode: [
       top: newNode.outputs.last.refToVar;
       top getVar.data.getTag VarCond =
       [top staticityOfVar Weak < ~] && [
-        VarCond top getVar.data.get copy
+        VarCond top getVar.data.get.end copy
       ] [
         TRUE dynamic @processor.@result.@passErrorThroughPRE set
         "PRE code must fail or return static Cond" @processor block compilerError
@@ -1732,7 +1760,7 @@ processLoop: [
 
               newNode newNodeIndex @appliedVars applyStackChanges
               a: @processor @block pop;
-              VarCond a getVar.data.get copy
+              VarCond a getVar.data.get.end copy
             ] [
               TRUE dynamic @loopIsDynamic set
               FALSE
@@ -2140,7 +2168,7 @@ callImportWith: [
         i declarationNode.outputs.getSize < [
           currentOutput: i declarationNode.outputs.at.refToVar;
           current: currentOutput @processor @block copyVarFromChild;
-          Dynamic @current getVar.@staticity set
+          Dynamic makeValuePair @current getVar.@staticity set
           current @outputs.pushBack
           current getVar.data.getTag VarStruct = [
             current @block.@candidatesToDie.pushBack

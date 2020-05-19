@@ -146,9 +146,8 @@ compilerError: [processor: block:;; makeStringView block @processor compilerErro
 
   dynamicStoraged: Cond;
   reason: Int32;
-  end: RefToVar Ref;
-  begin: RefToVar Ref;
   refToVar: RefToVar Cref;
+  result: RefToVar Ref;
 } () {} "makeShadowsWith" importFunction
 
 makeShadows: [
