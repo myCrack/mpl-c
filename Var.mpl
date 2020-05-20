@@ -56,10 +56,10 @@ CodeNodeInfo: [{
 }];
 
 Field: [{
-  nameInfo: -1 dynamic; # NameInfo id
-  nameOverload: -1 dynamic;
-  refToVar: RefToVar;
   usedHere: FALSE dynamic;
+  nameInfo: -1 dynamic; # NameInfo id
+  #nameOverload: -1 dynamic;
+  refToVar: RefToVar;
 }];
 
 FieldArray: [Field Array];
@@ -87,11 +87,15 @@ RefToVar: [{
   data: Natx;
 
   var: [
-    data 1nx ~ and @VarSchema addressToReference
+    data 3nx ~ and @VarSchema addressToReference
   ];
 
   mutable: [
-    data 1nx and 0nx = ~
+    data 1nx and 1nx =
+  ];
+
+  moved: [
+    data 2nx and 2nx =
   ];
 
   setVar: [
@@ -99,13 +103,18 @@ RefToVar: [{
     newVar VarSchema Ref same ~ ["variable expected" raiseStaticError] when
     newVar isConst ~ ["mutable variable expected" raiseStaticError] when
     address: newVar storageAddress;
-    [address 1nx and 0nx =] "Address is not aligned!" assert
-    address data 1nx and or !data
+    [address 3nx and 0nx =] "Address is not aligned!" assert
+    address data 3nx and or !data
   ];
 
   setMutable: [
     copy newMutable:;
     newMutable [1nx] [0nx] if data 1nx ~ and or !data
+  ];
+
+  setMoved: [
+    copy newMoved:;
+    newMoved [2nx] [0nx] if data 2nx ~ and or !data
   ];
 
   assigned: [var isNil ~];
@@ -133,7 +142,6 @@ Variable: [{
   usedInHeader:                      FALSE dynamic;
   capturedAsMutable:                 FALSE dynamic;
   capturedAsRealValue:               FALSE dynamic;
-  shadowReason:                      ShadowReasonNo;
   globalId:                          -1 dynamic;
   buildingTopologyIndex:             -1 dynamic;
   topologyIndex:                     -1 dynamic;
@@ -151,7 +159,6 @@ Variable: [{
   staticity:                         Static makeValuePair;
   tref:                              TRUE dynamic;
   temporary:                         TRUE dynamic;
-  forgotten:                         FALSE dynamic makeValuePair;
 
   data: (
     Nat8                   #VarInvalid
@@ -524,14 +531,9 @@ markAsUnableToDie: [
   var.data.getTag VarStruct = [TRUE VarStruct @var.@data.get.get.@unableToDie set] when
 ];
 
-isForgotten: [
+varIsMoved: [
   refToVar:;
-  var: refToVar getVar;
-  var.data.getTag VarStruct = [
-    var.forgotten.end copy
-  ] [
-    FALSE
-  ] if
+  refToVar.moved
 ];
 
 variablesAreSame: [
@@ -550,25 +552,5 @@ fullUntemporize: [
   refToVar:;
   var: @refToVar getVar;
   FALSE @var.@temporary set
-  var.data.getTag VarStruct = [
-    FALSE @var.@forgotten.@end set
-  ] when
-];
-
-fullUntemporizeBegin: [
-  refToVar:;
-  var: @refToVar getVar;
-  FALSE @var.@temporary set
-  var.data.getTag VarStruct = [
-    FALSE @var.@forgotten.@begin set
-  ] when
-];
-
-fullUntemporizeEnd: [
-  refToVar:;
-  var: @refToVar getVar;
-  FALSE @var.@temporary set
-  var.data.getTag VarStruct = [
-    FALSE @var.@forgotten.@end set
-  ] when
+  FALSE @refToVar.setMoved
 ];

@@ -18,7 +18,7 @@
 "Var.getPlainConstantIR" use
 "Var.getStorageSize" use
 "Var.isAutoStruct" use
-"Var.isForgotten" use
+"Var.varIsMoved" use
 "Var.isPlain" use
 "Var.isNat" use
 "Var.isVirtual" use
@@ -335,7 +335,7 @@ createCheckedCopyToNewWith: [
       loadReg dstRef @processor @block createStoreFromRegister
       @srcRef markAsUnableToDie
     ] [
-      srcRef isForgotten [
+      srcRef varIsMoved [
         srcRef.mutable [
           loadReg: srcRef @processor @block createDerefToRegister;
           loadReg dstRef @processor @block createStoreFromRegister
@@ -703,8 +703,8 @@ generateRegisterIRName: [processor: block: ;; @block TRUE @processor block gener
 {
   block: Block Ref;
   processor: Processor Ref;
-  refToDst: RefToVar Cref;
-  refToSrc: RefToVar Cref;
+  refToDst: RefToVar Ref;
+  refToSrc: RefToVar Ref;
 } () {} [
   srcRef: dstRef: processor: block: ;;;;
   srcRef isAutoStruct [
@@ -715,7 +715,7 @@ generateRegisterIRName: [processor: block: ;; @block TRUE @processor block gener
       srcRef dstRef @processor @block createMemset
       @srcRef markAsUnableToDie
     ] [
-      srcRef isForgotten [
+      srcRef varIsMoved [
         processor.options.verboseIR ["set from moved" @block createComment] when
         dstRef @processor @block callDie
         srcRef dstRef @processor @block createMemset

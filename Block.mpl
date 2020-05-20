@@ -85,7 +85,6 @@ CompilerPositionInfo: [{
 
 FieldCapture: [{
   object:            RefToVar;
-  capturingPoint:    -1 dynamic; #index of code node where it was
   captureCase:       NameCaseInvalid;
   nameInfo:          -1 dynamic;
   nameOverloadDepth: -1 dynamic;
@@ -102,16 +101,6 @@ makeInstruction: [{
 }];
 
 Instruction: [0 0 makeInstruction];
-
-UnfoundedName: [{
-  nameInfo: Int32;
-  file: ["File.FileSchema" use FileSchema] Mref;
-
-  equal: [other:; nameInfo other.nameInfo = [file other.file is] &&];
-  hash: [
-    address: file storageAddress; address 32n32 rshift address + Nat32 cast nameInfo Nat32 cast +
-  ];
-}];
 
 ShadowEvent: [(
   Cond                    #ShadowReasonNo
@@ -132,9 +121,6 @@ MatchingInfo: [{
 NameWithOverload: [{
   nameInfo: -1 dynamic;
   nameOverloadDepth: -1 dynamic;
-
-  equal: [other:; nameInfo other.nameInfo = [nameOverload other.nameOverload =] &&];
-  hash: [nameInfo 67n32 * nameOverload 17n32 * +];
 }];
 
 NameWithOverloadAndRefToVar: [{
@@ -219,9 +205,6 @@ Block: [{
   labelNames:        NameWithOverloadAndRefToVar Array;
   captureNames:      NameWithOverloadAndRefToVar Array;
   fieldCaptureNames: NameWithOverloadAndRefToVar Array;
-
-  captureTable:      RefToVar Cond HashTable;
-  fieldCaptureTable: RefToVar Cond HashTable;
 
   candidatesToDie:     RefToVar Array;
   unprocessedAstNodes: TokenRef Array;

@@ -96,7 +96,7 @@
 "Var.isSchema" use
 "Var.isVirtual" use
 "Var.isUnallocable" use
-"Var.isForgotten" use
+"Var.varIsMoved" use
 "Var.getAlignment" use
 "Var.getStorageSize" use
 "Var.makeRefBranch" use
@@ -836,7 +836,10 @@ staticityOfBinResult: [
       schemaOfResult isVirtual [
         "pointee is virtual, cannot cast" @processor block compilerError
       ] [
-        refToDst: schemaOfResult makeRefBranch VarRef @processor @block createVariable;
+        refBranch: schemaOfResult makeRefBranch;
+        FALSE @refBranch.@refToVar.setMoved
+
+        refToDst: refBranch VarRef @processor @block createVariable;
         Dirty makeValuePair @refToDst getVar.@staticity set
         refToVar @refToDst "inttoptr" @processor @block createCastCopyToNew
         @refToDst @processor @block derefAndPush
@@ -921,7 +924,7 @@ staticityOfBinResult: [
                 @field.@refToVar @processor block unglobalize
                 block.program.dataSize @field.@refToVar getVar.@allocationInstructionIndex set
                 "no alloc..." @block createComment # fake instruction
-                field.refToVar @refToElement @processor @block createCheckedCopyToNew
+                @field.@refToVar @refToElement @processor @block createCheckedCopyToNew
                 @field.@refToVar markAsUnableToDie
                 @field.@refToVar i result @processor @block createGEPInsteadOfAlloc
               ] if
@@ -1532,8 +1535,8 @@ staticityOfBinResult: [
   refToVar: @processor @block pop;
   processor compilable [
     refToVar @block push
-    refToVar isForgotten
-    makeValuePair VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+    refToVar isAutoStruct [refToVar varIsMoved] && makeValuePair
+    VarCond @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
   ] when
 ] "mplBuiltinIsMoved" @declareBuiltin ucall
 
@@ -1598,7 +1601,7 @@ staticityOfBinResult: [
       ] [
         var: @refToVar getVar;
         var.data.getTag VarStruct = [
-          TRUE @var.@forgotten.@end set
+          TRUE @refToVar.setMoved
         ] when
 
         refToVar @block push
@@ -1624,7 +1627,7 @@ staticityOfBinResult: [
             ] [
               var: @refToVar getVar;
               var.data.getTag VarStruct = [
-                TRUE @var.@forgotten.@end set
+                TRUE @refToVar.setMoved
               ] when
 
               refToVar @block push

@@ -63,18 +63,15 @@
 "Block.NodeStateNew" use
 "Block.NodeStateNoOutput" use
 "Block.ShadowEvent" use
-"Block.UnfoundedName" use
 "File.File" use
 "Var.CodeNodeInfo" use
 "Var.Dirty" use
 "Var.Dynamic" use
 "Var.Field" use
 "Var.fullUntemporize" use
-"Var.fullUntemporizeBegin" use
-"Var.fullUntemporizeEnd" use
 "Var.getVar" use
 "Var.getPlainConstantIR" use
-"Var.isForgotten" use
+"Var.varIsMoved" use
 "Var.isSchema" use
 "Var.isAutoStruct" use
 "Var.isNonrecursiveType" use
@@ -284,12 +281,6 @@ addNameInfo: [
         mplFieldIndex @nameInfoEntry.@mplFieldIndex set
 
         @nameInfoEntry nameInfo @processor.@nameManager.addItem
-
-        refToVar noMatterToCopy [
-          refToVar @block.@captureTable.find.success ~ [
-            refToVar TRUE @block.@captureTable.insert
-          ] when
-        ] when
       ] when
     ] [
       #we add "self" or "closure" but dont use them in program
@@ -386,6 +377,7 @@ createVariableWithVirtual: [
 
   result: RefToVar;
   @processor.@variables.last.last @result.setVar
+  TRUE @result.setMoved
   @block @result getVar.@host.set
   result @result getVar.@sourceOfValue set
 
@@ -508,12 +500,14 @@ getPointeeWith: [
         @result pointeeCopy ShadowReasonPointee @processor @block makeShadowsDynamic
         @result @processor block unglobalize
         dynamize ~ [result @processor @block makeVarTreeDynamicStoraged] when
-        result @pointee set
+        result.var     @pointee.setVar
+        result.mutable @pointee.setMutable
       ] [
         pointeeCopy: pointee @processor @block copyVar; # lost info that pointee is from parent # noMatterToCopy
         @pointeeCopy @processor block unglobalize
         dynamize ~ [pointeeCopy @processor @block makeVarTreeDynamicStoraged] when
-        pointeeCopy @pointee set
+        pointeeCopy.var     @pointee.setVar
+        pointeeCopy.mutable @pointee.setMutable
       ] if
 
       TRUE @needReallyDeref set
@@ -522,8 +516,8 @@ getPointeeWith: [
       fromParent [ # capture or argument
         result: RefToVar;
         @result pointee ShadowReasonPointee @processor @block makeShadows
-        @result fullUntemporize
-        result @pointee set
+        result.var     @pointee.setVar
+        result.mutable @pointee.setMutable
 
         TRUE @needReallyDeref set
       ] when
@@ -554,6 +548,7 @@ getPointeeWith: [
       ] when
     ] if
 
+    pointee untemporize
     pointeeVar: @pointee getVar;
     pointeeVar.getInstructionIndex 0 < [pointeeIsGlobal ~] && [
       pointeeVar.allocationInstructionIndex 0 < [
@@ -567,8 +562,6 @@ getPointeeWith: [
       refToVar pointeeVar.irNameId @processor @block createDerefTo
       block.program.dataSize 1 - @pointeeVar.@getInstructionIndex set
     ] when
-
-    @pointee fullUntemporize
 
     result: pointee copy;
     refToVar.mutable pointee.mutable and @result.setMutable # to deref is
@@ -591,12 +584,7 @@ getFieldForMatching: [
     fieldRefToVar: mplFieldIndex structInfo.fields.at.refToVar copy;
     refToVar.mutable @fieldRefToVar.setMutable
     @fieldRefToVar @processor block unglobalize
-
-    fieldVar: @fieldRefToVar getVar;
-    fieldVar.data.getTag VarStruct = [
-      fieldStruct: VarStruct @fieldVar.@data.get.get;
-      var.forgotten.end @fieldVar.@forgotten.@end set
-    ] when
+    refToVar varIsMoved @fieldRefToVar.setMoved
 
     fieldRefToVar
   ] [
@@ -616,24 +604,20 @@ getFieldWith: [
     fieldVar: @fieldRefToVar getVar;
     fieldVar.data.getTag VarStruct = [
       fieldStruct: VarStruct @fieldVar.@data.get.get;
-      var.forgotten.end @fieldVar.@forgotten.@end set
+      refToVar varIsMoved @fieldRefToVar.setMoved
     ] when
 
     fieldRefToVar noMatterToCopy [fieldVar.host block is] || ~ [ # capture or argument
-      var.capturedHead getVar.host block is ~ [
-        [refToVar noMatterToCopy] "Field got from parent, but dont have shadow!" assert
-        fieldRefToVar @processor @block copyVarFromChild @fieldRefToVar set
-      ] [
-        fieldShadow: RefToVar;
-        @fieldShadow fieldRefToVar ShadowReasonField @processor @block makeShadows
+      fieldShadow: RefToVar;
+      @fieldShadow fieldRefToVar ShadowReasonField @processor @block makeShadows
+      @fieldShadow @processor block unglobalize
 
-        fieldShadow getVar.data.getTag VarStruct = [
-          fieldStruct: VarStruct @fieldShadow getVar.@data.get.get;
-          var.forgotten.end @fieldShadow getVar.@forgotten.@end set
-        ] when
+      fieldShadow getVar.data.getTag VarStruct = [
+        fieldStruct: VarStruct @fieldShadow getVar.@data.get.get;
+        refToVar varIsMoved @fieldShadow.setMoved
+      ] when
 
-        fieldShadow @fieldRefToVar set
-      ] if
+      fieldShadow @fieldRefToVar set
 
       var.staticity.end fieldRefToVar getVar.staticity.end < [
         var.staticity.end @fieldRefToVar getVar.@staticity.@end set
@@ -710,16 +694,16 @@ setOneVar: [
   [refDst.mutable] "Constness mismatch!" assert
 
   srcVar.data.getTag VarStruct = ~ [
-    srcVar.data.getTag VarCond VarReal64 1 + [
-      copy tag:;
-      tag srcVar.data.get.end
-      tag @dstVar.@data.get.@end set
-    ] staticCall
-
     srcVar.data.getTag VarRef = [
       VarRef srcVar.data.get
       VarRef @dstVar.@data.get set
-    ] when
+    ] [
+      srcVar.data.getTag VarCond VarReal64 1 + [
+        copy tag:;
+        tag srcVar.data.get.end
+        tag @dstVar.@data.get.@end set
+      ] staticCall
+    ] if
   ] when
 
   [srcVar.sourceOfValue getVar.host dstVar.sourceOfValue getVar.host is] "Source of value is from another node!" assert
@@ -728,12 +712,12 @@ setOneVar: [
   refDst staticityOfVar Dirty > [
     staticity: refSrc staticityOfVar;
     staticity Weak = [refDst staticityOfVar @staticity set] when
-    @refDst staticity @processor block makeStaticity drop
+    @refDst staticity @processor block makeEndStaticity drop
   ] [
     srcVar.data.getTag VarRef = [refSrc.mutable] && [VarRef srcVar.data.get.refToVar.mutable] && [
       staticity: refSrc staticityOfVar;
       refSrc @processor @block makeVarTreeDirty
-      @refSrc staticity @processor block makeStaticity drop
+      @refSrc staticity @processor block makeEndStaticity drop
     ] when
   ] if
 ];
@@ -978,7 +962,7 @@ makeVarTreeDirty: [
         ] if
 
         var.data.getTag VarImport = ~ var.data.getTag VarString = ~ and [
-          @lastRefToVar Dirty @processor block makeStaticity @lastRefToVar set
+          @lastRefToVar Dirty @processor block makeEndStaticity @lastRefToVar set
         ] when
       ] when
 
@@ -1004,7 +988,7 @@ makeVarDynamicOrDirty: [
   refToVar staticityOfVar Virtual = ["can't dynamize virtual value" @processor block compilerError] when
 
   @refToVar @processor @block makePointeeDirtyIfRef
-  msr: @refToVar newStaticity @processor @block makeStaticity;
+  msr: @refToVar newStaticity @processor @block makeEndStaticity;
 ];
 
 makeVarDynamic: [processor: block: ;; Dynamic @processor @block makeVarDynamicOrDirty];
@@ -1362,6 +1346,7 @@ getNameAs: [
         head: refToVar getVar.capturedHead;
         result: head getVar.capturedTail copy;
         refToVar.mutable @result.setMutable # tail cant keep correct staticity in some cases
+        refToVar varIsMoved @result.setMoved # tail cant keep correct staticity in some cases
 
         result
       ] [
@@ -1404,107 +1389,90 @@ captureName: [
   processor compilable [getNameResult.nameCase NameCaseInvalid = ~] && [
     captureError: FALSE dynamic;
 
+    addBlockIdTo: [
+      whereNames: nameInfo: nameOverloadDepth: ;;;
+
+      nameInfo whereNames.size < ~ [nameInfo 1 + @whereNames.resize] when
+      whereOverloads: nameInfo @whereNames.at;
+      nameOverloadDepth whereOverloads.size < ~ [nameOverloadDepth 1 + @whereOverloads.resize] when
+      whereIds: nameOverloadDepth @whereOverloads.at;
+      whereIds.size 0 = [block.id whereIds.last = ~] || [
+        block.id @whereIds.pushBack
+        TRUE
+      ] [
+        FALSE
+      ] if
+    ];
+
     captureRefToVar: [
       copy captureCase:;
       refToVar:;
+      copy overloadDepth:;
       copy nameInfo:;
 
       result: {
-        refToVar: RefToVar;
+        refToVar: refToVar copy;
         newVar: FALSE;
       };
 
-      head: refToVar getVar.capturedHead;
-      needToCapture: refToVar getVar.host block is ~;
-      needToCapture ~ [
-        head getVar.host block is ~ [refToVar noMatterToCopy ~] && [
-          var: refToVar getVar;
-
-          var.allocationInstructionIndex 0 <
-          var.getInstructionIndex 0 < and
-          var.globalDeclarationInstructionIndex 0 < and
-
-          [
-            var.shadowReason ShadowReasonCapture = ~
-            [
-              captureCase NameCaseSelfObject =
-              captureCase NameCaseClosureObject = or
-              var.shadowReason ShadowReasonInput = and ~
-            ] &&
-          ] && [
-            TRUE @needToCapture set
-          ] when
-        ] when
-      ] when
-
-      needToCapture ~ [
+      getNameResult.startPoint block.id = ~ [@processor.@captureTable nameInfo overloadDepth addBlockIdTo] && [
         TRUE @refToVar getVar.@capturedAsMutable set
         refToVar @result.@refToVar set
-      ] [
-        refToVar noMatterToCopy ~ [
-          head block.captureTable.find.success ~ [
-            head TRUE @block.@captureTable.insert
 
-            TRUE
-          ] &&
+        shadow: RefToVar;
+        @shadow refToVar ShadowReasonCapture @processor @block makeShadows
+        @shadow fullUntemporize
 
-          refToVar @result.@refToVar set
-        ] || [
-          shadow: RefToVar;
-          @shadow refToVar ShadowReasonCapture @processor @block makeShadows
+        newCapture: Capture;
+        shadow @newCapture.@refToVar set
+        nameInfo @newCapture.@nameInfo set
+        [getNameResult.overloadIndex 0 < ~] "name overload not initialized!" assert
 
-          newCapture: Capture;
-          shadow @newCapture.@refToVar set
-          nameInfo @newCapture.@nameInfo set
-          [getNameResult.overloadIndex 0 < ~] "name overload not initialized!" assert
+        overloadDepth @newCapture.@nameOverloadDepth set
+        captureCase   @newCapture.@captureCase set
+        file          @newCapture.@file.set
 
-          overloadDepth @newCapture.@nameOverloadDepth set
-          captureCase   @newCapture.@captureCase set
-          file          @newCapture.@file.set
+        refToVar isVirtual [ArgVirtual] [refToVar isGlobal [ArgGlobal] [ArgRef] if ] if @newCapture.@argCase set
+        realCapture: newCapture.argCase ArgRef =;
 
-          refToVar isVirtual [ArgVirtual] [refToVar isGlobal [ArgGlobal] [ArgRef] if ] if @newCapture.@argCase set
-          realCapture: newCapture.argCase ArgRef =;
-
-          realCapture [block.exportDepth refToVar getVar.host.exportDepth = ~] && [
-            TRUE !captureError
-          ] when
-
-          newEvent: ShadowEvent;
-          ShadowReasonCapture @newEvent.setTag
-          branch: ShadowReasonCapture @newEvent.get;
-          newCapture @branch set
-          shadow @branch.@refToVar set
-
-          newCapture @block.@buildingMatchingInfo.@captures.pushBack
-          block.state NodeStateNew = [
-            newCapture @block.@matchingInfo.@captures.pushBack
-          ] when
-
-          @block @shadow setTopologyIndex
-          @newEvent @block addShadowEvent
-
-          processor.options.debug [shadow isVirtual ~] && [shadow isGlobal ~] && [
-            fakePointer: shadow makeRefBranch VarRef @processor @block createVariable;
-            shadow @fakePointer @processor @block createRefOperation
-            nameInfo fakePointer @processor @block addVariableMetadata
-            programSize: block.program.getSize;
-            TRUE programSize 3 - @block.@program.at.@fakePointer set
-            TRUE programSize 2 - @block.@program.at.@fakePointer set
-            TRUE programSize 1 - @block.@program.at.@fakePointer set
-            @processor @block addDebugLocationForLastInstruction
-          ] when
-
-          shadow @result.@refToVar set
-          TRUE @result.@newVar set
-
-          @shadow fullUntemporize
-          refToVar isForgotten ~ [
-            @shadow fullUntemporizeBegin
-          ] when
-
-          [shadow getVar.temporary ~] "Captured var must not be temporary!" assert
+        realCapture [block.exportDepth refToVar getVar.host.exportDepth = ~] && [
+          TRUE !captureError
         ] when
-      ] if
+
+        nameInfo processor.selfNameInfo = [overloadDepth 0 = ~] && [
+          [FALSE] "Self cannot have overloads!" assert
+        ] when
+
+        newEvent: ShadowEvent;
+        ShadowReasonCapture @newEvent.setTag
+        branch: ShadowReasonCapture @newEvent.get;
+        newCapture @branch set
+        shadow @branch.@refToVar set
+
+        newCapture @block.@buildingMatchingInfo.@captures.pushBack
+        block.state NodeStateNew = [
+          newCapture @block.@matchingInfo.@captures.pushBack
+        ] when
+
+        @block @shadow setTopologyIndex
+        @newEvent @block addShadowEvent
+
+        processor.options.debug [shadow isVirtual ~] && [shadow isGlobal ~] && [
+          fakePointer: shadow makeRefBranch VarRef @processor @block createVariable;
+          shadow @fakePointer @processor @block createRefOperation
+          nameInfo fakePointer @processor @block addVariableMetadata
+          programSize: block.program.getSize;
+          TRUE programSize 3 - @block.@program.at.@fakePointer set
+          TRUE programSize 2 - @block.@program.at.@fakePointer set
+          TRUE programSize 1 - @block.@program.at.@fakePointer set
+          @processor @block addDebugLocationForLastInstruction
+        ] when
+
+        shadow @result.@refToVar set
+        TRUE @result.@newVar set
+
+        [shadow getVar.temporary ~] "Captured var must not be temporary!" assert
+      ] when
 
       result
     ];
@@ -1522,7 +1490,7 @@ captureName: [
         ] if
       ] if;
 
-      cro: nameInfo @getNameResult.@object getNameResult.nameCase MemberCaseToObjectCase captureRefToVar;
+      cro: nameInfo 0 @getNameResult.@object getNameResult.nameCase MemberCaseToObjectCase captureRefToVar;
 
       cro.refToVar @result.@object set
       getNameResult.mplFieldIndex @cro.@refToVar @processor @block processStaticAt @result.@refToVar set
@@ -1531,21 +1499,13 @@ captureName: [
           nameInfo:      nameInfo copy;
           mplFieldIndex: getNameResult.mplFieldIndex copy;
           startPoint:    getNameResult.startPoint copy;
-          overloadDepth: overloadDepth copy;
+          overloadDepth: 0;
           addNameCase:   getNameResult.nameCase MemberCaseToObjectCaptureCase;
           refToVar:      cro.refToVar copy;
         } @processor @block addNameInfo
       ] when # add name info for "self"/"closure" as Object; result is object
 
-      needToCapture: getNameResult.startPoint block.id = ~ [
-        head: getNameResult.refToVar getVar.capturedHead;
-        head block.fieldCaptureTable.find.success ~ [
-          head TRUE @block.@fieldCaptureTable.insert
-          TRUE
-        ] &&
-      ] &&;
-
-      needToCapture [
+      getNameResult.startPoint block.id = ~ [@processor.@captureTable getNameResult.nameInfo overloadDepth addBlockIdTo] && [
         {
           nameInfo:      getNameResult.nameInfo copy;
           mplFieldIndex: getNameResult.mplFieldIndex copy;
@@ -1573,7 +1533,7 @@ captureName: [
         @newEvent @block addShadowEvent
       ] when
     ] [
-      cr: getNameResult.nameInfo @getNameResult.@refToVar getNameResult.nameCase captureRefToVar;
+      cr: getNameResult.nameInfo overloadDepth @getNameResult.@refToVar getNameResult.nameCase captureRefToVar;
       cr.refToVar @result.@refToVar set
       cr.newVar [
         {
@@ -2004,8 +1964,6 @@ setRef: [
       var.globalId @resultVar.@globalId set
       var.globalDeclarationInstructionIndex @resultVar.@globalDeclarationInstructionIndex set
 
-      reason @resultVar.@shadowReason set
-
       # add info  to linked list, link to end (changed value)
       headVar.capturedTail @resultVar.@capturedPrev set # newTail->oldTail
       result               @headVar.@capturedTail set # head->newTail
@@ -2018,14 +1976,7 @@ setRef: [
     ] [
       headVar.capturedTail getVar.host block is [
         headVar.capturedTail @result set
-
         refToVar.mutable @result.setMutable
-
-        resultVar: @result getVar;
-        reason resultVar.shadowReason < [
-          reason @resultVar.@shadowReason set
-        ] when
-
         [result getVar.host block is] "Begin hostId incorrect in makeShadows!" assert
       ] [
         reallyCreateShadows
@@ -2070,14 +2021,24 @@ setRef: [
     srcStruct.structAlignment   @dstStructAc.@structAlignment set
     srcStruct.structStorageSize @dstStructAc.@structStorageSize set
   ] [
-    srcVar.data.getTag VarInvalid VarEnd [
-      copy tag:;
-      tag VarStruct = ~ [
-        tag srcVar.data.get tag src isVirtual src isSchema FALSE dynamic @processor @block createVariableWithVirtual
+    src isPlain [
+      srcVar.data.getTag VarCond VarReal64 1 + [
+        copy tag:;
+        tag srcVar.data.get.end makeValuePair tag src isVirtual src isSchema FALSE dynamic @processor @block createVariableWithVirtual
         src checkedStaticityOfVar @processor block makeStaticity
         @result set
-      ] when
-    ] staticCall
+      ] staticCall
+    ] [
+      srcVar.data.getTag VarInvalid VarEnd [
+        copy tag:;
+
+        tag VarStruct = ~ [
+          tag srcVar.data.get tag src isVirtual src isSchema FALSE dynamic @processor @block createVariableWithVirtual
+          src checkedStaticityOfVar @processor block makeStaticity
+          @result set
+        ] when
+      ] staticCall
+    ] if
 
     srcVar.data.getTag VarRef = [
       dstVar: @result getVar;
@@ -2086,6 +2047,7 @@ setRef: [
   ] if
 
   src.mutable @result.setMutable
+  toNew fromChildToParent or ~ [src varIsMoved @result.setMoved] when
   dstVar: @result getVar;
 
   fromChildToParent ~ [
@@ -2233,7 +2195,7 @@ setRef: [
 
       @result entry ShadowReasonInput @processor @block makeShadows
 
-      entry isForgotten [
+      entry varIsMoved [
         @result untemporize
       ] [
         @result fullUntemporize
@@ -3021,6 +2983,19 @@ unregCodeNodeNames: [
     ] each
   ];
 
+  unregTable: [
+    whereNames:;
+
+    [
+      nameWithOverloadAndRefToVar:;
+
+      whereOverloads: nameWithOverloadAndRefToVar.nameInfo @whereNames.at;
+      whereIds: nameWithOverloadAndRefToVar.nameOverloadDepth @whereOverloads.at;
+      [whereIds.last block.id =] "Wrong block id while unreg name!" assert
+      @whereIds.popBack
+    ] each
+  ];
+
   registerWithoutOverload: [
     addNameCase:;
     [
@@ -3036,6 +3011,8 @@ unregCodeNodeNames: [
 
   @block.@labelNames unregisterNamesIn
   @block.@fromModuleNames unregisterNamesIn
+  @block.@captureNames      @processor.@captureTable unregTable
+  @block.@fieldCaptureNames @processor.@captureTable unregTable
 
   processor compilable block.parent 0 = and [
     @block.@fromModuleNames NameCaseFromModule registerWithoutOverload
@@ -3048,8 +3025,6 @@ unregCodeNodeNames: [
   ] each
 
   @block.@capturedVars.release
-  @block.@captureTable.release
-  @block.@fieldCaptureTable.release
 ];
 
 addMatchingNode: [
@@ -3127,6 +3102,7 @@ deleteNode: [
   node: nodeIndex @processor.@blocks.at.get;
   TRUE dynamic @node.@empty   set
   TRUE dynamic @node.@deleted set
+
   @node.@program.release
 
   @node deleteMatchingNode
@@ -4135,6 +4111,7 @@ addIndexArrayToProcess: [
     @block.@labelNames.clear
     @block.@fromModuleNames.clear
     @block.@captureNames.clear
+    @block.@fieldCaptureNames.clear
     @block.@unprocessedAstNodes.clear
 
     processor.options.debug [

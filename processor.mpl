@@ -121,6 +121,8 @@ Processor: [{
   nameManager:         NameInfoEntry NameManager;
   modules:             String Int32 HashTable; # -1 no module, or Id of codeNode
 
+  captureTable:      Int32 Array Array Array;
+
   emptyNameInfo:               -1 dynamic;
   callNameInfo:                -1 dynamic;
   preNameInfo:                 -1 dynamic;

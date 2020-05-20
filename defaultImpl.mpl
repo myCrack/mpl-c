@@ -105,7 +105,7 @@ defaultSet: [
         ] [
           refToDst.mutable [
             [refToDst staticityOfVar Weak = ~] "Destination is weak!" assert
-            @refToSrc refToDst @processor @block createCopyToExists
+            @refToSrc @refToDst @processor @block createCopyToExists
           ] [
             "destination is immutable" @processor block compilerError
           ] if
@@ -118,7 +118,7 @@ defaultSet: [
         lambdaCastResult: refToSrc @refToDst @processor @block tryImplicitLambdaCast;
         lambdaCastResult.success [
           newSrc: @lambdaCastResult.@refToVar TRUE @processor @block createRef;
-          @newSrc refToDst @processor @block createCopyToExists
+          @newSrc @refToDst @processor @block createCopyToExists
         ] [
           ("types mismatch, src is " refToSrc @processor block getMplType "," LF "dst is " refToDst @processor block getMplType) assembleString @processor block compilerError
         ] if

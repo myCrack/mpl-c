@@ -309,8 +309,8 @@ copyOneVar: [processor: block:;; FALSE dynamic FALSE dynamic @processor @block c
 {
   block: Block Ref;
   processor: Processor Ref;
-  refToDst: RefToVar Cref;
-  refToSrc: RefToVar Cref;
+  refToDst: RefToVar Ref;
+  refToSrc: RefToVar Ref;
 } () {} "createCopyToExists" importFunction
 
 {

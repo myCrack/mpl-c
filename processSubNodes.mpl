@@ -121,6 +121,7 @@
 "Var.fullUntemporize" use
 "Var.getVar" use
 "Var.isPlain" use
+"Var.varIsMoved" use
 "Var.staticityOfVar" use
 "Var.RefToVar" use
 "Var.ShadowReasonInput" use
@@ -150,6 +151,7 @@
 
 {processorResult: ProcessorResult Ref; cachedGlobalErrorInfoSize: Int32;} () {} [
   cachedGlobalErrorInfoSize: processorResult:;;
+
   TRUE               @processorResult.!success
   FALSE              @processorResult.!findModuleFail
   FALSE              @processorResult.!passErrorThroughPRE
@@ -174,47 +176,62 @@
   ] if
 ] "variablesHaveSameGlobality" exportFunction
 
-{processor: Processor Cref; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
-  stackEntry: cacheEntry: processor:;;;
-
+{processor: Processor Cref; comparingMessage: String Ref; makeMessage: Cond; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
+  stackEntry: cacheEntry: makeMessage: comparingMessage: processor: ;;;;;
   stackDynamicBorder: Weak;
 
-  cacheEntry stackEntry variablesAreSame [cacheEntry stackEntry processor variablesHaveSameGlobality] && [
-    cacheEntryVar: cacheEntry getVar;
-    stackEntryVar: stackEntry getVar;
-
-    stackEntryVar.data.getTag VarStruct = [
-      cacheStruct: VarStruct cacheEntryVar.data.get.get;
-      cacheStruct.hasDestructor ~ [cacheEntryVar.forgotten.begin stackEntryVar.forgotten.end =] ||
+  cacheEntry stackEntry variablesAreSame ~ [
+    makeMessage ["variables has different type" toString @comparingMessage set] when
+    FALSE
+  ] [
+    cacheEntry stackEntry processor variablesHaveSameGlobality ~ [
+      makeMessage ["variables has different globality" toString @comparingMessage set] when
+      FALSE
     ] [
-      cacheStaticity: cacheEntry getVar.staticity.begin;
-      stackStaticity: stackEntry getVar.staticity.end;
+      cacheEntryVar: cacheEntry getVar;
+      stackEntryVar: stackEntry getVar;
 
-      cacheStaticity Weak > ~ stackStaticity stackDynamicBorder > ~ and [ # both dynamic
-        cacheStaticity Weak > stackStaticity stackDynamicBorder > and [ # both static
-          cacheEntry isPlain [
-            result: TRUE;
+      stackEntryVar.data.getTag VarStruct = [
+        cacheStruct: VarStruct cacheEntryVar.data.get.get;
+        cacheStruct.hasDestructor [cacheEntry varIsMoved stackEntry varIsMoved = ~] && [
+          makeMessage ["variables has different moveness" toString @comparingMessage set] when
+          FALSE
+        ] [
+          TRUE
+        ] if
+      ] [
+        cacheStaticity: cacheEntry getVar.staticity.begin;
+        stackStaticity: stackEntry getVar.staticity.end;
 
-            cacheEntryVar.data.getTag VarCond VarReal64 1 + [
-              tag:;
-              tag cacheEntryVar.data.get.begin
-              tag stackEntryVar.data.get.end =
-              !result
-            ] staticCall
+        cacheStaticity Weak > ~ stackStaticity stackDynamicBorder > ~ and [
+          # both dynamic
+          TRUE 
+        ] [
+          cacheStaticity Weak > stackStaticity stackDynamicBorder > and [
+            # both static
+            cacheEntry isPlain [
+              result: TRUE;
 
-            result
-          ] [
-            cacheEntryVar.data.getTag VarBuiltin = [
-              [FALSE] "Impossible to create var with builtin!" assert
-              FALSE
+              cacheEntryVar.data.getTag VarCond VarReal64 1 + [
+                tag:;
+                tag cacheEntryVar.data.get.begin
+                tag stackEntryVar.data.get.end =
+                !result
+              ] staticCall
+
+              result ~ makeMessage and ["variables has different values" toString @comparingMessage set] when
+              result
             ] [
               TRUE # go recursive
             ] if
+          ] [
+            makeMessage ["variables has different staticity" toString @comparingMessage set] when
+            FALSE
           ] if
-        ] && # both static and are equal
-      ] || # both dynamic
+        ] if
+      ] if
     ] if
-  ] &&
+  ] if
 ] "variablesAreEqualForMatching" exportFunction
 
 {processor: Processor Cref; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
@@ -227,14 +244,14 @@
 
     stackEntryVar.data.getTag VarStruct = [
       cacheStruct: VarStruct cacheEntryVar.data.get.get;
-      cacheStruct.hasDestructor ~ [cacheEntryVar.forgotten.end stackEntryVar.forgotten.end =] ||
+      cacheStruct.hasDestructor ~ [cacheEntry varIsMoved stackEntry varIsMoved =] ||
     ] [
       cacheStaticity: cacheEntry getVar.staticity.end;
       stackStaticity: stackEntry getVar.staticity.end;
 
       cacheStaticity Weak > ~ stackStaticity stackDynamicBorder > ~ and [ # both dynamic
         cacheStaticity Weak > stackStaticity stackDynamicBorder > and [ # both static
-          cacheEntry isSemiplainNonrecursiveType [
+          cacheEntry isPlain [
             result: TRUE;
 
             cacheEntryVar.data.getTag VarCond VarReal64 1 + [
@@ -246,17 +263,12 @@
 
             result
           ] [
-            cacheEntryVar.data.getTag VarBuiltin =  [
-              [FALSE] "Impossible to create var with builtin!" assert
-              FALSE
+            cacheEntryVar.data.getTag VarRef = [cacheEntry staticityOfVar Virtual <] && [
+              r1: VarRef cacheEntryVar.data.get.refToVar;
+              r2: VarRef stackEntryVar.data.get.refToVar;
+              r1.var r2.var is [r1.mutable r2.mutable =] && [r1 getVar.staticity.end r2 getVar.staticity.end =] &&
             ] [
-              cacheEntryVar.data.getTag VarRef = [cacheEntry staticityOfVar Virtual <] && [
-                r1: VarRef cacheEntryVar.data.get.refToVar;
-                r2: VarRef stackEntryVar.data.get.refToVar;
-                r1.var r2.var is [r1.mutable r2.mutable =] && [r1 getVar.staticity.end r2 getVar.staticity.end =] &&
-              ] [
-                TRUE # go recursive
-              ] if
+              TRUE # go recursive
             ] if
           ] if
         ] && # both static and are equal
@@ -274,14 +286,13 @@
   stackEntry: cacheEntry: checkConstness: comparingMessage: currentMatchingNode:  processor:;;;;;;
 
   checkConstness ~ [cacheEntry.mutable stackEntry.mutable =] || [
-    stackEntry cacheEntry processor variablesAreEqualForMatching [
+    stackEntry cacheEntry currentMatchingNode.nodeCompileOnce @comparingMessage processor variablesAreEqualForMatching [
       TRUE
     ] [
-      currentMatchingNode.nodeCompileOnce ["; variables mismatch" @comparingMessage.cat] when
       FALSE
     ] if
   ] [
-    currentMatchingNode.nodeCompileOnce ["; variables have different constness" @comparingMessage.cat] when
+    currentMatchingNode.nodeCompileOnce ["variables have different constness" toString @comparingMessage set] when
     FALSE
   ] if
 ] "compareOnePair" exportFunction
@@ -353,28 +364,37 @@ tryMatchNode: [
 
   canMatch invisibleName ~ and goodReality and [
     mismatchMessage: [
-      message:;
-      [
-        s: message toString;
-        " mismatch" makeStringView  @s.cat
-        stackEntry.assigned ~ [
-          ", stack entry not found" @s.cat
-        ] [
-          stackEntry cacheEntry variablesAreSame ~ [
-            (", stack type is " stackEntry @processor block getMplType ", cache type is " cacheEntry @processor block getMplType) @s.catMany
-          ] [
-            stackEntry.mutable cacheEntry.mutable = ~ [
-              stackEntry.mutable [", stack is mutable" makeStringView] [", stack is immutable" makeStringView] if @s.cat
-              cacheEntry.mutable [", cache is mutable" makeStringView] [", cache is immutable" makeStringView] if @s.cat
-            ] [
-              comparingMessage @s.cat
-            ] if
-          ] if
-        ] if
+      index:;
+      message: ("in compile-one func cache mismatch; " comparingMessage "; matching table events to failing event:" LF) assembleString;
 
-        (s) addLog
-        s @processor block compilerError
-      ] call
+      index 1 + [
+        currentEvent: i currentMatchingNode.matchingInfo.shadowEvents.at;
+        (
+          ShadowReasonInput [
+            branch:;
+            ("shadow event [" i "] input as " branch.refToVar getVar.topologyIndex LF) @message.catMany
+          ]
+          ShadowReasonCapture [
+            branch:;
+            ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.topologyIndex LF) @message.catMany
+          ]
+          ShadowReasonFieldCapture [
+            branch:;
+            ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.topologyIndex LF) @message.catMany
+          ]
+          ShadowReasonPointee [
+            branch:;
+            ("shadow event [" i "] pointee " branch.pointer getVar.topologyIndex " as " branch.pointee getVar.topologyIndex LF) @message.catMany
+          ]
+          ShadowReasonField [
+            branch:;
+            ("shadow event [" i "] field \"" branch.mplFieldIndex VarStruct branch.object getVar.data.get.get.fields.at.nameInfo processor.nameManager.getText "\" [" branch.mplFieldIndex "] of " branch.object getVar.topologyIndex " as " branch.field getVar.buildingTopologyIndex LF) @message.catMany
+          ]
+          []
+        ) currentEvent.visit
+      ] times
+
+      message @processor block compilerError
     ];
 
     success: TRUE dynamic;
@@ -417,10 +437,7 @@ tryMatchNode: [
 
             stackEntry cacheEntry TRUE @comparingMessage currentMatchingNode processor compareOnePair
             [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
-              currentMatchingNode.nodeCompileOnce [
-                ("in compiled-once func input " matchingNodeStackDepth 1 +) assembleString mismatchMessage
-              ] when
-
+              currentMatchingNode.nodeCompileOnce [i mismatchMessage] when
               FALSE dynamic @success set
             ] when
 
@@ -434,10 +451,7 @@ tryMatchNode: [
             stackEntry: branch.nameInfo branch overloadIndex @processor @block branch.file getNameForMatchingWithOverloadIndex.refToVar;
             stackEntry cacheEntry TRUE @comparingMessage currentMatchingNode processor compareOnePair
             [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
-              currentMatchingNode.nodeCompileOnce [
-                ("in compiled-once func capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ")") assembleString mismatchMessage
-              ] when
-
+              currentMatchingNode.nodeCompileOnce [i mismatchMessage] when
               FALSE dynamic @success set
             ] when
           ]
@@ -449,10 +463,7 @@ tryMatchNode: [
               currentFieldInfo: overloadIndex branch.nameInfo processor.nameManager.getItem;
               currentFieldInfo.nameCase branch.captureCase = [branch.object currentFieldInfo.refToVar variablesAreSame] &&
             ] && ~ [
-              currentMatchingNode.nodeCompileOnce [
-                ("in compiled-once func fieldCapture " branch.nameInfo processor.nameManager.getText "\" mismatch") assembleString @processor block compilerError
-              ] when
-
+              currentMatchingNode.nodeCompileOnce [i mismatchMessage] when
               FALSE dynamic @success set
             ] when
           ]
@@ -463,10 +474,7 @@ tryMatchNode: [
 
             stackEntry cacheEntry TRUE @comparingMessage currentMatchingNode processor compareOnePair
             [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
-              currentMatchingNode.nodeCompileOnce [
-                "in compiled-once func pointers " mismatchMessage
-              ] when
-
+              currentMatchingNode.nodeCompileOnce [i mismatchMessage] when
               FALSE dynamic @success set
             ] when
           ]
@@ -478,10 +486,7 @@ tryMatchNode: [
 
             stackEntry cacheEntry FALSE @comparingMessage currentMatchingNode processor compareOnePair
             [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
-              currentMatchingNode.nodeCompileOnce [
-                "in compiled-once func fields " mismatchMessage
-              ] when
-
+              currentMatchingNode.nodeCompileOnce [i mismatchMessage] when
               FALSE dynamic @success set
             ] when
           ]
@@ -708,9 +713,10 @@ fixOutputRefsRec: [
 
       stackEntryVar.data.getTag VarRef = [
         currentFromStack isSchema ~ [
-          stackPointee: VarRef @stackEntryVar.@data.get.refToVar;
+          stackPointee: VarRef @stackEntryVar.@data.get.@refToVar;
           stackPointee getVar.host currentChangesNode is [
             fixed: currentFromStack appliedVars fixRef @processor @block getPointeeNoDerefIR;
+
             fixed @unfinishedStack.pushBack
             [fixed hasGoodSource] "Fixed ref source invariant failed!" assert
           ] when
@@ -950,8 +956,10 @@ derefNEntries: [
     i count < [
       count 1 - i - implicitDerefInfo.at [
         dst: i @processor @block getStackEntry;
-        @dst @processor @block getPossiblePointee @dst set
+        pointee: @dst @processor @block getPossiblePointee;
+        pointee @dst set
       ] when
+
       i 1 + @i set TRUE
     ] &&
   ] loop
@@ -1447,9 +1455,9 @@ processIf: [
             copy index:;
 
             index branch.outputs.dataSize + longestOutputSize < [
-              longestInputSize 1 - i - inputs.at copy
+              longestInputSize 1 - i - @inputs.at copy
             ] [
-              index branch.outputs.dataSize + longestOutputSize - compiledOutputs.at copy
+              index branch.outputs.dataSize + longestOutputSize - @compiledOutputs.at copy
             ] if
           ];
 
@@ -1458,9 +1466,9 @@ processIf: [
             branch:;
             copy index:;
             index branch.outputs.dataSize + longestOutputSize < [
-              index outputs.at
+              index @outputs.at
             ] [
-              index branch.outputs.dataSize + longestOutputSize - compiledOutputs.at
+              index branch.outputs.dataSize + longestOutputSize - @compiledOutputs.at
             ] if
           ];
 
@@ -1609,6 +1617,7 @@ processIf: [
                 outputThen outputElse variablesAreSame [
                   newOutput: outputThen copy;
                   outputElse.mutable outputThen.mutable and @newOutput.setMutable
+                  outputElse varIsMoved outputThen varIsMoved and @newOutput.setMoved
                   outputThen outputElse newOutput mergeValuesRec
                   i newNodeThen.outputs.dataSize + longestOutputSize < ~ [newOutput @outputsThen.pushBack] when
                   i newNodeElse.outputs.dataSize + longestOutputSize < ~ [newOutput @outputsElse.pushBack] when
@@ -1663,13 +1672,13 @@ processIf: [
                 i: 0 dynamic;
                 [
                   i longestOutputSize < [
-                    current: i branch compiledOutputs getCompiledOutput;
-                    curInput: i branch compiledOutputs getCompiledInput;
+                    current: i branch @compiledOutputs getCompiledOutput;
+                    curInput: i branch @compiledOutputs getCompiledInput;
 
                     current.var curInput.var is ~ [
                       curInput isVirtual ~ ["variable states in branches mismatch" @processor block compilerError] when
                       FALSE @curInput getVar.@temporary set
-                      current @curInput @processor @block createCheckedCopyToNewNoDie
+                      @current @curInput @processor @block createCheckedCopyToNewNoDie
                     ] when
 
                     i 1 + @i set TRUE
@@ -1681,12 +1690,12 @@ processIf: [
               0 refToCond @processor @block createBranch
               @block createLabel
               inputsThen @outputsThen newNodeThen makeCallInstruction
-              newNodeThen outputsThen createStores
+              newNodeThen @outputsThen createStores
               0 @block createJump
               @block createLabel
               wasNestedCall @block.@hasNestedCall set
               inputsElse @outputsElse newNodeElse makeCallInstruction
-              newNodeElse outputsElse createStores
+              newNodeElse @outputsElse createStores
               1 @block createJump
               @block createLabel
               implicitDerefInfo longestOutputSize @block derefNEntries
