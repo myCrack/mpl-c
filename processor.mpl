@@ -210,3 +210,24 @@ Processor: [{
   INIT: [];
   DIE: [];
 }];
+
+
+{block: Block Cref; processor: Processor Cref; } Int32 {} [
+  
+  processor: block:;;
+  depth: 0 dynamic;
+  inputsCount: 0 dynamic;
+  [
+    block.root ~ [
+      depth block.stack.dataSize + @depth set
+      inputsCount block.buildingMatchingInfo.inputs.size + @inputsCount set
+      block.parent processor.blocks.at.get !block
+      TRUE
+    ] &&
+  ] loop
+
+  [inputsCount depth > ~] "Missed stack overflow!" assert
+
+  depth inputsCount -
+
+] "getStackDepthForMe" exportFunction

@@ -40,8 +40,8 @@
 "declarations.callDie" use
 "declarations.copyVar" use
 "declarations.copyVarFromChild" use
+"declarations.copyVarFromType" use
 "declarations.copyVarToNew" use
-"declarations.copyVarFromParent" use
 "declarations.compilerError" use
 "declarations.defaultCall" use
 "declarations.defaultPrintStack" use
@@ -220,7 +220,7 @@ mplBuiltinProcessAtList: [
 
                 @refToIndex makeVarRealCaptured
                 firstField: 0 realStruct.fields.at.refToVar;
-                fieldRef: firstField @processor @block copyVarFromParent;
+                fieldRef: firstField @processor @block copyVarFromType;
                 firstField getVar.host block is ~ [
                   shadow: RefToVar;
                   @shadow fieldRef ShadowReasonField @processor @block makeShadowsDynamic
@@ -1654,13 +1654,18 @@ staticityOfBinResult: [
 [
   refToVar: @processor @block pop;
   processor compilable [
-    result: refToVar @processor @block copyVarToNew;
-    result isVirtual ~ [result isUnallocable ~] && [
-      TRUE @result.setMutable
-      @result @processor @block createAllocIR @processor @block callInit
-    ] when
+    refToVar isUnallocable [
+      "cannot create newVar of string or func" @processor @block compilerError
+    ] [
+      result: refToVar @processor @block copyVarFromType;
 
-    result @block push
+      result isVirtual ~ [
+        TRUE @result.setMutable
+        @result @processor @block createAllocIR @processor @block callInit
+      ] when
+
+      result @block push
+    ] if
   ] when
 ] "mplBuiltinNewVarOfTheSameType" @declareBuiltin ucall
 

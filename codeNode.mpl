@@ -131,9 +131,10 @@
 "declarations.copyOneVar" use
 "declarations.copyOneVarWith" use
 "declarations.copyVar" use
+"declarations.CopyVarFlags" use
 "declarations.copyVarFromChild" use
+"declarations.copyVarFromType" use
 "declarations.copyVarToNew" use
-"declarations.copyVarFromParent" use
 "declarations.defaultPrintStack" use
 "declarations.defaultPrintStackTrace" use
 "declarations.getMplType" use
@@ -503,7 +504,7 @@ getPointeeWith: [
         result.var     @pointee.setVar
         result.mutable @pointee.setMutable
       ] [
-        pointeeCopy: pointee @processor @block copyVar; # lost info that pointee is from parent # noMatterToCopy
+        pointeeCopy: pointee @processor @block copyVarFromType; #this type of copy dont create shadows
         @pointeeCopy @processor block unglobalize
         dynamize ~ [pointeeCopy @processor @block makeVarTreeDynamicStoraged] when
         pointeeCopy.var     @pointee.setVar
@@ -550,10 +551,8 @@ getPointeeWith: [
 
     pointee untemporize
     pointeeVar: @pointee getVar;
-    pointeeVar.getInstructionIndex 0 < [pointeeIsGlobal ~] && [
-      pointeeVar.allocationInstructionIndex 0 < [
-        TRUE @needReallyDeref set
-      ] when
+    pointeeVar.getInstructionIndex 0 <  [pointeeVar.allocationInstructionIndex 0 <] && [pointeeIsGlobal ~] && [
+      TRUE @needReallyDeref set
     ] [
       FALSE @needReallyDeref set
     ] if
@@ -1989,14 +1988,18 @@ setRef: [
   block: Block Ref;
   processor: Processor Ref;
 
-  toNew: Cond;
-  fromChildToParent: Cond;
+  flags: Nat8;
 
   refToVar: RefToVar Cref;
   result: RefToVar Ref;
 } () {} [
-  src: fromChildToParent: toNew: processor: block: ;;;;;
+  src: flags: processor: block: ;;;;
   result:;
+  overload failProc: @processor block FailProcForProcessor;
+
+  fromChild: flags CopyVarFlags.FROM_CHILD and 0n8 = ~;
+  toNew:     flags CopyVarFlags.TO_NEW     and 0n8 = ~;
+  fromType:  flags CopyVarFlags.FROM_TYPE  and 0n8 = ~;
 
   srcVar: src getVar;
 
@@ -2047,10 +2050,10 @@ setRef: [
   ] if
 
   src.mutable @result.setMutable
-  toNew fromChildToParent or ~ [src varIsMoved @result.setMoved] when
+  toNew fromChild or fromType or ~ [src varIsMoved @result.setMoved] when
   dstVar: @result getVar;
 
-  fromChildToParent ~ [
+  fromType ~ [
     srcVar.sourceOfValue @dstVar.@sourceOfValue set
     [srcVar.sourceOfValue getVar.host dstVar.sourceOfValue getVar.host is] "Source of value is from another node!" assert
   ] when
@@ -2062,16 +2065,19 @@ setRef: [
   block: Block Ref;
   processor: Processor Ref;
 
-  toNew: Cond;
-  fromChildToParent: Cond;
+  flags: Nat8;
   refToVar: RefToVar Cref;
   result: RefToVar Ref;
 } () {} [
-  refToVar: fromChildToParent: toNew: processor: block: ;;;;;
+  refToVar: flags: processor: block: ;;;;
   result:;
   overload failProc: @processor block FailProcForProcessor;
 
-  refToVar noMatterToCopy [fromChildToParent toNew or refToVar isUnallocable and] || [
+  fromChild: flags CopyVarFlags.FROM_CHILD and 0n8 = ~;
+  toNew:     flags CopyVarFlags.TO_NEW     and 0n8 = ~;
+  fromType:  flags CopyVarFlags.FROM_TYPE  and 0n8 = ~;
+
+  refToVar noMatterToCopy [fromChild toNew or refToVar isUnallocable and] || [
     refToVar @result set
   ] [
     RefToVar @result set
@@ -2090,7 +2096,7 @@ setRef: [
         currentSrc noMatterToCopy [
           currentSrc @currentDst set
         ] [
-          currentSrc fromChildToParent toNew @processor @block copyOneVarWith @currentDst set
+          currentSrc flags @processor @block copyOneVarWith @currentDst set
 
           currentSrcVar: currentSrc getVar;
           currentDstVar: @currentDst getVar;
@@ -2100,7 +2106,7 @@ setRef: [
             f: 0 dynamic;
             [
               f branchSrc.fields.dataSize < [
-                fromChildToParent [
+                fromChild fromType or [
                   f branchSrc.fields.at.refToVar @uncopiedSrc.pushBack
                 ] [
                   f @currentSrc @processor @block getField @uncopiedSrc.pushBack
@@ -3770,7 +3776,7 @@ makeCompilerPosition: [
         ]
         ShadowReasonCapture [
           branch:;
-          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.buildingTopologyIndex) assembleString @block createComment
+          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth "); staticity=" branch.refToVar getVar.staticity.begin " as " branch.refToVar getVar.buildingTopologyIndex) assembleString @block createComment
         ]
         ShadowReasonFieldCapture [
           branch:;

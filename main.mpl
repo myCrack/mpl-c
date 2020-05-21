@@ -169,6 +169,7 @@ processIntegerOption: [
 {argc: 0; argv: 0nx;} 0 {convention: cdecl;} [
   #debugMemory [TRUE !memoryDebugEnabled] when
   ("Start mplc compiler") addLog
+
   [
     argc:;
     argv:;

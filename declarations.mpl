@@ -263,48 +263,51 @@ tryImplicitLambdaCast: [
   @result
 ];
 
+CopyVarFlags: {
+  TO_NEW:     [1n8 dynamic];
+  FROM_CHILD: [2n8 dynamic];
+  FROM_TYPE:  [4n8 dynamic];
+};
+
 {
   block: Block Ref;
   processor: Processor Ref;
-
-  toNew: Cond;
-  fromChildToParent: Cond;
+  flags: Nat8;
   refToVar: RefToVar Cref;
   result: RefToVar Ref;
 } () {} "copyVarImpl" importFunction
 
 copyVarWith: [
-  refToVar: fromChildToParent: toNew: processor: block: ;;;;;
+  refToVar: flags: processor: block: ;;;;
 
   result: RefToVar;
-  @result refToVar fromChildToParent toNew @processor @block copyVarImpl
+  @result refToVar flags @processor @block copyVarImpl
   @result
 ];
 
-copyVar:           [processor: block:;; FALSE dynamic FALSE dynamic @processor @block copyVarWith]; #fromchild is static arg
-copyVarFromChild:  [processor: block:;; TRUE  dynamic FALSE dynamic @processor @block copyVarWith];
-copyVarToNew:      [processor: block:;; FALSE dynamic TRUE  dynamic @processor @block copyVarWith];
-copyVarFromParent: [processor: block:;; TRUE  dynamic FALSE dynamic @processor @block copyVarWith];
+copyVar:               [processor: block:;; 0n8 @processor @block copyVarWith]; #fromchild is static arg
+copyVarFromChild:      [processor: block:;; CopyVarFlags.FROM_CHILD @processor @block copyVarWith];
+copyVarToNew:          [processor: block:;; CopyVarFlags.TO_NEW     @processor @block copyVarWith];
+copyVarFromType:       [processor: block:;; CopyVarFlags.FROM_TYPE  @processor @block copyVarWith];
 
 {
   block: Block Ref;
   processor: Processor Ref;
 
-  toNew: Cond;
-  fromChildToParent: Cond;
+  flags: Nat8;
   refToVar: RefToVar Cref;
   result: RefToVar Ref;
 } () {} "copyOneVarWithImpl" importFunction
 
 copyOneVarWith: [
-  src: fromChildToParent: toNew: processor: block: ;;;;;
+  src: flags: processor: block: ;;;;
 
   result: RefToVar;
-  @result src fromChildToParent toNew @processor @block copyOneVarWithImpl
+  @result src flags @processor @block copyOneVarWithImpl
   @result
 ];
 
-copyOneVar: [processor: block:;; FALSE dynamic FALSE dynamic @processor @block copyOneVarWith];
+copyOneVar: [processor: block:;; 0n8 @processor @block copyOneVarWith];
 
 {
   block: Block Ref;

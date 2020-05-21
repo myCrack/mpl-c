@@ -77,7 +77,6 @@
 "declarations.copyVar" use
 "declarations.copyVarFromChild" use
 "declarations.copyVarToNew" use
-"declarations.copyVarFromParent" use
 "declarations.getMplType" use
 "declarations.tryImplicitLambdaCast" use
 "declarations.push" use
@@ -656,6 +655,7 @@ fixRef: [
   makeDynamic: FALSE dynamic;
   pointee: VarRef @var.@data.get.@refToVar;
   pointeeVar: pointee getVar;
+
   pointeeIsLocal: pointeeVar.capturedHead getVar.host currentChangesNode is;
   pointeeWasNotUsed: pointeeVar.host currentChangesNode is ~;
   fixed: pointee copy;
@@ -700,8 +700,6 @@ hasGoodSource: [
 fixOutputRefsRec: [
   stackEntry: appliedVars: ;;
 
-  [stackEntry hasGoodSource] "stackEntry source invariant failed!" assert
-
   unfinishedStack: @processor.acquireVarRefArray;
   stackEntry @unfinishedStack.pushBack
 
@@ -709,34 +707,54 @@ fixOutputRefsRec: [
   [
     i unfinishedStack.dataSize < [
       currentFromStack: i @unfinishedStack.at copy;
-      stackEntryVar: currentFromStack getVar;
+      stackEntryVar: @currentFromStack getVar;
+      sourceVar: stackEntryVar.sourceOfValue getVar;
 
-      stackEntryVar.data.getTag VarRef = [
-        currentFromStack isSchema ~ [
-          stackPointee: VarRef @stackEntryVar.@data.get.@refToVar;
-          stackPointee getVar.host currentChangesNode is [
-            fixed: currentFromStack appliedVars fixRef @processor @block getPointeeNoDerefIR;
-
-            fixed @unfinishedStack.pushBack
-            [fixed hasGoodSource] "Fixed ref source invariant failed!" assert
-          ] when
-        ] when
+      currentFromStack noMatterToCopy [
+        #do nothing
       ] [
-        stackEntryVar.data.getTag VarStruct = [
-          stackStruct: VarStruct stackEntryVar.data.get.get;
-          j: 0 dynamic;
-          [
-            j stackStruct.fields.dataSize < [
-              stackField: j stackStruct.fields.at.refToVar;
-              stackField @unfinishedStack.pushBack
-              [stackField hasGoodSource] "Stack field source invariant failed!" assert
-              j 1 + @j set TRUE
-            ] &&
-          ] loop
-        ] when
+        sourceVar.host block is [
+          [currentFromStack hasGoodSource] "Stack var source invariant failed!" assert
+        ] [
+          sourceIndex: sourceVar.topologyIndex copy;
+          sourceIndex 0 < ~ [
+            sourceIndex appliedVars.stackVars.at @stackEntryVar.@sourceOfValue set
+          ] [
+            sourceVar.host currentChangesNode is [
+              currentFromStack @stackEntryVar.@sourceOfValue set
+            ] [
+              [FALSE] "Source of value is unknown!" assert
+            ] if
+          ] if
+
+          [currentFromStack hasGoodSource] "Stack var source invariant failed!" assert
+
+          stackEntryVar.data.getTag VarRef = [
+            currentFromStack isSchema ~ [
+              stackPointee: VarRef @stackEntryVar.@data.get.@refToVar;
+              stackPointee getVar.host currentChangesNode is [
+                fixed: currentFromStack appliedVars fixRef @processor @block getPointeeNoDerefIR;
+                fixed @unfinishedStack.pushBack
+              ] when
+            ] when
+          ] [
+            stackEntryVar.data.getTag VarStruct = [
+              stackStruct: VarStruct stackEntryVar.data.get.get;
+              j: 0 dynamic;
+              [
+                j stackStruct.fields.dataSize < [
+                  stackField: j currentFromStack @processor @block getField;
+                  stackField @unfinishedStack.pushBack
+                  j 1 + @j set TRUE
+                ] &&
+              ] loop
+            ] when
+          ] if
+        ] if
       ] if
 
       i 1 + @i set processor compilable
+
     ] &&
   ] loop
 
@@ -874,6 +892,7 @@ applyNodeChanges: [
     i currentChangesNode.outputs.dataSize < [
       currentOutput: i currentChangesNode.outputs.at;
       outputRef: currentOutput.refToVar @processor @block copyVarFromChild; # output is to inner var
+
       outputRef appliedVars fixOutputRefsRec # it is End
       outputRef @appliedVars.@fixedOutputs.pushBack
       i 1 + @i set processor compilable
@@ -887,24 +906,35 @@ applyNodeChanges: [
     stackVar: @stackEntry getVar;
     cacheVar: @cacheEntry getVar;
 
-    cacheVar.data.getTag VarRef = [
-      cacheCopy: cacheEntry @processor @block copyOneVar;
-      cacheCopyVar: cacheCopy getVar;
+    cacheEntry noMatterToCopy ~ [
+      cacheVar.data.getTag VarRef = [
+        topologyIndex: cacheVar.sourceOfValue getVar.topologyIndex;
 
-      cacheCopy noMatterToCopy ~ [
-        topologyIndex: cacheCopyVar.sourceOfValue getVar.topologyIndex;
+        cacheCopy: cacheEntry @processor @block copyOneVar;
+        cacheCopyVar: cacheCopy getVar;
+        cacheVar.staticity @cacheCopyVar.@staticity set #we need to copy begin and end
+
+        cacheEntry isGlobal [
+          TRUE              @cacheCopyVar.@global set
+          cacheVar.globalId @cacheCopyVar.@globalId set
+        ] when
+
         topologyIndex 0 < [
-          cacheCopy @cacheCopyVar.@sourceOfValue set # source is inner variable
+          # source is inner variable
+          cacheCopy @cacheCopyVar.@sourceOfValue set
         ] [
+          # we know source of variable
           topologyIndex appliedVars.stackVars.at @cacheCopyVar.@sourceOfValue set
+          cacheVar.data.getTag VarRef = [
+            VarRef cacheCopyVar.sourceOfValue getVar.data.get.refToVar
+            VarRef @cacheCopyVar.@data.get.@refToVar set
+          ] when
         ] if
-      ] when
 
-      cacheEntry isGlobal [
-        cacheVar.globalId @cacheCopyVar.@globalId set
-      ] when
-
-      cacheCopy appliedVars fixCaptureRef @cacheEntry set #here cacheCopy is END
+        cacheCopy @cacheEntry set #here cacheCopy is END
+      ] [
+        stackEntry @stackVar.@sourceOfValue set
+      ] if
     ] when
   ] times
 
@@ -924,6 +954,12 @@ changeVarValue: [
   processor compilable [
     varSrc: src  getVar;
     varDst: @dst getVar;
+
+    varSrc.data.getTag VarRef = [ #it is optimisation; for another type source has is no matter
+      varSrc.sourceOfValue @varDst.@sourceOfValue set
+    ] when
+
+    [dst hasGoodSource] "Change var value var source invariant failed!" assert
 
     varSrc.staticity @varDst.@staticity set
     dst isPlain [
@@ -1225,6 +1261,7 @@ processCallByNode: [
 
   indexArray: Int32 Array Cref;
   nodeCase: Nat8;
+
   (
     AstNodeType.Code   [!indexArray NodeCaseCode   !nodeCase]
     AstNodeType.List   [!indexArray NodeCaseList   !nodeCase]
@@ -2177,6 +2214,7 @@ callImportWith: [
         i declarationNode.outputs.getSize < [
           currentOutput: i declarationNode.outputs.at.refToVar;
           current: currentOutput @processor @block copyVarFromChild;
+          current @current getVar.@sourceOfValue set
           Dynamic makeValuePair @current getVar.@staticity set
           current @outputs.pushBack
           current getVar.data.getTag VarStruct = [
