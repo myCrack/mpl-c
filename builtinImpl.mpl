@@ -162,7 +162,7 @@ declareBuiltin: [
   {processor: Processor Ref; block: Block Ref;} () {} [
     processor:;
     block:;
-    overload failProc: @processor block FailProcForProcessor;
+    overload failProc: processor block FailProcForProcessor;
     @declareBuiltinBody ucall
   ] declareBuiltinName exportFunction
 ];

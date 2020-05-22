@@ -191,20 +191,40 @@
       stackEntryVar: stackEntry getVar;
 
       stackEntryVar.data.getTag VarStruct = [
-        cacheStruct: VarStruct cacheEntryVar.data.get.get;
-        cacheStruct.hasDestructor [cacheEntry varIsMoved stackEntry varIsMoved = ~] && [
-          makeMessage ["variables has different moveness" toString @comparingMessage set] when
+        cacheStaticity: cacheEntryVar.staticity.end copy;
+        stackStaticity: stackEntryVar.staticity.end copy;
+
+        cacheStaticity Dynamic = [Static !cacheStaticity] when
+        stackStaticity Dynamic = [Static !stackStaticity] when
+
+        cacheStaticity stackStaticity = ~ [
+          makeMessage [
+            ("variables has different staticity; was " cacheStaticity " but now " stackStaticity) assembleString @comparingMessage set
+          ] when
           FALSE
         ] [
-          TRUE
+          cacheStruct: VarStruct cacheEntryVar.data.get.get;
+          cacheStruct.hasDestructor [cacheEntry varIsMoved stackEntry varIsMoved = ~] && [
+            makeMessage ["variables has different moveness" toString @comparingMessage set] when
+            FALSE
+          ] [
+            TRUE
+          ] if
         ] if
       ] [
-        cacheStaticity: cacheEntry getVar.staticity.begin;
-        stackStaticity: stackEntry getVar.staticity.end;
+        cacheStaticity: cacheEntryVar.staticity.begin copy;
+        stackStaticity: stackEntryVar.staticity.end copy;
 
         cacheStaticity Weak > ~ stackStaticity stackDynamicBorder > ~ and [
           # both dynamic
-          TRUE 
+          cacheStaticity Dirty = stackStaticity Dirty = = [
+            TRUE
+          ] [
+            makeMessage [
+              ("variables has different staticity; was " cacheStaticity " but now " stackStaticity) assembleString @comparingMessage set
+            ] when
+            FALSE
+          ] if
         ] [
           cacheStaticity Weak > stackStaticity stackDynamicBorder > and [
             # both static
@@ -224,7 +244,9 @@
               TRUE # go recursive
             ] if
           ] [
-            makeMessage ["variables has different staticity" toString @comparingMessage set] when
+            makeMessage [
+              ("variables has different staticity; was " cacheStaticity " but now " stackStaticity) assembleString @comparingMessage set
+            ] when
             FALSE
           ] if
         ] if
@@ -242,13 +264,23 @@
     stackEntryVar: stackEntry getVar;
 
     stackEntryVar.data.getTag VarStruct = [
-      cacheStruct: VarStruct cacheEntryVar.data.get.get;
-      cacheStruct.hasDestructor ~ [cacheEntry varIsMoved stackEntry varIsMoved =] ||
+      cacheStaticity: cacheEntryVar.staticity.end copy;
+      stackStaticity: stackEntryVar.staticity.end copy;
+
+      cacheStaticity Dynamic = [Static !cacheStaticity] when
+      stackStaticity Dynamic = [Static !stackStaticity] when
+
+      cacheStaticity stackStaticity = [
+        cacheStruct: VarStruct cacheEntryVar.data.get.get;
+        cacheStruct.hasDestructor ~ [cacheEntry varIsMoved stackEntry varIsMoved =] ||
+      ] &&
     ] [
-      cacheStaticity: cacheEntry getVar.staticity.end;
-      stackStaticity: stackEntry getVar.staticity.end;
+      cacheStaticity: cacheEntryVar.staticity.end copy;
+      stackStaticity: stackEntryVar.staticity.end copy;
 
       cacheStaticity Weak > ~ stackStaticity stackDynamicBorder > ~ and [ # both dynamic
+        cacheStaticity Dirty = stackStaticity Dirty = =
+      ] [
         cacheStaticity Weak > stackStaticity stackDynamicBorder > and [ # both static
           cacheEntry isPlain [
             result: TRUE;
@@ -271,7 +303,7 @@
             ] if
           ] if
         ] && # both static and are equal
-      ] || # both dynamic
+      ] if
     ] if
   ] &&
 ] "variablesAreEqual" exportFunction
@@ -509,7 +541,7 @@ tryMatchNode: [
   processor:;
   block:;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   forceRealFunction:;
   indexArrayOfSubNode:;
@@ -561,9 +593,8 @@ tryMatchNode: [
 
     result
   ] [
-    -1 dynamic
+    -1
   ] if
-
 ] "tryMatchAllNodesWith" exportFunction
 
 tryMatchAllNodes: [
@@ -761,7 +792,7 @@ fixOutputRefsRec: [
   @unfinishedStack @processor.releaseVarRefArray
 ];
 
-fixCaptureRef: [
+fixCaptureRefOld: [
   cacheRefToVar: appliedVars: ;;
 
   result: cacheRefToVar appliedVars fixRef;
@@ -788,6 +819,61 @@ fixCaptureRef: [
   ] loop
 
   result
+];
+
+fixCaptureRef: [
+  stackEntry: cacheEntry: appliedVars: ;;;
+
+  stackVar: @stackEntry getVar;
+  cacheVar: @cacheEntry getVar;
+
+  cacheEntry noMatterToCopy ~ [
+    cacheVar.data.getTag VarRef = [
+      topologyIndex: cacheVar.sourceOfValue getVar.topologyIndex;
+
+      cacheCopy: cacheEntry @processor @block copyOneVar;
+      cacheCopyVar: cacheCopy getVar;
+      cacheVar.staticity @cacheCopyVar.@staticity set #we need to copy begin and end
+
+      cacheEntry isGlobal [
+        TRUE              @cacheCopyVar.@global set
+        cacheVar.globalId @cacheCopyVar.@globalId set
+      ] when
+
+      topologyIndex 0 < [
+        #source is inner variable
+        cacheCopy @cacheCopyVar.@sourceOfValue set
+
+        cacheCopyVar.data.getTag VarRef = [
+          cacheCopyVar.staticity.end Dynamic > [
+            cachePointee: VarRef @cacheCopyVar.@data.get.@refToVar;
+            topologyIndexOfPointee: cachePointee getVar.topologyIndex copy;
+            topologyIndexOfPointee 0 < [
+              cachePointee getVar.storageStaticity Dynamic = [
+                #here???
+              ] [
+                "returning pointer to local variable" @processor block compilerError
+              ] if
+            ] [
+              #fixing here...
+              topologyIndexOfPointee appliedVars.stackVars.at getVar @cachePointee.setVar
+            ] if
+          ] when
+        ] when
+      ] [
+        #we know source of variable
+        topologyIndex appliedVars.stackVars.at @cacheCopyVar.@sourceOfValue set
+        cacheVar.data.getTag VarRef = [
+          VarRef cacheCopyVar.sourceOfValue getVar.data.get.refToVar
+          VarRef @cacheCopyVar.@data.get.@refToVar set
+        ] when
+      ] if
+
+      cacheCopy @cacheEntry set #here cacheCopy is END
+    ] [
+      stackEntry @stackVar.@sourceOfValue set
+    ] if
+  ] when
 ];
 
 applyNodeChanges: [
@@ -902,40 +988,7 @@ applyNodeChanges: [
   appliedVars.stackVars.size [
     stackEntry: i @appliedVars.@stackVars.at;
     cacheEntry: i @appliedVars.@cacheVars.at;
-
-    stackVar: @stackEntry getVar;
-    cacheVar: @cacheEntry getVar;
-
-    cacheEntry noMatterToCopy ~ [
-      cacheVar.data.getTag VarRef = [
-        topologyIndex: cacheVar.sourceOfValue getVar.topologyIndex;
-
-        cacheCopy: cacheEntry @processor @block copyOneVar;
-        cacheCopyVar: cacheCopy getVar;
-        cacheVar.staticity @cacheCopyVar.@staticity set #we need to copy begin and end
-
-        cacheEntry isGlobal [
-          TRUE              @cacheCopyVar.@global set
-          cacheVar.globalId @cacheCopyVar.@globalId set
-        ] when
-
-        topologyIndex 0 < [
-          # source is inner variable
-          cacheCopy @cacheCopyVar.@sourceOfValue set
-        ] [
-          # we know source of variable
-          topologyIndex appliedVars.stackVars.at @cacheCopyVar.@sourceOfValue set
-          cacheVar.data.getTag VarRef = [
-            VarRef cacheCopyVar.sourceOfValue getVar.data.get.refToVar
-            VarRef @cacheCopyVar.@data.get.@refToVar set
-          ] when
-        ] if
-
-        cacheCopy @cacheEntry set #here cacheCopy is END
-      ] [
-        stackEntry @stackVar.@sourceOfValue set
-      ] if
-    ] when
+    @stackEntry @cacheEntry @appliedVars fixCaptureRef
   ] times
 
   appliedVars.stackVars.size [
@@ -1004,7 +1057,7 @@ derefNEntries: [
 applyNamedStackChanges: [
   forcedName:;
   appliedVars:;
-  copy currentChangesNodeIndex:;
+  currentChangesNodeIndex: copy dynamic;
   newNode:;
   compileOnce
 
@@ -1166,15 +1219,16 @@ makeNamedCallInstruction: [
 
 makeCallInstruction: [
   r: RefToVar;
-  forcedName: StringView;
+  forcedName: StringView dynamic;
   forcedName r FALSE dynamic @block makeCallInstructionWith
 ];
 
 processNamedCallByNode: [
   forcedName:;
-  copy newNodeIndex:;
+  copy dynamic newNodeIndex:;
   newNode: newNodeIndex processor.blocks.at.get;
   compileOnce
+
 
   newNodeIndex changeNewNodeState
   newNode.state NodeStateNoOutput = ~ [
@@ -1204,7 +1258,7 @@ processCallByNode: [
   copy nodeCase:;
   indexArray:;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   forcedNameString: String;
   file: positionInfo.file;
@@ -1241,7 +1295,7 @@ processCallByNode: [
       TRUE @newNode.@deleted set
       @result @processor @block createStaticInitIR @block push
     ] [
-      forcedName: forcedNameString makeStringView;
+      forcedName: forcedNameString makeStringView dynamic;
       newNodeIndex forcedName processNamedCallByNode
     ] if
   ] when
@@ -1253,7 +1307,7 @@ processCallByNode: [
   name:;
   file:;
   callAstNodeIndex:;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   astNode: callAstNodeIndex processor.multiParserResult.memory.at;
 
@@ -1276,7 +1330,7 @@ processCallByNode: [
   processor:;
   file:;
   preAstNodeIndex:;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   processor compilable [
     astNode: preAstNodeIndex processor.multiParserResult.memory.at;
@@ -1767,7 +1821,7 @@ processLoop: [
   loopIsDynamic: FALSE;
 
   [
-    newNodeIndex: @indexArray @processor @block tryMatchAllNodes;
+    newNodeIndex: @indexArray @processor @block tryMatchAllNodes dynamic;
     newNodeIndex 0 < [processor compilable] && [
       "loop" makeStringView
       block.id
@@ -1783,7 +1837,6 @@ processLoop: [
     processor compilable [
       newNode: newNodeIndex @processor.@blocks.at.get;
       newNodeIndex changeNewNodeState
-
       newNode.state NodeStateHasOutput < [
         FALSE
       ] [
@@ -1863,8 +1916,7 @@ processDynamicLoop: [
 
           result: FALSE dynamic;
           src dst variablesAreSame [
-            src staticityOfVar Weak >
-            [src dst processor variablesAreEqual ~] && [
+            src dst processor variablesAreEqual ~ [
               TRUE @result set
             ] when
           ] [
@@ -2007,7 +2059,7 @@ processDynamicLoop: [
   asCodeRef: Cond; name: StringView Cref; signature: CFunctionSignature Cref;} Natx {} [
   block:;
   processor:;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   copy asCodeRef:;
   name:;
@@ -2052,7 +2104,7 @@ processDynamicLoop: [
   file:;
   astNode:;
   signature:;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   indexArray: AstNodeType.Code astNode.data.get;
   positionInfo: astNode file makeCompilerPosition;
@@ -2254,7 +2306,7 @@ callImportWith: [
   refToVar: RefToVar Cref;} () {} [
   block:;
   processor:;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   refToVar:;
   var: refToVar getVar;

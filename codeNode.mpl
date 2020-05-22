@@ -730,7 +730,7 @@ setOneVar: [
   result: RefToVar Ref;
 } () {} [
   result: refToVar: mutable: createOperation: processor: block: ;;;;;;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   refToVar isVirtual [
     @refToVar untemporize
@@ -933,37 +933,40 @@ makeVarTreeDirty: [
       lastRefToVar: unfinishedVars.last copy;
       @unfinishedVars.popBack
 
-      var: lastRefToVar getVar;
       lastRefToVar staticityOfVar Virtual = ["can't dynamize virtual value" @processor block compilerError] when
       lastRefToVar staticityOfVar Schema = ["can't dynamize schema" @processor block compilerError] when
+      lastRefToVar staticityOfVar Dirty = [
+        #skip
+      ] [
+        processor compilable [
+          var: lastRefToVar getVar;
+          var.data.getTag VarStruct = [
+            struct: VarStruct var.data.get.get;
+            j: 0 dynamic;
+            [
+              j struct.fields.dataSize < [
+                j struct.fields.at.refToVar isVirtual ~ [
+                  j @lastRefToVar @processor @block getField @unfinishedVars.pushBack
+                ] when
+                j 1 + @j set TRUE
+              ] &&
+            ] loop
+          ] [
+            var.data.getTag VarRef = [
+              lastRefToVar staticityOfVar Static = [
+                pointee: @lastRefToVar @processor @block getPointeeWhileDynamize;
+                pointee.mutable [pointee @unfinishedVars.pushBack] when
+              ] [
+                [lastRefToVar staticityOfVar Dynamic > ~] "Ref must be only Static or Dynamic!" assert
+              ] if
+            ] when
+          ] if
 
-      processor compilable [
-        var.data.getTag VarStruct = [
-          struct: VarStruct var.data.get.get;
-          j: 0 dynamic;
-          [
-            j struct.fields.dataSize < [
-              j struct.fields.at.refToVar isVirtual ~ [
-                j @lastRefToVar @processor @block getField @unfinishedVars.pushBack
-              ] when
-              j 1 + @j set TRUE
-            ] &&
-          ] loop
-        ] [
-          var.data.getTag VarRef = [
-            lastRefToVar staticityOfVar Static = [
-              pointee: @lastRefToVar @processor @block getPointeeWhileDynamize;
-              pointee.mutable [pointee @unfinishedVars.pushBack] when
-            ] [
-              [lastRefToVar staticityOfVar Dynamic > ~] "Ref must be only Static or Dynamic!" assert
-            ] if
+          var.data.getTag VarImport = ~ var.data.getTag VarString = ~ and [
+            @lastRefToVar Dirty @processor block makeEndStaticity @lastRefToVar set
           ] when
-        ] if
-
-        var.data.getTag VarImport = ~ var.data.getTag VarString = ~ and [
-          @lastRefToVar Dirty @processor block makeEndStaticity @lastRefToVar set
         ] when
-      ] when
+      ] if
 
       processor compilable
     ] &&
@@ -984,10 +987,15 @@ makeVarDynamicOrDirty: [
   processor: block: ;;
   newStaticity:;
   refToVar:;
+  var: refToVar getVar;
+
   refToVar staticityOfVar Virtual = ["can't dynamize virtual value" @processor block compilerError] when
 
   @refToVar @processor @block makePointeeDirtyIfRef
-  msr: @refToVar newStaticity @processor @block makeEndStaticity;
+
+  newStaticity var.staticity.end < [
+    newStaticity @var.@staticity.@end set
+  ] when
 ];
 
 makeVarDynamic: [processor: block: ;; Dynamic @processor @block makeVarDynamicOrDirty];
@@ -1031,10 +1039,12 @@ makeVarTreeDynamicWith: [
       ] if
 
       dynamicStoraged [
-        lastRefToVar  Dynamic @processor block makeStorageStaticity @lastRefToVar set
-        @lastRefToVar Dirty   @processor block makeEndStaticity  @lastRefToVar set
+        lastRefToVar  Dynamic @processor block makeStorageStaticity drop
+        @lastRefToVar Dirty   @processor block makeEndStaticity drop
       ] [
-        @lastRefToVar Dynamic @processor block makeEndStaticity  @lastRefToVar set
+        var.staticity.end Dynamic > [
+          @lastRefToVar Dynamic @processor block makeEndStaticity drop
+        ] when
       ] if
 
       processor compilable
@@ -1166,7 +1176,7 @@ processListNode: [
   processor:;
   block:;
   message:;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   processor.result.findModuleFail ~ [processor.depthOfPre 0 =] && [HAS_LOGS] && [
     ("COMPILER ERROR") addLog
@@ -1713,8 +1723,8 @@ callCallableField: [
 
 callCallableStructWithPre: [
   nameInfo:;
-  copy refToVar:;
-  copy object:;
+  refToVar: copy dynamic;
+  object: copy dynamic;
   copy findInside:;
 
   overloadDepth: 0 dynamic;
@@ -1762,6 +1772,7 @@ callCallableStructWithPre: [
             name: nameInfo processor.nameManager.getText;
             ("cant call overload for field with name: " name) assembleString @processor block compilerError
           ] if
+
         ] [
           oldGnr: nameInfo overloadIndex @processor @block processor.positions.last.file getNameWithOverloadIndex;
           oldGnr.startPoint block.id = ~ [overloadDepth 1 + !overloadDepth] when
@@ -1868,8 +1879,9 @@ derefAndPush: [
 
 setRef: [
   processor: block: ;;
-  compileOnce
   refToVar:; # destination
+  compileOnce
+
   var: refToVar getVar;
   var.data.getTag VarRef = [
     refToVar isSchema [
@@ -1928,7 +1940,7 @@ setRef: [
   refToVar:;
   result:;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   refToVar noMatterToCopy [
     refToVar @result set
@@ -1995,7 +2007,7 @@ setRef: [
 } () {} [
   src: flags: processor: block: ;;;;
   result:;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   fromChild: flags CopyVarFlags.FROM_CHILD and 0n8 = ~;
   toNew:     flags CopyVarFlags.TO_NEW     and 0n8 = ~;
@@ -2071,7 +2083,7 @@ setRef: [
 } () {} [
   refToVar: flags: processor: block: ;;;;
   result:;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   fromChild: flags CopyVarFlags.FROM_CHILD and 0n8 = ~;
   toNew:     flags CopyVarFlags.TO_NEW     and 0n8 = ~;
@@ -2134,7 +2146,7 @@ setRef: [
   refToSrc: RefToVar Cref;
 } () {} [
   refSrc: refDst: processor: block: ;; copy;;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   uncopiedSrc: RefToVar Array;
   uncopiedDst: RefToVar AsRef Array;
@@ -2184,7 +2196,7 @@ setRef: [
   copy forMatching:;
   result:;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   block.stack.dataSize 0 = [
     entryRef: forMatching [
@@ -2260,21 +2272,25 @@ popForMatching: [
 pushName: [
   copy nameInfo:;
   copy read:;
-  copy refToVar:;
-  copy object:;
-  copy field:;
+  refToVar:;
+  object:;
+  copy isField:;
 
   read -1 = [
     refToVar @processor @block setRef
   ] [
-    refToVar isVirtual [@refToVar @processor @block makeVirtualVarReal @refToVar set] when
+    varToPush: refToVar isVirtual [
+      @refToVar @processor @block makeVirtualVarReal
+    ] [
+      @refToVar copy
+    ] if dynamic;
 
     read 1 = [
-      @refToVar @processor @block derefAndPush
+      @varToPush @processor @block derefAndPush
     ] [
-      possiblePointee: @refToVar @processor @block getPossiblePointee;
+      possiblePointee: @varToPush @processor @block getPossiblePointee;
       possiblePointee isCallable [
-        field object possiblePointee nameInfo [field object possiblePointee @nameInfo callCallableStructWithPre] callCallable
+        isField object possiblePointee nameInfo [field object possiblePointee @nameInfo callCallableStructWithPre] callCallable
       ] [
         FALSE dynamic @possiblePointee.setMutable
         possiblePointee @block push
@@ -2287,7 +2303,7 @@ processNameNode: [
   data:;
   gnr: data.nameInfo @processor @block getName;
   cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
-  refToVar: cnr.refToVar copy;
+  refToVar: cnr.refToVar copy dynamic;
 
   processor compilable [
     FALSE dynamic cnr.object refToVar 0 data.nameInfo pushName
@@ -2338,7 +2354,7 @@ processStaticAt: [
     ] if
 
     @fieldRef fullUntemporize
-    fieldRef copy
+    fieldRef copy dynamic
   ] [
     RefToVar
   ] if
@@ -2348,7 +2364,7 @@ processMember: [
   processor: block: ;;
 
   copy read:;
-  copy refToStruct:;
+  refToStruct:;
   nameInfo:;
 
   processor compilable [
@@ -2420,7 +2436,7 @@ processReal64Node: [makeVarReal64 @block push];
 } () {} [
   processor: block: ;;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   processor.options.debug [
     instruction: @block.@program.last;
@@ -2458,7 +2474,7 @@ addBlock: [
 } () {} [
   processor: block: ;;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   refToVar: @processor @block pop;
   processor compilable [
@@ -2504,7 +2520,7 @@ addBlock: [
   result: string: processor: block: ;;;;
   refToVar: RefToVar;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   fr: string @processor.@stringNames.find;
   fr.success [
@@ -2542,7 +2558,7 @@ addBlock: [
   refToSrc: refToDst: processor: block: ;;;;
   result:;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   varSrc: refToSrc getVar;
   varSrc.data.getTag VarCode = [refToDst isVirtual ~] && [
@@ -2598,7 +2614,7 @@ argRecommendedToCopy: [
   refToVar: RefToVar Cref;
 } () {} [
   refToVar: processor: block: ;; copy;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   processor compilable [
     uninited: RefToVar Array;
@@ -2665,7 +2681,7 @@ argRecommendedToCopy: [
   refToSrc: RefToVar Cref;
 } () {} [
   refToSrc: refToDst: processor: block: ;;;;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   processor compilable [
     # no struct - simple copy
@@ -2680,7 +2696,7 @@ argRecommendedToCopy: [
     [
       unfinishedSrc.dataSize 0 > [
         curSrc: @unfinishedSrc.last copy;
-        curDst: @unfinishedDst.last copy;
+        curDst: @unfinishedDst.last copy dynamic;
         [curSrc curDst variablesAreSame] "Assign vars must have same type!" assert
         @unfinishedSrc.popBack
         @unfinishedDst.popBack
@@ -2741,7 +2757,7 @@ argRecommendedToCopy: [
   refToVar: RefToVar Cref;
 } () {} [
   refToVar: processor: block: ;; copy;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   processor compilable [
     unkilled: RefToVar Array;
@@ -2751,7 +2767,7 @@ argRecommendedToCopy: [
 
     [
       unkilled.dataSize 0 > [
-        last: unkilled.last copy;
+        last: unkilled.last copy dynamic;
         @unkilled.popBack
         last getVar.data.getTag VarStruct = [
           struct: VarStruct last getVar.data.get.get;
@@ -2804,7 +2820,7 @@ killStruct: [
 } () {} [
   message: processor: block: ;;;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   gnr: processor.failProcNameInfo @processor @block getName;
   cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
@@ -2831,7 +2847,7 @@ killStruct: [
   indexOfAstNode:;
   astNode:;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   processor.options.verboseIR [
     ("filename: " processor.positions.last.file.name
@@ -3378,7 +3394,7 @@ makeCompilerPosition: [
   compilerPositionInfo:;
   functionName:;
 
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   block.nextLabelIsVirtual  ["unused virtual specifier"  @processor block compilerError] when
   block.nextLabelIsOverload ["unused overload specifier" @processor block compilerError] when
@@ -3425,7 +3441,7 @@ makeCompilerPosition: [
     copy asCopy:;
     copy output:;
     copy regNameId:;
-    copy refToVar:;
+    refToVar: copy dynamic;
     var: refToVar getVar;
 
     output [
@@ -4076,7 +4092,7 @@ addIndexArrayToProcess: [
   @processor addBlock
   codeNode: @processor.@blocks.last.get;
   block: @codeNode;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   processor.options.autoRecursion @codeNode.@nodeIsRecursive set
   nodeCase                        @codeNode.@nodeCase set

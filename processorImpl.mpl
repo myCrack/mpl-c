@@ -443,7 +443,7 @@
   @processor addBlock
   codeNode: @processor.@blocks.last.get;
   block: @codeNode;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   NodeCaseDtor @codeNode.@nodeCase set
   0 dynamic @codeNode.@parent set

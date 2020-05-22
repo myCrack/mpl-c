@@ -176,7 +176,7 @@ makeShadowsDynamic: [
 
 {
   block: Block Cref;
-  processor: Processor Ref;
+  processor: Processor Cref;
 
   resultMPL: String Ref;
   refToVar: RefToVar Cref;
@@ -191,12 +191,12 @@ getMplType: [
 
 {
   block: Block Cref;
-  processor: Processor Ref;
+  processor: Processor Cref;
 } () {} "defaultPrintStack" importFunction
 
 {
   block: Block Cref;
-  processor: Processor Ref;
+  processor: Processor Cref;
 } () {} "defaultPrintStackTrace" importFunction
 
 {

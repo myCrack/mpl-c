@@ -60,7 +60,7 @@ FailProcForProcessor: [{
     ] loop
 
     "\nWhile compiling:\n" print
-    @processor block defaultPrintStackTrace
+    processor block defaultPrintStackTrace
 
     2 exit
   ];
@@ -194,11 +194,11 @@ getStackDepth: [
 
 {
   block: Block Cref;
-  processor: Processor Ref;
+  processor: Processor Cref;
 } () {} [
   processor: block:;;
 
-  ("stack:" LF "depth=" @processor block getStackDepth LF) printList
+  ("stack:" LF "depth=" processor block getStackDepth LF) printList
 
   i: 0 dynamic;
   [
@@ -212,7 +212,7 @@ getStackDepth: [
 
 {
   block: Block Cref;
-  processor: Processor Ref;
+  processor: Processor Cref;
 } () {} [
   processor: block: ;;
 

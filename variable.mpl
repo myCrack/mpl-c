@@ -283,7 +283,7 @@ getNonrecursiveDataMPLType: [
             var.data.getTag VarImport = [
               ("F" VarImport var.data.get block getFuncMplType) assembleString @result set
             ] [
-              "Unknown nonrecursive struct" @processor block compilerError
+              "ERROR" toString @result set #it is not user error
             ] if
           ] if
         ] if
@@ -508,7 +508,7 @@ makeDbgTypeId: [
   refToVar: RefToVar Ref;
 } () {} [
   refToVar: processor: block: ;;;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   #fill info:
 
@@ -581,7 +581,7 @@ makeDbgTypeId: [
   refToVar: RefToVar Cref;
 } Int32 {} [
   refToVar: processor: block: ;;;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   var: refToVar getVar;
   resultDBG: String;
@@ -674,13 +674,13 @@ makeDbgTypeId: [
 
 {
   block: Block Cref;
-  processor: Processor Ref;
+  processor: Processor Cref;
 
   resultMPL: String Ref;
   refToVar: RefToVar Cref;
 } () {} [
   refToVar: resultMPL: processor: block: ;;;;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   var: refToVar getVar;
 

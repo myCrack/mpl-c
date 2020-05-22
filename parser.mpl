@@ -1206,7 +1206,7 @@ parseNode: [
     prevPosition: PositionInfo;
 
     currentCode: 0n32 dynamic;
-    currentSymbol: StringView;
+    currentSymbol: StringView dynamic;
 
     pc: makeParserConstants;
 

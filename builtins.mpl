@@ -130,7 +130,7 @@ initBuiltins: [
   processor:;
   codeNode: 0 @processor.@blocks.at.get;
   block: @codeNode;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
 
   builtins fieldCount dynamic [
     i builtins @ .name makeStringView i addBuiltin
@@ -140,7 +140,7 @@ initBuiltins: [
 {block: Block Ref; processor: Processor Ref; index: Int32;} () {} [
   block:;
   processor:;
-  overload failProc: @processor block FailProcForProcessor;
+  overload failProc: processor block FailProcForProcessor;
   copy index:;
 
   builtinFunc: index builtins @ .@impl;

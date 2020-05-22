@@ -5,6 +5,7 @@
 "Array.Array" use
 "String.assembleString" use
 "String.makeStringView" use
+"String.print" use
 "String.String" use
 "String.StringView" use
 "String.toString" use
@@ -346,10 +347,17 @@ createCheckedCopyToNewWith: [
         ] if
       ] [
         prevMut: dstRef.mutable;
+        prevMoved: dstRef.moved;
+        prevTmp: dstRef getVar.temporary copy;
         TRUE @dstRef.setMutable
+        @dstRef fullUntemporize
+
         dstRef @processor @block callInit
         srcRef dstRef @processor @block callAssign
+
         prevMut @dstRef.setMutable
+        prevMoved @dstRef.setMoved
+        prevTmp @dstRef getVar.@temporary set
       ] if
     ] if
     doDie [dstRef @block.@candidatesToDie.pushBack] when

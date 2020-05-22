@@ -120,7 +120,7 @@ RefToVar: [{
   assigned: [var isNil ~];
   equal: [other:; var other.var is];
   hash: [address: var storageAddress; address 32n32 rshift address + Nat32 cast];
-}];
+} dynamic];
 
 makeValuePair: [
   type:;
