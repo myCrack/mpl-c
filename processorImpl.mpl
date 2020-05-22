@@ -1,16 +1,13 @@
-"control" use
-
-"String.addLog" use
-"String.assembleString" use
-"String.String" use
-"String.StringView" use
-"String.makeStringView" use
-"String.toString" use
 "HashTable.HashTable" use
 "Owner.owner" use
+"String.String" use
+"String.StringView" use
+"String.addLog" use
+"String.assembleString" use
+"String.makeStringView" use
+"String.toString" use
+"control" use
 
-"astNodeType.IndexArray" use
-"astNodeType.MultiParserResult" use
 "Block.BlockSchema" use
 "Block.CFunctionSignature" use
 "Block.CompilerPositionInfo" use
@@ -18,6 +15,19 @@
 "Block.NodeCaseDeclaration" use
 "Block.NodeCaseDtor" use
 "Block.ShadowEvent" use
+"File.File" use
+"NameManager.NameManager" use
+"Var.Dirty" use
+"Var.Dynamic" use
+"Var.Field" use
+"Var.RefToVar" use
+"Var.ShadowReasonCapture" use
+"Var.VarInvalid" use
+"Var.VarSchema" use
+"Var.VarStruct" use
+"Var.getVar" use
+"astNodeType.IndexArray" use
+"astNodeType.MultiParserResult" use
 "builtins.initBuiltins" use
 "codeNode.addBlock" use
 "codeNode.astNodeToCodeNode" use
@@ -30,36 +40,25 @@
 "debugWriter.addDebugReserve" use
 "debugWriter.addFileDebugInfo" use
 "debugWriter.addLinkerOptionsDebugInfo" use
-"debugWriter.correctUnitInfo" use
 "debugWriter.clearUnusedDebugInfo" use
+"debugWriter.correctUnitInfo" use
 "declarations.makeShadows" use
-"defaultImpl.compilable" use
 "defaultImpl.FailProcForProcessor" use
+"defaultImpl.compilable" use
 "defaultImpl.findNameInfo" use
 "defaultImpl.nodeHasCode" use
-"File.File" use
 "irWriter.addAliasesForUsedNodes" use
 "irWriter.addStrToProlog" use
 "irWriter.createCallTraceData" use
 "irWriter.createCtors" use
 "irWriter.createDtors" use
 "irWriter.createFloatBuiltins" use
-"NameManager.NameManager" use
 "pathUtils.extractFilename" use
 "pathUtils.stripExtension" use
+"processSubNodes.clearProcessorResult" use
 "processor.NameInfoEntry" use
 "processor.Processor" use
 "processor.ProcessorOptions" use
-"processSubNodes.clearProcessorResult" use
-"Var.getVar" use
-"Var.Dirty" use
-"Var.Dynamic" use
-"Var.Field" use
-"Var.RefToVar" use
-"Var.ShadowReasonCapture" use
-"Var.VarInvalid" use
-"Var.VarStruct" use
-"Var.VarSchema" use
 
 {
   program: String Ref;

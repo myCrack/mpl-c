@@ -1,5 +1,3 @@
-"control" use
-
 "Array.Array" use
 "Array.makeSubRange" use
 "String.String" use
@@ -8,11 +6,12 @@
 "String.codepointToString" use
 "String.makeStringView" use
 "String.makeStringView2" use
+"String.print" use
 "String.splitString" use
 "String.toString" use
-"String.print" use
-"ascii.ascii" use
+"control" use
 
+"ascii.ascii" use
 "astNodeType.AstNode" use
 "astNodeType.AstNodeType" use
 "astNodeType.IndexArray" use

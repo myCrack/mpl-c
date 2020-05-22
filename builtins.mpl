@@ -1,22 +1,21 @@
-"control" use
-"builtinImpl" use
-
-"String.print" use
 "String.makeStringView" use
+"String.print" use
 "String.toString" use
+"control" use
 "conventions.cdecl" use
 
 "Block.Block" use
 "Block.NameCaseBuiltin" use
 "File.File" use
+"Var.VarBuiltin" use
+"Var.Virtual" use
+"Var.getVar" use
+"builtinImpl" use
 "codeNode.addNameInfo" use
 "codeNode.createVariable" use
 "codeNode.makeStaticity" use
 "declarations.getMplType" use
 "defaultImpl.FailProcForProcessor" use
-"Var.getVar" use
-"Var.VarBuiltin" use
-"Var.Virtual" use
 "processor.Processor" use
 "processor.ProcessorResult" use
 "variable.NameInfo" use

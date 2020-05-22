@@ -1,21 +1,20 @@
-"control" use
-
-"String.makeStringView" use
 "String.String" use
 "String.StringView" use
+"String.makeStringView" use
 "String.toString" use
+"control" use
 
-"astNodeType.AstNode" use
-"astNodeType.IndexArray" use
 "Block.Block" use
 "Block.CFunctionSignature" use
 "Block.CompilerPositionInfo" use
 "Block.NodeCaseCode" use
 "File.File" use
+"Var.RefToVar" use
+"Var.Variable" use
+"astNodeType.AstNode" use
+"astNodeType.IndexArray" use
 "processor.Processor" use
 "processor.RefToVarTable" use
-"Var.Variable" use
-"Var.RefToVar" use
 
 {
   processor: Processor Ref;

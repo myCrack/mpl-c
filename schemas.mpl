@@ -1,34 +1,33 @@
+"Array.Array" use
+"String.String" use
+"String.hash" use
+"Variant.Variant" use
 "control" use
 
-"Array.Array" use
-"String.hash" use
-"String.String" use
-"Variant.Variant" use
-
-"Var.getVar"          use
-"Var.isVirtual"       use
-"Var.getVirtualValue" use
-"Var.VarInvalid"      use
+"Var.VarBuiltin"      use
+"Var.VarCode"         use
 "Var.VarCond"         use
-"Var.VarNat8"         use
-"Var.VarNat16"        use
-"Var.VarNat32"        use
-"Var.VarNat64"        use
-"Var.VarNatX"         use
-"Var.VarInt8"         use
+"Var.VarEnd"          use
+"Var.VarImport"       use
 "Var.VarInt16"        use
 "Var.VarInt32"        use
 "Var.VarInt64"        use
+"Var.VarInt8"         use
 "Var.VarIntX"         use
+"Var.VarInvalid"      use
+"Var.VarNat16"        use
+"Var.VarNat32"        use
+"Var.VarNat64"        use
+"Var.VarNat8"         use
+"Var.VarNatX"         use
 "Var.VarReal32"       use
 "Var.VarReal64"       use
-"Var.VarCode"         use
-"Var.VarBuiltin"      use
-"Var.VarImport"       use
-"Var.VarString"       use
 "Var.VarRef"          use
+"Var.VarString"       use
 "Var.VarStruct"       use
-"Var.VarEnd"          use
+"Var.getVar"          use
+"Var.getVirtualValue" use
+"Var.isVirtual"       use
 
 makeVariableSchema: [
   refToVar: processor: ;;

@@ -1,12 +1,11 @@
-"control" use
-
 "Array.Array" use
-"HashTable.hash" use
 "HashTable.HashTable" use
-"String.hash" use
+"HashTable.hash" use
 "String.String" use
 "String.StringView" use
+"String.hash" use
 "String.toString" use
+"control" use
 
 NameManager: [{
   schema Item:; # Should have a field named "file", which is used as opaque pointer by NameManager

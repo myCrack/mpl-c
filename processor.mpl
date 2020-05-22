@@ -1,21 +1,20 @@
-"control" use
-
 "Array.Array" use
 "HashTable.HashTable" use
 "Owner.Owner" use
 "String.String" use
 "String.StringView" use
+"control" use
 "memory.debugMemory" use
 
-"astNodeType.MultiParserResult" use
-"Block.CompilerPositionInfo" use
 "Block.Block" use
+"Block.CompilerPositionInfo" use
 "Block.NameCaseInvalid" use
 "File.File" use
 "NameManager.NameManager" use
 "Var.RefToVar" use
 "Var.Variable" use
 "astNodeType.IndexArray" use
+"astNodeType.MultiParserResult" use
 "schemas.VariableSchema" use
 
 StringArray: [String Array];

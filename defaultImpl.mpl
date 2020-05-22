@@ -1,43 +1,41 @@
-"control" use
-
-"conventions.cdecl" use
-
+"String.StringView" use
 "String.addLog" use
 "String.assembleString" use
+"String.makeStringView" use
 "String.print" use
 "String.printList" use
 "String.toString" use
-"String.StringView" use
-"String.makeStringView" use
+"control" use
+"conventions.cdecl" use
 
+"Block.ArgMeta" use
+"Block.Block" use
+"Block.NameCaseInvalid" use
+"Block.NodeCaseCodeRefDeclaration" use
+"Block.NodeStateNew" use
+"Block.ShadowEvent" use
+"Var.RefToVar" use
+"Var.ShadowReasonCapture" use
+"Var.ShadowReasonInput" use
+"Var.VarCode" use
+"Var.VarImport" use
+"Var.VarString" use
+"Var.Weak" use
+"Var.getVar" use
+"Var.staticityOfVar" use
+"Var.variablesAreSame" use
+"declarations.compilerError" use
+"declarations.createCopyToExists" use
+"declarations.createRefWith" use
 "declarations.defaultPrintStack" use
 "declarations.defaultPrintStackTrace" use
-"declarations.compilerError" use
-"declarations.createRefWith" use
-"declarations.createCopyToExists" use
 "declarations.getMplType" use
 "declarations.popWith" use
 "declarations.processCall" use
 "declarations.processFuncPtr" use
 "declarations.push" use
 "declarations.tryImplicitLambdaCast" use
-"Block.ArgMeta" use
-"Block.Block" use
-"Block.NameCaseInvalid" use
-"Block.NodeStateNew" use
-"Block.NodeCaseCodeRefDeclaration" use
-"Block.ShadowEvent" use
 "processor.Processor" use
-"Var.getVar" use
-"Var.RefToVar" use
-"Var.variablesAreSame" use
-"Var.VarCode" use
-"Var.VarImport" use
-"Var.VarString" use
-"Var.Weak" use
-"Var.ShadowReasonInput" use
-"Var.ShadowReasonCapture" use
-"Var.staticityOfVar" use
 
 FailProcForProcessor: [{
   processor: block: ;;

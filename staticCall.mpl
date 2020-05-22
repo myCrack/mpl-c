@@ -1,7 +1,6 @@
-"control" use
-
 "String.addLog" use
 "String.makeStringView" use
+"control" use
 
 staticCall: [
   staticCallBody:;
