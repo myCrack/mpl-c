@@ -25,18 +25,20 @@ NameManager: [{
 
   addItem: [
     item: nameId:;;
+
     @item move nameId @names.at.@items.pushBack
   ];
 
   findItem: [
     index: file: nameId:;; copy;
     items: nameId names.at.items;
+
     index -1 = [items.size !index] when
     [
       index 1 - !index
       index -1 = [
         itemFile: index items.at.file;
-        itemFile isNil [itemFile file is] ||
+        itemFile isNil [file isNil] || [itemFile file is] ||
       ] || ~
     ] loop
 
@@ -55,6 +57,7 @@ NameManager: [{
 
   removeItem: [
     nameId:;
+
     nameId @names.at.@items.popBack
   ];
 

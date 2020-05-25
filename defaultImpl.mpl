@@ -42,6 +42,8 @@ FailProcForProcessor: [{
 
   CALL: [
     overload failProc: [print " - fail while handling fail" print];
+
+    "INTERNAL COMPILER ERROR" print LF print
     print
 
     trace: getCallTrace;

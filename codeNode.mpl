@@ -536,9 +536,7 @@ getPointeeWith: [
           newEvent: ShadowEvent;
           ShadowReasonPointee @newEvent.setTag
           branch: ShadowReasonPointee @newEvent.get;
-
           [var.sourceOfValue getVar.host var.host is] "Source of value is from another node!" assert
-
           var.sourceOfValue @branch.@pointer set
           pointee           @branch.@pointee set
           @block @branch.@pointee setTopologyIndex
@@ -1178,7 +1176,7 @@ processListNode: [
   overload failProc: processor block FailProcForProcessor;
 
   processor.result.findModuleFail ~ [processor.depthOfPre 0 =] && [HAS_LOGS] && [
-    ("COMPILER ERROR") addLog
+    ("COMPILATION ERROR") addLog
     (message) addLog
     @processor block defaultPrintStackTrace
   ] when
@@ -1370,6 +1368,7 @@ getNameAs: [
 ];
 
 getName: [processor: block:;; Capture FALSE dynamic -1 dynamic @processor @block processor.positions.last.file getNameAs];
+getNameEverywhere: [processor: block:;; Capture FALSE dynamic -1 dynamic @processor @block File Cref getNameAs];
 
 getNameForMatching: [
   processor: block: file: ;;;
@@ -2568,6 +2567,7 @@ addBlock: [
       declarationIndex: VarImport dstPointeeVar.data.get;
       declarationNode: declarationIndex processor.blocks.at.get;
       csignature: declarationNode.csignature;
+
       implName: ("lambda." block.id "." block.lastLambdaName) assembleString;
       astNode: VarCode refToSrc getVar.data.get.index processor.multiParserResult.memory.at;
       implIndex: csignature astNode VarCode refToSrc getVar.data.get.file implName makeStringView TRUE dynamic @processor @block processExportFunction;
@@ -2580,16 +2580,20 @@ addBlock: [
           TRUE dynamic @result.@success set
         ] when
 
-        implNode.varNameInfo 0 < ~ [
-          gnr: implNode.varNameInfo @processor @block getName;
-          processor compilable ~ [
-            [FALSE] "Name of new lambda is not visible!" assert
-          ] [
-            cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
-            cnr.refToVar @result.@refToVar set
-            TRUE dynamic @result.@success set
-          ] if
-        ] when
+        implNode.refToVar.assigned [implNode.refToVar dstPointee variablesAreSame] && [
+          implNode.varNameInfo 0 < ~ [
+            gnr: implNode.varNameInfo @processor @block getNameEverywhere;
+            processor compilable ~ [
+              [FALSE] "Name of new lambda is not visible!" assert
+            ] [
+              cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
+              cnr.refToVar @result.@refToVar set
+              TRUE dynamic @result.@success set
+            ] if
+          ] when
+        ] [
+          "unable to create lambda, signature mismatch" @processor @block compilerError
+        ] if
       ] when
 
       block.lastLambdaName 1 + @block.@lastLambdaName set
@@ -3000,7 +3004,9 @@ unregCodeNodeNames: [
   unregisterNamesIn: [
     [
       nameWithOverload:;
-      nameWithOverload.nameInfo deleteNameInfo
+      nameWithOverload.refToVar getVar.data.getTag VarImport = ~ [
+        nameWithOverload.nameInfo deleteNameInfo
+      ] when
     ] each
   ];
 
@@ -3030,15 +3036,13 @@ unregCodeNodeNames: [
     ] each
   ];
 
-  @block.@labelNames unregisterNamesIn
-  @block.@fromModuleNames unregisterNamesIn
+  processor compilable ~ block.parent 0 = ~ or [
+    @block.@labelNames      unregisterNamesIn
+    @block.@fromModuleNames unregisterNamesIn
+  ] when
+
   @block.@captureNames      @processor.@captureTable unregTable
   @block.@fieldCaptureNames @processor.@captureTable unregTable
-
-  processor compilable block.parent 0 = and [
-    @block.@fromModuleNames NameCaseFromModule registerWithoutOverload
-    @block.@labelNames      NameCaseLocal registerWithoutOverload
-  ] when
 
   @block.@capturedVars [
     curVar: getVar;
@@ -3920,11 +3924,12 @@ makeCompilerPosition: [
     nameInfo: functionName @processor findNameInfo;
     nameInfo @declarationNode.@varNameInfo set
 
+    #it is not own local variable
     {
       nameInfo:      nameInfo copy;
       addNameCase:   NameCaseLocal;
       refToVar:      refToVar copy;
-    } @processor @topNode addNameInfo #it is not own local variable
+    } @processor @topNode addNameInfo
   ];
 
   #generate function header
@@ -4160,6 +4165,7 @@ addIndexArrayToProcess: [
       unregCodeNodeNames
       block.id @processor deleteNode
       clearRecursionStack
+
       NodeStateFailed @block.@state set
       TRUE @block.@uncompilable set
     ] if
