@@ -1397,17 +1397,36 @@ captureName: [
     captureError: FALSE dynamic;
 
     addBlockIdTo: [
-      whereNames: nameInfo: nameOverloadDepth: ;;;
+      whereNames: nameInfo: nameOverloadDepth: captureCase: mplSchemaId: ;;;;;
 
-      nameInfo whereNames.size < ~ [nameInfo 1 + @whereNames.resize] when
-      whereOverloads: nameInfo @whereNames.at;
-      nameOverloadDepth whereOverloads.size < ~ [nameOverloadDepth 1 + @whereOverloads.resize] when
-      whereIds: nameOverloadDepth @whereOverloads.at;
-      whereIds.size 0 = [block.id whereIds.last = ~] || [
-        block.id @whereIds.pushBack
-        TRUE
+      addBlockToObjectCase: [
+        nameOverloadDepth: mplSchemaId: table: ;;;
+
+        nameOverloadDepth table.size < ~ [nameOverloadDepth 1 + @table.resize] when
+        whereTypes: nameOverloadDepth @table.at;
+        mplSchemaId whereTypes.size < ~ [mplSchemaId 1 + @whereTypes.resize] when
+        whereIds: mplSchemaId @whereTypes.at;
+        whereIds.size 0 = [block.id whereIds.last = ~] || [
+          block.id @whereIds.pushBack
+          TRUE
+        ] &&
+      ];
+
+      nameInfo processor.selfNameInfo = [
+        nameOverloadDepth mplSchemaId @whereNames.@selfNames addBlockToObjectCase
       ] [
-        FALSE
+        nameInfo processor.closureNameInfo =  [
+          nameOverloadDepth mplSchemaId @whereNames.@closureNames addBlockToObjectCase
+        ] [
+          nameInfo whereNames.simpleNames.size < ~ [nameInfo 1 + @whereNames.@simpleNames.resize] when
+          whereOverloads: nameInfo @whereNames.@simpleNames.at;
+          nameOverloadDepth whereOverloads.size < ~ [nameOverloadDepth 1 + @whereOverloads.resize] when
+          whereIds: nameOverloadDepth @whereOverloads.at;
+          whereIds.size 0 = [block.id whereIds.last = ~] || [
+            block.id @whereIds.pushBack
+            TRUE
+          ] &&
+        ] if
       ] if
     ];
 
@@ -1422,7 +1441,7 @@ captureName: [
         newVar: FALSE;
       };
 
-      getNameResult.startPoint block.id = ~ [@processor.@captureTable nameInfo overloadDepth addBlockIdTo] && [
+      getNameResult.startPoint block.id = ~ [@processor.@captureTable nameInfo overloadDepth captureCase refToVar getVar.mplSchemaId addBlockIdTo] && [
         TRUE @refToVar getVar.@capturedAsMutable set
         refToVar @result.@refToVar set
 
@@ -1500,6 +1519,7 @@ captureName: [
       cro: nameInfo 0 @getNameResult.@object getNameResult.nameCase MemberCaseToObjectCase captureRefToVar;
 
       cro.refToVar @result.@object set
+      [cro.refToVar noMatterToCopy [cro.refToVar getVar.host block is] ||] "Captured name is not from here!" assert
       getNameResult.mplFieldIndex @cro.@refToVar @processor @block processStaticAt @result.@refToVar set
       cro.newVar [
         {
@@ -1512,7 +1532,7 @@ captureName: [
         } @processor @block addNameInfo
       ] when # add name info for "self"/"closure" as Object; result is object
 
-      getNameResult.startPoint block.id = ~ [@processor.@captureTable getNameResult.nameInfo overloadDepth addBlockIdTo] && [
+      getNameResult.startPoint block.id = ~ [@processor.@captureTable getNameResult.nameInfo overloadDepth NameCaseCapture -1 addBlockIdTo] && [
         {
           nameInfo:      getNameResult.nameInfo copy;
           mplFieldIndex: getNameResult.mplFieldIndex copy;
@@ -3016,10 +3036,27 @@ unregCodeNodeNames: [
     [
       nameWithOverloadAndRefToVar:;
 
-      whereOverloads: nameWithOverloadAndRefToVar.nameInfo @whereNames.at;
-      whereIds: nameWithOverloadAndRefToVar.nameOverloadDepth @whereOverloads.at;
-      [whereIds.last block.id =] "Wrong block id while unreg name!" assert
-      @whereIds.popBack
+      unregInObjectTable: [
+        depth: mplSchemaId: where: ;;;
+
+        whereTypes: depth @where.at;
+        whereIds: mplSchemaId @whereTypes.at;
+        [whereIds.last block.id =] "Wrong block id while unreg object name!" assert
+        @whereIds.popBack
+      ];
+
+      nameWithOverloadAndRefToVar.nameInfo processor.selfNameInfo = [
+        nameWithOverloadAndRefToVar.nameOverloadDepth nameWithOverloadAndRefToVar.refToVar getVar.mplSchemaId @whereNames.@selfNames unregInObjectTable
+      ] [
+        nameWithOverloadAndRefToVar.nameInfo processor.closureNameInfo = [
+          nameWithOverloadAndRefToVar.nameOverloadDepth nameWithOverloadAndRefToVar.refToVar getVar.mplSchemaId @whereNames.@closureNames unregInObjectTable
+        ] [
+          whereOverloads: nameWithOverloadAndRefToVar.nameInfo @whereNames.@simpleNames.at;
+          whereIds: nameWithOverloadAndRefToVar.nameOverloadDepth @whereOverloads.at;
+          [whereIds.last block.id =] "Wrong block id while unreg name!" assert
+          @whereIds.popBack
+        ] if
+      ] if
     ] each
   ];
 
@@ -3795,7 +3832,7 @@ makeCompilerPosition: [
         ]
         ShadowReasonCapture [
           branch:;
-          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth "); staticity=" branch.refToVar getVar.staticity.begin " as " branch.refToVar getVar.buildingTopologyIndex) assembleString @block createComment
+          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth "); staticity=" branch.refToVar getVar.staticity.begin " as " branch.refToVar getVar.buildingTopologyIndex " type " branch.refToVar @processor @block getMplType) assembleString @block createComment
         ]
         ShadowReasonFieldCapture [
           branch:;

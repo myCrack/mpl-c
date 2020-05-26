@@ -358,6 +358,37 @@ getOverloadIndex: [
   index outOverloadDepth
 ];
 
+catShadowEvents: [
+  index: currentMatchingNode: message: ;;;
+
+  index 1 + [
+    currentEvent: i currentMatchingNode.matchingInfo.shadowEvents.at;
+    (
+      ShadowReasonInput [
+        branch:;
+        ("shadow event [" i "] input topology " branch.refToVar getVar.topologyIndex " type " branch.refToVar @processor @block getMplType LF) @message.catMany
+      ]
+      ShadowReasonCapture [
+        branch:;
+        ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") index " branch.refToVar getVar.topologyIndex " type " branch.refToVar @processor @block getMplType LF) @message.catMany
+      ]
+      ShadowReasonFieldCapture [
+        branch:;
+        ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.topologyIndex LF) @message.catMany
+      ]
+      ShadowReasonPointee [
+        branch:;
+        ("shadow event [" i "] pointee " branch.pointer getVar.topologyIndex " index " branch.pointee getVar.topologyIndex LF) @message.catMany
+      ]
+      ShadowReasonField [
+        branch:;
+        ("shadow event [" i "] field \"" branch.mplFieldIndex VarStruct branch.object getVar.data.get.get.fields.at.nameInfo processor.nameManager.getText "\" [" branch.mplFieldIndex "] of " branch.object getVar.topologyIndex " object type " branch.object @processor @block getMplType " index " branch.field getVar.buildingTopologyIndex LF) @message.catMany
+      ]
+      []
+    ) currentEvent.visit
+  ] times
+];
+
 tryMatchNode: [
   currentMatchingNode:;
 
@@ -398,33 +429,7 @@ tryMatchNode: [
       index:;
       message: ("in compile-one func cache mismatch; " comparingMessage "; matching table events to failing event:" LF) assembleString;
 
-      index 1 + [
-        currentEvent: i currentMatchingNode.matchingInfo.shadowEvents.at;
-        (
-          ShadowReasonInput [
-            branch:;
-            ("shadow event [" i "] input as " branch.refToVar getVar.topologyIndex LF) @message.catMany
-          ]
-          ShadowReasonCapture [
-            branch:;
-            ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") as " branch.refToVar getVar.topologyIndex LF) @message.catMany
-          ]
-          ShadowReasonFieldCapture [
-            branch:;
-            ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.topologyIndex LF) @message.catMany
-          ]
-          ShadowReasonPointee [
-            branch:;
-            ("shadow event [" i "] pointee " branch.pointer getVar.topologyIndex " as " branch.pointee getVar.topologyIndex LF) @message.catMany
-          ]
-          ShadowReasonField [
-            branch:;
-            ("shadow event [" i "] field \"" branch.mplFieldIndex VarStruct branch.object getVar.data.get.get.fields.at.nameInfo processor.nameManager.getText "\" [" branch.mplFieldIndex "] of " branch.object getVar.topologyIndex " as " branch.field getVar.buildingTopologyIndex LF) @message.catMany
-          ]
-          []
-        ) currentEvent.visit
-      ] times
-
+      index currentMatchingNode @message catShadowEvents
       message @processor block compilerError
     ];
 
@@ -918,7 +923,9 @@ applyNodeChanges: [
 
   currentChangesNode.matchingInfo.shadowEvents.size [
     processor compilable [
-      currentEvent: i currentChangesNode.matchingInfo.shadowEvents.at;
+      shadowEventIndex: i copy;
+
+      currentEvent: shadowEventIndex currentChangesNode.matchingInfo.shadowEvents.at;
       (
         ShadowReasonInput [
           branch:;
@@ -962,8 +969,27 @@ applyNodeChanges: [
         ]
         ShadowReasonField [
           branch:;
+          cacheObject: branch.object;
           cacheEntry: branch.field;
-          stackEntry: branch.mplFieldIndex branch.object getVar.topologyIndex appliedVars.stackVars.at @processor @block getField;
+          stackObject: branch.mplFieldIndex cacheObject getVar.topologyIndex appliedVars.stackVars.at;
+          stackEntry: stackObject @processor @block getField;
+
+          [stackObject cacheObject variablesAreSame
+            [
+              (
+                "shadowEventIndex " shadowEventIndex LF
+                "topologyIndex " branch.mplFieldIndex cacheObject getVar.topologyIndex LF
+                "stack object is " stackEntry @processor @block getMplType LF
+                "cache object is " cacheEntry @processor @block getMplType LF) printList
+
+              message: String;
+              shadowEventIndex currentChangesNode @message catShadowEvents
+              message print LF print
+
+              FALSE
+            ] ||
+          ] "Applied objects has different type!" assert
+
           stackEntry cacheEntry @appliedVars addAppliedVar
         ]
       []

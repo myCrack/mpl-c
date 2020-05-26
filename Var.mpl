@@ -118,7 +118,7 @@ RefToVar: [{
     newMoved [2nx] [0nx] if data 2nx ~ and or !data
   ];
 
-  assigned: [var isNil ~];
+  assigned: [data 3nx ~ and 0nx = ~];
   equal: [other:; var other.var is];
   hash: [address: var storageAddress; address 32n32 rshift address + Nat32 cast];
 } dynamic];
@@ -148,6 +148,7 @@ Variable: [{
   topologyIndex:                     -1 dynamic;
   topologyIndexWhileMatching:        -1 dynamic;
   topologyIndexWhileMatching2:       -1 dynamic;
+
   capturedHead:                      RefToVar;
   capturedTail:                      RefToVar;
   capturedPrev:                      RefToVar;
