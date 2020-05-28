@@ -4,12 +4,14 @@
 "String.String" use
 "String.StringView" use
 "String.addLog" use
+"String.assembleString" use
 "String.makeStringView" use
 "String.toString" use
 "Variant.Variant" use
 "control" use
 
 "Mref.Mref" use
+"staticCall.staticCall" use
 
 Dirty:   [0n8 dynamic];
 Dynamic: [1n8 dynamic];
@@ -429,6 +431,22 @@ getPlainConstantIR: [
     ] if
   ] if
 
+  result
+];
+
+getPlainValueInformation: [
+  var: getVar;
+  result: String;
+
+  var.staticity.end Weak < [
+    " dynamic" toString !result
+  ] [
+    var.data.getTag  VarCond VarReal64 1 + [
+      copy tag:;
+      branch: tag var.data.get;
+      (" static: " branch.end) assembleString !result
+    ] staticCall
+  ] if
   result
 ];
 

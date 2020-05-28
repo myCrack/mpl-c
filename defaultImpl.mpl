@@ -1,3 +1,4 @@
+"String.String" use
 "String.StringView" use
 "String.addLog" use
 "String.assembleString" use
@@ -21,7 +22,9 @@
 "Var.VarImport" use
 "Var.VarString" use
 "Var.Weak" use
+"Var.getPlainValueInformation" use
 "Var.getVar" use
+"Var.isPlain" use
 "Var.staticityOfVar" use
 "Var.variablesAreSame" use
 "declarations.compilerError" use
@@ -204,7 +207,8 @@ getStackDepth: [
   [
     i @processor block getStackDepth < [
       entry: i @processor block getStackEntryUnchecked;
-      (entry @processor block getMplType entry.mutable ["R"] ["C"] if entry getVar.temporary ["T"] [""] if LF) printList
+      (entry @processor block getMplType entry.mutable ["R"] ["C"] if entry getVar.temporary ["T"] [""] if
+       entry isPlain [entry getPlainValueInformation] [String] if LF) printList
       i 1 + @i set TRUE
     ] &&
   ] loop

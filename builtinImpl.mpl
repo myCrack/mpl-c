@@ -135,6 +135,7 @@
 "irWriter.createVarImportIR" use
 "irWriter.getIrType" use
 "irWriter.getMplSchema" use
+"memory.debugMemory" use
 "pathUtils.extractExtension" use
 "pathUtils.stripExtension" use
 "processSubNodes.clearProcessorResult" use
@@ -152,6 +153,10 @@
 "variable.refsAreEqual" use
 "variable.unglobalize" use
 "variable.zeroValue" use
+
+debugMemory [
+  "memory.getMemoryMetrics" use
+] [] uif
 
 declareBuiltin: [
   virtual declareBuiltinName:;
@@ -922,7 +927,7 @@ staticityOfBinResult: [
                 @field.@refToVar @processor block unglobalize
                 block.program.dataSize @field.@refToVar getVar.@allocationInstructionIndex set
                 "no alloc..." @block createComment # fake instruction
-                @field.@refToVar @refToElement @processor @block createCheckedCopyToNew
+                @refToElement @field.@refToVar @processor @block createCheckedCopyToNew
                 @field.@refToVar markAsUnableToDie
                 @field.@refToVar i result @processor @block createGEPInsteadOfAlloc
               ] if
@@ -1692,6 +1697,14 @@ staticityOfBinResult: [
 [
   @processor block defaultPrintStackTrace
 ] "mplBuiltinPrintStackTrace" @declareBuiltin ucall
+
+[
+  debugMemory [
+    ("compilerMaxAllocationSize=" getMemoryMetrics.memoryMaxAllocationSize LF) printList
+  ] [
+    ("compilerMaxAllocationSize is unknown, use -debugMemory flag" LF) printList
+  ] uif
+] "mplPrintCompilerMaxAllocationSize"  @declareBuiltin ucall
 
 [
   processor compilable [

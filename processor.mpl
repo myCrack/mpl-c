@@ -10,6 +10,7 @@
 "Block.CompilerPositionInfo" use
 "Block.NameCaseInvalid" use
 "File.File" use
+"Mref.Mref" use
 "NameManager.NameManager" use
 "Var.RefToVar" use
 "Var.Variable" use
@@ -102,6 +103,11 @@ IRArgument: [{
   byRef: TRUE;
 }];
 
+NameInfoCoord: [{
+  block: ["Block.BlockSchema" use BlockSchema] Mref;
+  file: ["File.FileSchema" use FileSchema] Mref;
+}];
+
 Processor: [{
   options: ProcessorOptions;
   multiParserResult: MultiParserResult Cref;
@@ -121,9 +127,9 @@ Processor: [{
   modules:             String Int32 HashTable; # -1 no module, or Id of codeNode
 
   captureTable: {
-    simpleNames:  Int32 Array Array Array; #name; overload; vector of blocks
-    selfNames:    Int32 Array Array Array; #overload; mplTypeId; vector of blocks
-    closureNames: Int32 Array Array Array; #overload; mplTypeId; vector of blocks
+    simpleNames:  NameInfoCoord Array Array Array; #name; overload; vector of blocks
+    selfNames:    NameInfoCoord Array Array Array; #overload; mplTypeId; vector of blocks
+    closureNames: NameInfoCoord Array Array Array; #overload; mplTypeId; vector of blocks
   };
 
   emptyNameInfo:               -1 dynamic;
@@ -213,24 +219,3 @@ Processor: [{
   INIT: [];
   DIE: [];
 }];
-
-
-{block: Block Cref; processor: Processor Cref; } Int32 {} [
-  
-  processor: block:;;
-  depth: 0 dynamic;
-  inputsCount: 0 dynamic;
-  [
-    block.root ~ [
-      depth block.stack.dataSize + @depth set
-      inputsCount block.buildingMatchingInfo.inputs.size + @inputsCount set
-      block.parent processor.blocks.at.get !block
-      TRUE
-    ] &&
-  ] loop
-
-  [inputsCount depth > ~] "Missed stack overflow!" assert
-
-  depth inputsCount -
-
-] "getStackDepthForMe" exportFunction

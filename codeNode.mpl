@@ -197,6 +197,7 @@
 "pathUtils.extractFilename" use
 "pathUtils.stripExtension" use
 "processor.MatchingNode" use
+"processor.NameInfoCoord" use
 "processor.NameInfoEntry" use
 "processor.Processor" use
 "processor.ProcessorResult" use
@@ -1195,15 +1196,17 @@ processListNode: [
 ] "compilerErrorImpl" exportFunction
 
 findLocalObject: [
-  refToVar: captureCase: block:;; copy;
+  pattern: captureCase: block: resultRefToVar: ;; copy;;
+
+  pattern @resultRefToVar set
   i: 0 dynamic;
   [
     i block.buildingMatchingInfo.captures.dataSize < [
       currentCapture: i block.buildingMatchingInfo.captures.at;
       currentCapture.captureCase captureCase = [
-        currentCapture.refToVar refToVar variablesAreSame
+        currentCapture.refToVar pattern variablesAreSame
       ] && [
-        currentCapture.refToVar @refToVar set
+        currentCapture.refToVar @resultRefToVar set
         FALSE
       ] [
         i 1 + @i set
@@ -1211,35 +1214,29 @@ findLocalObject: [
       ] if
     ] &&
   ] loop
-
-  refToVar
 ];
 
 findNameStackObject: [
-  copy nameCase:;
-  file:;
-  refToVar:;
-  nameInfo:;
+  nameInfo: pattern: file: nameCase: result:; copy;;; copy;
 
-  result: RefToVar;
   i: -1 dynamic;
   [
     i file nameInfo processor.nameManager.findItem !i
     i 0 < [
-      processor.varForFails @result set
+      processor.varForFails @result.@refToVar set 
       FALSE
     ] [
       item: i nameInfo processor.nameManager.getItem;
-      nameCase item.nameCase = [refToVar item.refToVar variablesAreSame] && [
-        item.refToVar @result set
+      nameCase item.nameCase = [pattern item.refToVar variablesAreSame] && [
+        item.refToVar   @result.@refToVar set 
+        item.nameCase   @result.@nameCase   set
+        item.startPoint @result.@startPoint set
         FALSE
       ] [
         TRUE
       ] if
     ] if
   ] loop
-
-  result
 ];
 
 findPossibleModules: [
@@ -1326,7 +1323,7 @@ getNameAs: [
       object: nameInfoEntry.refToVar;
       fields: VarStruct object getVar.data.get.get.fields;
       nameInfoEntry.mplFieldIndex 0 < ~ [nameInfoEntry.mplFieldIndex fields.getSize <] && [nameInfoEntry.mplFieldIndex fields.at.nameInfo nameInfo =] && [
-        object nameCase MemberCaseToObjectCase @block findLocalObject @result.@object set
+        object nameCase MemberCaseToObjectCase @block @result.@object findLocalObject   #tut nujen object
         nameInfoEntry.mplFieldIndex @result.@mplFieldIndex set
         nameInfoEntry.mplFieldIndex fields.at.refToVar @result.@refToVar set
         object.mutable @result.@refToVar.setMutable
@@ -1336,9 +1333,9 @@ getNameAs: [
     ] [
       nameCase NameCaseSelfObject = [nameCase NameCaseClosureObject =] || [
         forMatching [
-          nameInfo matchingCapture.refToVar file nameCase findNameStackObject @result.@refToVar set
+          nameInfo matchingCapture.refToVar file nameCase @result findNameStackObject
         ] [
-          nameInfoEntry.refToVar nameCase @block findLocalObject @result.@refToVar set
+          nameInfoEntry.refToVar nameCase @block @result.@refToVar findLocalObject
         ] if
       ] [
         nameInfoEntry.refToVar @result.@refToVar set
@@ -1399,6 +1396,34 @@ captureName: [
     addBlockIdTo: [
       whereNames: nameInfo: nameOverloadDepth: captureCase: mplSchemaId: ;;;;;
 
+      addToLine: [
+        line:;
+        index: line.size 1 -;
+        result: TRUE dynamic;
+
+        [
+          index 0 < [index line.at.block block is ~] || [
+            FALSE #no such item
+          ] [
+            index line.at.file file is [
+              FALSE !result #we have such item
+              FALSE
+            ] [
+              index 1 - !index
+              TRUE #find deeper
+            ] if
+          ] if
+        ] loop
+
+        result [
+          NameInfoCoord @line.pushBack
+          block @line.last.@block.set
+          file  @line.last.@file.set
+        ] when
+
+        result
+      ];
+
       addBlockToObjectCase: [
         nameOverloadDepth: mplSchemaId: table: ;;;
 
@@ -1406,10 +1431,7 @@ captureName: [
         whereTypes: nameOverloadDepth @table.at;
         mplSchemaId whereTypes.size < ~ [mplSchemaId 1 + @whereTypes.resize] when
         whereIds: mplSchemaId @whereTypes.at;
-        whereIds.size 0 = [block.id whereIds.last = ~] || [
-          block.id @whereIds.pushBack
-          TRUE
-        ] &&
+        @whereIds addToLine
       ];
 
       nameInfo processor.selfNameInfo = [
@@ -1422,10 +1444,7 @@ captureName: [
           whereOverloads: nameInfo @whereNames.@simpleNames.at;
           nameOverloadDepth whereOverloads.size < ~ [nameOverloadDepth 1 + @whereOverloads.resize] when
           whereIds: nameOverloadDepth @whereOverloads.at;
-          whereIds.size 0 = [block.id whereIds.last = ~] || [
-            block.id @whereIds.pushBack
-            TRUE
-          ] &&
+          @whereIds addToLine
         ] if
       ] if
     ];
@@ -3036,13 +3055,18 @@ unregCodeNodeNames: [
     [
       nameWithOverloadAndRefToVar:;
 
+      unregInLine: [
+        line:;
+        [line.last.block block is] "Wrong block id while unreg object name!" assert
+        @line.popBack
+      ];
+
       unregInObjectTable: [
         depth: mplSchemaId: where: ;;;
 
         whereTypes: depth @where.at;
         whereIds: mplSchemaId @whereTypes.at;
-        [whereIds.last block.id =] "Wrong block id while unreg object name!" assert
-        @whereIds.popBack
+        @whereIds unregInLine
       ];
 
       nameWithOverloadAndRefToVar.nameInfo processor.selfNameInfo = [
@@ -3053,8 +3077,7 @@ unregCodeNodeNames: [
         ] [
           whereOverloads: nameWithOverloadAndRefToVar.nameInfo @whereNames.@simpleNames.at;
           whereIds: nameWithOverloadAndRefToVar.nameOverloadDepth @whereOverloads.at;
-          [whereIds.last block.id =] "Wrong block id while unreg name!" assert
-          @whereIds.popBack
+          @whereIds unregInLine
         ] if
       ] if
     ] each
@@ -3179,38 +3202,50 @@ clearRecursionStack: [
 changeTopologyIndexForAllVars: [
   events: clearBuildingMatchingInfo: ;;
 
-  changeTopologyIndex: [
-    refToVar: clearBuildingMatchingInfo: ;;
+  eachEventVar: [
+    eachEventVarAction:;
+    @events [
+      currentEvent:;
+
+      (
+        ShadowReasonInput [
+          branch:;
+          @branch.@refToVar eachEventVarAction
+        ]
+        ShadowReasonCapture [
+          branch:;
+          @branch.@refToVar eachEventVarAction
+        ]
+        ShadowReasonPointee [
+          branch:;
+          @branch.@pointee eachEventVarAction
+        ]
+        ShadowReasonField [
+          branch:;
+          @branch.@field eachEventVarAction
+        ]
+      []
+      ) @currentEvent.visit
+    ] each
+  ];
+
+  [
+    refToVar:;
     refToVar noMatterToCopy ~ [
       var: @refToVar getVar;
       var.buildingTopologyIndex @var.@topologyIndex set
-      clearBuildingMatchingInfo [-1 @var.@buildingTopologyIndex set] when
     ] when
-  ];
+  ] eachEventVar
 
-  @events [
-    currentEvent:;
-
-    (
-      ShadowReasonInput [
-        branch:;
-        @branch.@refToVar clearBuildingMatchingInfo changeTopologyIndex
-      ]
-      ShadowReasonCapture [
-        branch:;
-        @branch.@refToVar clearBuildingMatchingInfo changeTopologyIndex
-      ]
-      ShadowReasonPointee [
-        branch:;
-        @branch.@pointee clearBuildingMatchingInfo changeTopologyIndex
-      ]
-      ShadowReasonField [
-        branch:;
-        @branch.@field clearBuildingMatchingInfo changeTopologyIndex
-      ]
-    []
-    ) @currentEvent.visit
-  ] each
+  clearBuildingMatchingInfo [
+    [
+      refToVar:;
+      refToVar noMatterToCopy ~ [
+        var: @refToVar getVar;
+        -1 @var.@buildingTopologyIndex set
+      ] when
+    ] eachEventVar
+  ] when
 ];
 
 checkRecursionOfCodeNode: [

@@ -486,6 +486,14 @@ tryMatchNode: [
             overloadIndex: outOverloadDepth: branch @block branch.file TRUE getOverloadIndex;;
             stackEntry: branch.nameInfo branch overloadIndex @processor @block branch.file getNameForMatchingWithOverloadIndex.refToVar;
             stackEntry cacheEntry TRUE @comparingMessage currentMatchingNode processor compareOnePair
+
+            [
+              cacheEntry noMatterToCopy [cacheEntry getVar.topologyIndex 0 < ~] || [
+                ("captureName=" branch.nameInfo processor.nameManager.getText "; captureType=" cacheEntry @processor @block getMplType LF) printList
+                FALSE
+              ] ||
+            ] "Capture shadow event index is negative!" assert
+
             [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
               currentMatchingNode.nodeCompileOnce [i mismatchMessage] when
               FALSE dynamic @success set
@@ -945,6 +953,7 @@ applyNodeChanges: [
           [stackEntry cacheEntry variablesAreSame
             [
               (
+                "shadowEventIndex " shadowEventIndex " of " currentChangesNode.matchingInfo.shadowEvents.size LF
                 "capture name is " branch.nameInfo processor.nameManager.getText LF
                 "stack entry is " stackEntry @processor @block getMplType LF
                 "cache entry is " cacheEntry @processor @block getMplType LF) printList
@@ -971,16 +980,15 @@ applyNodeChanges: [
           branch:;
           cacheObject: branch.object;
           cacheEntry: branch.field;
-          stackObject: branch.mplFieldIndex cacheObject getVar.topologyIndex appliedVars.stackVars.at;
-          stackEntry: stackObject @processor @block getField;
+          stackObject: cacheObject getVar.topologyIndex appliedVars.stackVars.at;
 
           [stackObject cacheObject variablesAreSame
             [
               (
-                "shadowEventIndex " shadowEventIndex LF
-                "topologyIndex " branch.mplFieldIndex cacheObject getVar.topologyIndex LF
-                "stack object is " stackEntry @processor @block getMplType LF
-                "cache object is " cacheEntry @processor @block getMplType LF) printList
+                "shadowEventIndex " shadowEventIndex " of " currentChangesNode.matchingInfo.shadowEvents.size LF
+                "cacheObject topologyIndex " cacheObject getVar.topologyIndex " of " appliedVars.stackVars.size LF
+                "stack object is " stackObject @processor @block getMplType LF
+                "cache object is " cacheObject @processor @block getMplType LF) printList
 
               message: String;
               shadowEventIndex currentChangesNode @message catShadowEvents
@@ -990,6 +998,7 @@ applyNodeChanges: [
             ] ||
           ] "Applied objects has different type!" assert
 
+          stackEntry: branch.mplFieldIndex stackObject @processor @block getField;
           stackEntry cacheEntry @appliedVars addAppliedVar
         ]
       []
@@ -1376,7 +1385,7 @@ useMatchingInfoOnly: [
   file: positionInfo.file;
 
   newNodeIndex: indexArray @processor @block tryMatchAllNodes;
-  newNodeIndex 0 < [processor compilable] && [
+  newNodeIndex 0 < [
     name
     block.id
     nodeCase
@@ -1456,7 +1465,7 @@ useMatchingInfoOnly: [
     oldGlobalErrorCount: processor.result.globalErrorInfo.getSize;
 
     newNodeIndex: indexArray @processor @block tryMatchAllNodes;
-    newNodeIndex 0 < [processor compilable] && [
+    newNodeIndex 0 < [
       processor.depthOfPre 1 + @processor.@depthOfPre set
       "PRE" makeStringView block.id NodeCaseCode indexArray file positionInfo CFunctionSignature @processor astNodeToCodeNode @newNodeIndex set
       processor.depthOfPre 1 - @processor.@depthOfPre set
@@ -1506,7 +1515,7 @@ processIf: [
   positionInfoElse: astNodeElse fileElse makeCompilerPosition;
 
   newNodeThenIndex: @indexArrayThen @processor @block tryMatchAllNodes;
-  newNodeThenIndex 0 < [processor compilable] && [
+  newNodeThenIndex 0 < [
     "ifThen" makeStringView
     block.id
     NodeCaseCode
@@ -1522,7 +1531,7 @@ processIf: [
     newNodeThen @processor @block useMatchingInfoOnly
   ] [
     newNodeElseIndex: @indexArrayElse @processor @block tryMatchAllNodes;
-    newNodeElseIndex 0 < [processor compilable] && [
+    newNodeElseIndex 0 < [
       "ifElse" makeStringView
       block.id
       NodeCaseCode
@@ -1877,7 +1886,7 @@ processLoop: [
 
   [
     newNodeIndex: @indexArray @processor @block tryMatchAllNodes dynamic;
-    newNodeIndex 0 < [processor compilable] && [
+    newNodeIndex 0 < [
       "loop" makeStringView
       block.id
       NodeCaseCode
@@ -1946,7 +1955,7 @@ processDynamicLoop: [
   [
     needToRemake: FALSE dynamic;
     newNodeIndex: @indexArray @processor @block tryMatchAllNodes;
-    newNodeIndex 0 < [processor compilable] && [
+    newNodeIndex 0 < [
       "dynamicLoop" makeStringView
       block.id
       NodeCaseCode
@@ -2192,7 +2201,7 @@ processDynamicLoop: [
   oldRecursiveNodesStackSize: processor.recursiveNodesStack.getSize;
 
   newNodeIndex: @indexArray @processor @block tryMatchAllNodesForRealFunction;
-  newNodeIndex 0 < [processor compilable] && [
+  newNodeIndex 0 < [
     nodeCase: asLambda [NodeCaseLambda][NodeCaseExport] if;
     processor.exportDepth 1 + @processor.@exportDepth set
     name block.id nodeCase indexArray file positionInfo signature @processor astNodeToCodeNode @newNodeIndex set
@@ -2266,6 +2275,31 @@ processDynamicLoop: [
   newNodeIndex
 ] "processExportFunction" exportFunction
 
+fixSourcesRec: [
+  refToVar:;
+
+  unfinished: @processor.acquireVarRefArray;
+  refToVar @unfinished.pushBack
+
+  i: 0 dynamic;
+
+  [
+    i unfinished.getSize < [
+      current: i @unfinished.at;
+      currentVar: @current getVar;
+      current @currentVar.@sourceOfValue set
+      currentVar.data.getTag VarStruct = [
+        VarStruct currentVar.data.get.get.fields [
+          .refToVar @unfinished.pushBack
+        ] each
+      ] when
+      i 1 + !i TRUE
+    ] &&
+  ] loop
+
+  @unfinished @processor.releaseVarRefArray
+];
+
 callImportWith: [
   declarationNode: refToVar: dynamicFunc: block:;;;;
   inputs:  @processor.acquireVarRefArray;
@@ -2331,6 +2365,9 @@ callImportWith: [
         i declarationNode.outputs.getSize < [
           currentOutput: i declarationNode.outputs.at.refToVar;
           current: currentOutput @processor @block copyVarFromChild;
+          current @processor @block makeVarTreeDirty
+          current fixSourcesRec
+
           current @current getVar.@sourceOfValue set
           Dynamic makeValuePair @current getVar.@staticity set
           current @outputs.pushBack
