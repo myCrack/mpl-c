@@ -2116,7 +2116,7 @@ processDynamicLoop: [
           newNodeIndex @processor deleteNode
 
           iterationNumber processor.options.staticLoopLengthLimit > [
-            "loop dynamisation iteration count so big" @processor block compilerError
+            "loop dynamization iteration count so big" @processor block compilerError
           ] when
         ] when
 
