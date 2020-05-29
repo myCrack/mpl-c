@@ -7,8 +7,10 @@
 "String.makeStringView" use
 "String.toString" use
 "control" use
+"memory.debugMemory" use
 
 "Block.BlockSchema" use
+"Block.Capture" use
 "Block.CFunctionSignature" use
 "Block.CompilerPositionInfo" use
 "Block.NodeCaseCode" use
@@ -59,6 +61,10 @@
 "processor.NameInfoEntry" use
 "processor.Processor" use
 "processor.ProcessorOptions" use
+
+debugMemory [
+  "memory.getMemoryMetrics" use
+] [] uif
 
 {
   program: String Ref;
@@ -293,6 +299,28 @@
     varDynamicStoragedHeadMemory:  0nx;
     varDynamicStoragedShadowMemory:  0nx;
 
+    getCoordsMemory: [
+      where:;
+
+      result: 0nx;
+      where.dataReserve Natx cast where.elementSize * result + !result
+      where [
+        where1:;
+        where1.dataReserve Natx cast where1.elementSize * result + !result
+        where1 [
+          where2:;
+          where2.dataReserve Natx cast where2.elementSize * result + !result
+        ] each
+      ] each
+
+      result
+    ];
+
+    coordsMemory:
+      processor.captureTable.simpleNames  getCoordsMemory
+      processor.captureTable.selfNames    getCoordsMemory +
+      processor.captureTable.closureNames getCoordsMemory +;
+
     getVariableUsedMemory: [
       var:;
 
@@ -332,21 +360,47 @@
       ] each
     ] each
 
-    eventCount: 0;
+    beventCount: 0;
+    meventCount: 0;
+    captureCount: 0;
+    failedCaptureCount: 0;
+
+    eventTagCount: Int32 6 array;
 
     processor.blocks [
       block: .get;
-      block.buildingMatchingInfo.shadowEvents.size eventCount + !eventCount
-      block.matchingInfo.shadowEvents.size eventCount + !eventCount
+      block.buildingMatchingInfo.shadowEvents.size beventCount + !beventCount
+      block.matchingInfo.shadowEvents.size meventCount + !meventCount
+      block.matchingInfo.captures.size captureCount + !captureCount
+
+      block.matchingInfo.shadowEvents [
+        event:;
+        src: event.getTag @eventTagCount @;
+        src 1 + @src set
+
+        event.getTag ShadowReasonCapture = [
+          branch: ShadowReasonCapture event.get;
+          branch.refToVar getVar processor.varForFails getVar is [
+            failedCaptureCount 1 + !failedCaptureCount
+          ] when
+        ] when
+      ] each
     ] each
 
     (
-      "varShadowMemory=" varShadowMemory "; varHeadMemory=" varHeadMemory
+      debugMemory ["; currentAllocationSize=" getMemoryMetrics.memoryCurrentAllocationSize] [] uif
+      "; coordsMemory=" coordsMemory
+      "; varShadowMemory=" varShadowMemory "; varHeadMemory=" varHeadMemory
       "; varDynamicStoragedHeadMemory=" varDynamicStoragedHeadMemory
       "; varDynamicStoragedShadowMemory=" varDynamicStoragedShadowMemory
       "; varStaticStoragedMemory=" varStaticStoragedMemory
       "; totalFieldCount=" totalFieldCount "; fieldSize=" Field storageSize
-      "; eventCount=" eventCount "; eventSize=" ShadowEvent storageSize
+      "; beventCount=" beventCount
+      "; meventCount=" meventCount
+      "; meventCountByTag=" 0 eventTagCount @ ":" 1 eventTagCount @ ":" 2 eventTagCount @ ":" 3 eventTagCount @ ":" 4 eventTagCount @ ":" 5 eventTagCount @
+      "; eventSize=" ShadowEvent storageSize
+      "; captureCount=" captureCount "; failedCaptureCount=" failedCaptureCount
+      "; captureSize=" Capture storageSize
     ) addLog
 
     processor.usedFloatBuiltins [@processor createFloatBuiltins] when

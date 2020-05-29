@@ -255,9 +255,8 @@
   ] if
 ] "variablesAreEqualForMatching" exportFunction
 
-{processor: Processor Cref; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref;} Cond {} [
-  stackEntry: cacheEntry: processor:;;;  
-  stackDynamicBorder: Dynamic;
+{forLoop: Cond; processor: Processor Cref; cacheEntry: RefToVar Cref; stackEntry: RefToVar Cref; } Cond {} [
+  stackEntry: cacheEntry: processor: forLoop: ;;;;
 
   cacheEntry stackEntry variablesAreSame [cacheEntry stackEntry processor variablesHaveSameGlobality] && [
     cacheEntryVar: cacheEntry getVar;
@@ -278,35 +277,43 @@
       cacheStaticity: cacheEntryVar.staticity.end copy;
       stackStaticity: stackEntryVar.staticity.end copy;
 
-      cacheStaticity Weak > ~ stackStaticity stackDynamicBorder > ~ and [ # both dynamic
-        cacheStaticity Dirty = stackStaticity Dirty = =
+
+      forLoop [cacheStaticity Static = stackStaticity Dynamic > ~ and] && [ #was dynamic but after loop is static
+        TRUE
       ] [
-        cacheStaticity Weak > stackStaticity stackDynamicBorder > and [ # both static
-          cacheEntry isPlain [
-            result: TRUE;
+        cacheStaticity Weak > ~ stackStaticity Dynamic > ~ and [ # both dynamic
+          cacheStaticity Dirty = stackStaticity Dirty = =
+        ] [
+          cacheStaticity Weak > stackStaticity Dynamic > and [ # both static
+            cacheEntry isPlain [
+              result: TRUE;
 
-            cacheEntryVar.data.getTag VarCond VarReal64 1 + [
-              tag:;
-              tag cacheEntryVar.data.get.end
-              tag stackEntryVar.data.get.end =
-              !result
-            ] staticCall
+              cacheEntryVar.data.getTag VarCond VarReal64 1 + [
+                tag:;
+                tag cacheEntryVar.data.get.end
+                tag stackEntryVar.data.get.end =
+                !result
+              ] staticCall
 
-            result
-          ] [
-            cacheEntryVar.data.getTag VarRef = [cacheEntry staticityOfVar Virtual <] && [
-              r1: VarRef cacheEntryVar.data.get.refToVar;
-              r2: VarRef stackEntryVar.data.get.refToVar;
-              r1.var r2.var is [r1.mutable r2.mutable =] && [r1 getVar.staticity.end r2 getVar.staticity.end =] &&
+              result
             ] [
-              TRUE # go recursive
+              cacheEntryVar.data.getTag VarRef = [cacheEntry staticityOfVar Virtual <] && [
+                r1: VarRef cacheEntryVar.data.get.refToVar;
+                r2: VarRef stackEntryVar.data.get.refToVar;
+                r1.var r2.var is [r1.mutable r2.mutable =] && [r1 getVar.staticity.end r2 getVar.staticity.end =] &&
+              ] [
+                TRUE # go recursive
+              ] if
             ] if
-          ] if
-        ] && # both static and are equal
+          ] && # both static and are equal
+        ] if
       ] if
     ] if
   ] &&
-] "variablesAreEqual" exportFunction
+] "variablesAreEqualWith" exportFunction
+
+variablesAreEqual: [FALSE variablesAreEqualWith];
+variablesAreEqualForLoop: [TRUE variablesAreEqualWith];
 
 {processor: Processor Cref; currentMatchingNode: Block Cref; refToVar: RefToVar Cref;} Cond {} [
   refToVar: currentMatchingNode: processor:;;;
@@ -1315,7 +1322,7 @@ useMatchingInfoOnly: [
   oldSuccess: processor.result.success copy;
   TRUE @processor.@result.@success set
 
-  newNode.buildingMatchingInfo.shadowEvents [
+  newNode.matchingInfo.shadowEvents [
     event:;
     (
       ShadowReasonInput [
@@ -1983,7 +1990,7 @@ processDynamicLoop: [
 
           result: FALSE dynamic;
           src dst variablesAreSame [
-            src dst processor variablesAreEqual ~ [
+            src dst processor variablesAreEqualForLoop ~ [
               TRUE @result set
             ] when
           ] [

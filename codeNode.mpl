@@ -3159,6 +3159,8 @@ deleteMatchingNode: [
 concreteMatchingNode: [
   block:;
 
+  MatchingInfo @block.@buildingMatchingInfo set
+
   block.matchingInfo.inputs.getSize 0 = ~ [
     @block deleteMatchingNode
 
