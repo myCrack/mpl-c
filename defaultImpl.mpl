@@ -264,12 +264,12 @@ addEmptyCapture: [
   ShadowReasonCapture @newEvent.setTag
   branch: ShadowReasonCapture @newEvent.get;
 
-  RefToVar          @branch.@refToVar set
-  nameInfo          @branch.@nameInfo set
-  nameOverloadDepth @branch.@nameOverloadDepth set
-  NameCaseInvalid   @branch.@captureCase set
-  file              @branch.@file.set
-  ArgMeta           @branch.@argCase set
+  processor.varForFails @branch.@refToVar set
+  nameInfo              @branch.@nameInfo set
+  nameOverloadDepth     @branch.@nameOverloadDepth set
+  NameCaseInvalid       @branch.@captureCase set
+  file                  @branch.@file.set
+  ArgMeta               @branch.@argCase set
   @newEvent @block addShadowEvent
 ];
 

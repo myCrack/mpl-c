@@ -1596,18 +1596,8 @@ captureName: [
       "real function can not have real local capture" @processor block compilerError
     ] when
   ] [
-     newEvent: ShadowEvent;
-     ShadowReasonCapture @newEvent.setTag
-     branch: ShadowReasonCapture @newEvent.get;
-     NameCaseInvalid        @branch.@captureCase set
-     ArgMeta                @branch.@argCase set
-     getNameResult.nameInfo @branch.@nameInfo set
-     overloadDepth          @branch.@nameOverloadDepth set
-     file                   @branch.@file.set
-     processor.varForFails  @branch.@refToVar set
-     @newEvent @block addShadowEvent
-
-     processor.varForFails @result.@refToVar set
+    file getNameResult.nameInfo overloadDepth @processor @block addEmptyCapture
+    processor.varForFails @result.@refToVar set
   ] if
 
   result
