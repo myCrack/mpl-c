@@ -136,7 +136,8 @@ debugMemory [
   processor.options.fileNames.size @processor.@files.resize
   processor.options.fileNames.size [
     File owner i @processor.@files.at set
-    i processor.options.fileNames.at copy i @processor.@files.at.get.!name
+    i processor.options.fileNames.at i @processor.@files.at.get.@name set
+    i processor.options.fileNames.at stripExtension extractFilename toString i @processor.@fileNameIds.insert
   ] times
 
   processor.options.debug [

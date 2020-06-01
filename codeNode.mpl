@@ -3949,6 +3949,11 @@ makeCompilerPosition: [
 
     # we can call func as imported
     topNode: getTopNode;
+    currentFile: processor.positions.last.file;
+
+    topNode.file currentFile is ~ [ #we calling func description from another file
+      currentFile.rootBlock.id @processor.@blocks.at.get !topNode
+    ] when
 
     refToVar: RefToVar;
     fr: @functionName @processor.@namedFunctions.find;
@@ -3993,6 +3998,7 @@ makeCompilerPosition: [
       nameInfo:      nameInfo copy;
       addNameCase:   NameCaseLocal;
       refToVar:      refToVar copy;
+      file:          topNode.file;
     } @processor @topNode addNameInfo
   ];
 
@@ -4168,6 +4174,7 @@ addIndexArrayToProcess: [
   @processor block getStackDepth  @codeNode.@minStackDepth set
   processor.varCount              @codeNode.@variableCountDelta set
   processor.exportDepth           @codeNode.@exportDepth set
+  file                            @codeNode.@file.set
 
   compilerPositionInfo @processor.@positions.pushBack
 

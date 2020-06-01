@@ -162,6 +162,7 @@ ShadowEventPointee: [{
 Block: [{
   id:              Int32;
   root:            FALSE dynamic;
+  file:            ["File.FileSchema" use FileSchema] Mref;
   parent:          0 dynamic;
   nodeCase:        NodeCaseCode;
   stack:           RefToVar Array; # we must compile node without touching parent

@@ -1,4 +1,5 @@
 "Array.Array" use
+"HashTable.HashTable" use
 "Owner.owner" use
 "String.String" use
 "String.assembleString" use
@@ -75,6 +76,7 @@
 "codeNode.createVariable" use
 "codeNode.createVariableWithVirtual" use
 "codeNode.derefAndPush" use
+"codeNode.getNameWithOverloadIndex" use
 "codeNode.getName" use
 "codeNode.makeStaticity" use
 "codeNode.makeVarDirty" use
@@ -1957,46 +1959,121 @@ staticityOfBinResult: [
       filename "" = ["invalid filename" @processor block compilerError] when
     ] [
       name: string extractExtension;
-      fr: filename processor.modules.find;
-      fr.success [fr.value 0 < ~] && [
-        fileBlock: fr.value processor.blocks.at.get;
-        nameInfo: name @processor findNameInfo;
-        labelCount: 0;
+      useAll: name "" =;
 
-        fileBlock.labelNames [
-          label:;
-          name "" = [label.nameInfo nameInfo =] || [label.refToVar isVirtual [label.refToVar getVar.data.getTag VarImport =] ||] && [
+      fr: filename processor.fileNameIds.find;
+      fr.success [
+        fr: filename processor.modules.find;
+
+
+        fr.success [fr.value 0 < ~] && [
+          fileBlock: fr.value processor.blocks.at.get;
+          file: fileBlock.file;
+
+          nameInfo: name @processor findNameInfo;
+          labelCount: 0;
+
+          findLabelNames: [
+            overloadCounter:;
+
+            addNameData: @processor.@temporaryBuiltinUseData.@addNameData;
+
+            fileBlock.labelNames.size [
+              label: fileBlock.labelNames.size 1 - i - fileBlock.labelNames.at;
+
+              useAll [label.nameInfo nameInfo =] || [
+                index: depth: label.nameInfo overloadCounter;;
+
+                gnr: label.nameInfo index @processor @block file getNameWithOverloadIndex;
+                cnr: gnr depth @processor @block file captureName;
+
+                {refToVar: cnr.refToVar copy; nameInfo: label.nameInfo copy; } @addNameData.pushBack
+
+                labelCount 1 + !labelCount
+              ] when
+            ] times
+
+            addNameData.size [
+              current: addNameData.size 1 - i - addNameData.at;
+              {
+                addNameCase: NameCaseFromModule;
+                refToVar:    current.refToVar copy;
+                nameInfo:    current.nameInfo copy;
+                overload:    block.nextLabelIsOverload;
+              } @processor @block addNameInfo
+            ] times
+
+            @addNameData.clear
+            @overloadCounter.clear
+          ];
+
+          useAll [
+            FALSE @block.!nextLabelIsOverload
+
             {
-              addNameCase: NameCaseFromModule;
-              refToVar:    label.refToVar copy;
-              nameInfo:    label.nameInfo copy;
-              overload:    block.nextLabelIsOverload;
-            } @processor @block addNameInfo
+              indexes: @processor.@temporaryBuiltinUseData.@indexes;
+              CALL: [nameInfo:;
+                fr: nameInfo @indexes.find;
+                fr.success [
+                  result: fr.value.index file nameInfo @processor.@nameManager.findItem;
+                  result @fr.@value.@index set
+                  fr.value.depth 1 + @fr.@value.@depth set
+                  fr.value.index copy fr.value.depth copy
+                ] [
+                  result: -1 file nameInfo @processor.@nameManager.findItem;
+                  nameInfo  {index: result copy; depth: 0;} @indexes.insert
+                  result 0
+                ] if
+              ];
 
-            labelCount 1 + !labelCount
+              clear: [@indexes.clear];
+            } findLabelNames
+          ] [
+            {
+              depth: -1;
+              index: -1;
+              CALL: [
+                nameInfo:;
+                index file nameInfo @processor.@nameManager.findItem !index
+                depth 1 + !depth
+                index depth
+              ];
+
+              clear: [];
+            } findLabelNames
+          ] if
+
+
+          FALSE @block.!nextLabelIsOverload
+
+          labelCount 0 = [
+            oldSuccess: processor compilable;
+            message: ("no names match \"" name "\"") assembleString; 
+
+            useAll ~ [
+              @message nameInfo @processor catPossibleModulesList
+            ] when
+
+            message @processor block compilerError
+            oldSuccess [
+              @processor.@result.@errorInfo move @processor.@result.@globalErrorInfo.pushBack
+              -1 @processor.@result clearProcessorResult
+            ] when
           ] when
-        ] each
-
-        FALSE @block.!nextLabelIsOverload
-
-        labelCount 0 = [
-          oldSuccess: processor compilable;
-          message: ("no names match \"" name "\"") assembleString; 
-
-          name "" = ~ [
-            @message nameInfo @processor catPossibleModulesList
-          ] when
-
-          message @processor block compilerError
-          oldSuccess [
-            @processor.@result.@errorInfo move @processor.@result.@globalErrorInfo.pushBack
-            -1 @processor.@result clearProcessorResult
-          ] when
-        ] when
+        ] [
+          TRUE dynamic @processor.@result.@findModuleFail set
+          filename toString @processor.@result.@errorInfo.@missedModule set
+          ("module not found: " filename) assembleString @processor block compilerError
+        ] if
       ] [
-        TRUE dynamic @processor.@result.@findModuleFail set
-        filename toString @processor.@result.@errorInfo.@missedModule set
-        ("module not found: " filename) assembleString @processor block compilerError
+        #if module name is totally wrong
+        oldSuccess: processor compilable;
+        message: ("module not found: " filename) assembleString;
+        message @processor block compilerError
+        oldSuccess [
+          @processor.@result.@errorInfo move @processor.@result.@globalErrorInfo.pushBack
+          -1 @processor.@result clearProcessorResult
+        ] when
       ] if
     ]
   ) sequence
