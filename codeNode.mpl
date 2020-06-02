@@ -14,6 +14,7 @@
 "conventions.cdecl" use
 
 "Block.ArgCopy" use
+"Block.ArgDerefCopy" use
 "Block.ArgGlobal" use
 "Block.ArgMeta" use
 "Block.ArgRef" use
@@ -703,6 +704,8 @@ setOneVar: [
     ] if
   ] when
 
+  TRUE @dstVar.@capturedAsMutable set
+
   [srcVar.sourceOfValue getVar.host dstVar.sourceOfValue getVar.host is] "Source of value is from another node!" assert
   srcVar.sourceOfValue @dstVar.@sourceOfValue set
 
@@ -1085,7 +1088,6 @@ createNamedVariable: [
       newRefToVar noMatterToCopy block.nextLabelIsVirtual or newRefToVar isUnallocable ~ and [
         refToVar @processor @block copyVarToNew @newRefToVar set
       ] [
-        TRUE @var.@capturedAsMutable set #we need ref
         @refToVar TRUE block.nextLabelIsSchema ~ @processor @block createRefWith @newRefToVar set
         newRefToVar isGlobalLabel [newRefToVar @processor @block makeVarTreeDirty] when
       ] if
@@ -1461,7 +1463,6 @@ captureName: [
       };
 
       getNameResult.startPoint block.id = ~ [@processor.@captureTable nameInfo overloadDepth captureCase refToVar getVar.mplSchemaId addBlockIdTo] && [
-        TRUE @refToVar getVar.@capturedAsMutable set
         refToVar @result.@refToVar set
 
         shadow: RefToVar;
@@ -1924,6 +1925,7 @@ setRef: [
         processor compilable [
           src pointee variablesAreSame [
             src @block push
+            TRUE @src getVar.@capturedAsMutable set
             TRUE @processor @block defaultRef #source
             refToVar @block push
             @processor @block defaultSet
@@ -2247,7 +2249,6 @@ setRef: [
       ] if
 
       [result noMatterToCopy [result getVar.host block is] ||] "Shadow host incorrect!" assert
-      result.mutable [TRUE @result getVar.@capturedAsMutable set] when
 
       result getVar.data.getTag VarRef = [
         # it is for exports only
@@ -2631,13 +2632,13 @@ addBlock: [
 ] "tryImplicitLambdaCastImpl" exportFunction
 
 argAbleToCopy: [
-  arg:;
-  arg isTinyArg
+  arg: processor: ;;
+  arg @processor isTinyArg
 ];
 
 argRecommendedToCopy: [
-  arg:;
-  arg.mutable ~ [arg argAbleToCopy] && [arg getVar.capturedAsMutable ~] &&
+  arg: processor: ;;
+  arg @processor argAbleToCopy [arg getVar.capturedAsMutable ~] &&
 ];
 
 {
@@ -2954,6 +2955,7 @@ finalizeListNode: [
           curRef @newField.@refToVar set
         ] [
           @curRef TRUE dynamic @processor @block createRef @newField.@refToVar set
+          TRUE @curRef getVar.@capturedAsMutable set
         ] if
 
         newField @struct.@fields.pushBack
@@ -3002,6 +3004,11 @@ finalizeObjectNode: [
   [
     i structInfo.fields.dataSize < [
       dstFieldRef: i @structInfo.@fields.at.@refToVar;
+      dstFieldRef getVar.data.getTag VarRef = [
+        pointee: VarRef dstFieldRef getVar.data.get.refToVar;
+        TRUE @pointee getVar.@capturedAsMutable set
+      ] when
+
       @dstFieldRef markAsUnableToDie
       i 1 + @i set TRUE
     ] &&
@@ -3483,6 +3490,16 @@ makeCompilerPosition: [
 
   "void" makeStringView @retType.cat
 
+  isRefDeref: [
+    refToVar:;
+    var: refToVar getVar;
+
+    var.usedInHeader [var.allocationInstructionIndex 0 <] || [
+      refToVar isVirtual ~
+      [isDeclaration ~] &&
+    ] &&
+  ];
+
   checkOutput: [
     refToVar:;
     var: refToVar getVar;
@@ -3594,6 +3611,22 @@ makeCompilerPosition: [
     ] when
   ];
 
+  backPassEvents: [
+    block.buildingMatchingInfo.shadowEvents.size [
+      event: block.buildingMatchingInfo.shadowEvents.size 1 - i - @block.@buildingMatchingInfo.@shadowEvents.at;
+
+      (
+        ShadowReasonField [
+          branch:;
+          branch.field getVar.capturedAsMutable [
+            TRUE @branch.@object getVar.@capturedAsMutable set
+          ] when
+        ]
+        []
+      ) event.visit
+    ] times
+  ];
+
   callDestructors: [
     block.parent 0 = [
       i: 0 dynamic;
@@ -3671,6 +3704,36 @@ makeCompilerPosition: [
     forcedSignature @block.@csignature set
   ] when
 
+  addRefOrCopyArg: [
+    needToCopy: current: ;;
+
+    needToCopy [
+      regNameId: @processor @block generateRegisterIRName;
+      ArgCopy @current.@argCase set
+      current.refToVar regNameId addCopyArg
+
+      current.refToVar isGlobal ~ [
+      current.refToVar getVar.allocationInstructionIndex 0 <] && [
+        regNameId @current.@refToVar @processor @block createAllocIR @processor @block createStoreFromRegister
+        TRUE @block.@program.last.@alloca set #fake for good sorting
+      ] when
+    ] [
+      ArgRef @current.@argCase set
+      current.refToVar FALSE addRefArg
+    ] if
+  ];
+
+  processor compilable [
+    block.stack [
+      current:;
+      @current isRefDeref [
+        TRUE @current getVar.@capturedAsMutable set
+      ] when
+    ] each
+   ] when
+
+  backPassEvents
+
   processor compilable [
     i: 0 dynamic;
     [
@@ -3688,29 +3751,19 @@ makeCompilerPosition: [
               TRUE @hasEffect set
             ] [
               currentVar: current.refToVar getVar;
+              currentIsRef: hasForcedSignature [i forcedSignature.inputs.at getVar.data.getTag VarRef =] &&;
+
               needToCopy: hasForcedSignature [
-                i forcedSignature.inputs.at getVar.data.getTag VarRef = ~
+                currentIsRef ~
               ] [
-                current.refToVar argRecommendedToCopy
+                current.refToVar @processor argRecommendedToCopy
               ] if;
 
-              needToCopy [current.refToVar argAbleToCopy ~] && [isRealFunction copy] && [
+              needToCopy [current.refToVar @processor argAbleToCopy ~] && [isRealFunction copy] && [
                 "getting huge agrument by copy; mpl's export function can not have this signature" @processor block compilerError
               ] when
 
-              needToCopy [
-                regNameId: @processor @block generateRegisterIRName;
-                ArgCopy @current.@argCase set
-                current.refToVar regNameId addCopyArg
-
-                current.refToVar getVar.allocationInstructionIndex 0 < [
-                  regNameId @current.@refToVar @processor @block createAllocIR @processor @block createStoreFromRegister
-                  TRUE @block.@program.last.@alloca set #fake for good sotring
-                ] when
-              ] [
-                ArgRef @current.@argCase set
-                current.refToVar FALSE addRefArg
-              ] if
+              needToCopy @current addRefOrCopyArg
             ] if
           ] if
         ] if
@@ -3740,7 +3793,7 @@ makeCompilerPosition: [
         @current checkOutput refDeref:; output:;
 
         passAsRet:
-        isDeclaration [output isTinyArg [hasRet ~] &&] ||;
+        isDeclaration [output @processor isTinyArg [hasRet ~] &&] ||;
 
         passAsRet ~ [isRealFunction copy] && [
           "returning two arguments or non-primitive object; mpl's function can not have this signature" @processor block compilerError
@@ -3780,14 +3833,42 @@ makeCompilerPosition: [
   i: 0 dynamic;
   [
     i block.buildingMatchingInfo.captures.dataSize < [
-      current: i block.buildingMatchingInfo.captures.at;
+      current: i @block.@buildingMatchingInfo.@captures.at;
       current.refToVar.assigned [
         current.argCase ArgRef = [
           isRealFunction [
             ("real function can not have local capture; name=" current.nameInfo processor.nameManager.getText "; type=" current.refToVar @processor block getMplType) assembleString @processor block compilerError
           ] when
 
-          current.refToVar FALSE addRefArg
+          needToCopy: current.refToVar @processor argRecommendedToCopy;
+          needToDerefCopy: FALSE dynamic;
+          needToCopy [
+            current.refToVar getVar.data.getTag VarRef = [
+              pointee: VarRef current.refToVar getVar.data.get.refToVar;
+              pointee @processor argRecommendedToCopy !needToDerefCopy
+            ] when
+          ] when
+
+          needToDerefCopy [
+            pointee: VarRef current.refToVar getVar.data.get.refToVar;
+            regNameId: @processor @block generateRegisterIRName;
+            ArgDerefCopy @current.@argCase set
+            pointee regNameId addCopyArg
+
+            pointee isGlobal ~ [
+            pointee getVar.allocationInstructionIndex 0 <] && [
+              regNameId @pointee @processor @block createAllocIR @processor @block createStoreFromRegister
+              TRUE @block.@program.last.@alloca set #fake for good sorting
+            ] when
+
+            current.refToVar isGlobal ~ [
+            current.refToVar getVar.allocationInstructionIndex 0 <] && [
+              pointee getVar.irNameId @current.@refToVar @processor @block createAllocIR @processor @block createStoreFromRegister
+              TRUE @block.@program.last.@alloca set #fake for good sorting
+            ] when
+          ] [
+            needToCopy @current addRefOrCopyArg
+          ] if
         ] [
           current.argCase ArgGlobal = [
             TRUE @hasEffect set

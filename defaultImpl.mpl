@@ -160,11 +160,11 @@ getStackEntryWith: [
       check ["stack underflow" @processor block compilerError] when
       FALSE
     ] [
-      depth currentBlock.stack.dataSize < [
-        currentBlock.stack.dataSize 1 - depth - @currentBlock.@stack.at !result
+      depth currentBlock.stack.size < [
+        currentBlock.stack.size 1 - depth - @currentBlock.@stack.at !result
         FALSE
       ] [
-        depth currentBlock.stack.dataSize - currentBlock.buildingMatchingInfo.inputs.size + @depth set
+        depth currentBlock.stack.size - currentBlock.buildingMatchingInfo.inputs.size + @depth set
         currentBlock.parent @processor.@blocks.at.get !currentBlock
         TRUE
       ] if
@@ -183,7 +183,7 @@ getStackDepth: [
   inputsCount: 0 dynamic;
   [
     block.root ~ [
-      depth block.stack.dataSize + @depth set
+      depth block.stack.size + @depth set
       inputsCount block.buildingMatchingInfo.inputs.size + @inputsCount set
       block.parent processor.blocks.at.get !block
       TRUE

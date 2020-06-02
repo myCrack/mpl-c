@@ -132,7 +132,7 @@ getPlainTypeDebugDeclaration: [
                       var.data.getTag VarNatX = [processor.debugInfo.unit 12 +] [
                         var.data.getTag VarReal32 = [processor.debugInfo.unit 13 +] [
                           var.data.getTag VarReal64 = [processor.debugInfo.unit 14 +] [
-                            var.data.getTag VarString = [processor.debugInfo.unit 16 +] [
+                            var.data.getTag VarString = [processor.debugInfo.unit 15 +] [
                               [FALSE] "Unknown plain struct while getting debug declaration index" assert
                               -1
                             ] if

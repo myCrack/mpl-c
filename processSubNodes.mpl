@@ -13,6 +13,7 @@
 "control" use
 
 "Block.ArgCopy" use
+"Block.ArgDerefCopy" use
 "Block.ArgGlobal" use
 "Block.ArgMeta" use
 "Block.ArgRef" use
@@ -126,6 +127,7 @@
 "irWriter.createCallIR" use
 "irWriter.createCheckedCopyToNewNoDie" use
 "irWriter.createComment" use
+"irWriter.createDerefTo" use
 "irWriter.createDerefToRegister" use
 "irWriter.createJump" use
 "irWriter.createLabel" use
@@ -1187,7 +1189,9 @@ makeCallInstructionWith: [
         currentInput getVar.irNameId @arg.@irNameId set
         currentInput @processor getMplSchema.irTypeId @arg.@irTypeId set
         currentInputArgCase ArgRef = [currentInputArgCase ArgRefDeref =] || @arg.@byRef set
-        currentInputArgCase ArgCopy = [currentInput @processor @block createDerefToRegister @arg.@irNameId set] when
+        currentInputArgCase ArgCopy = [
+          currentInput @processor @block createDerefToRegister @arg.@irNameId set
+        ] when
 
         arg @argList.pushBack
       ] if
@@ -1232,7 +1236,7 @@ makeCallInstructionWith: [
       currentCapture: i newNode.matchingInfo.captures.at;
 
       currentCapture.refToVar.assigned [
-        currentCapture.argCase ArgRef = [
+        currentCapture.argCase ArgRef = currentCapture.argCase ArgCopy = or currentCapture.argCase ArgDerefCopy = or  [
           overloadIndex: outOverloadDepth: currentCapture @block currentCapture.file FALSE getOverloadIndex;;
           refToVar: currentCapture.nameInfo currentCapture overloadIndex @processor @block currentCapture.file getNameForMatchingWithOverloadIndex outOverloadDepth @processor @block currentCapture.file captureName.refToVar;
           [currentCapture.refToVar refToVar variablesAreSame] "invalid capture type while generating arg list!" assert
@@ -1240,8 +1244,17 @@ makeCallInstructionWith: [
           arg: IRArgument;
           refToVar getVar.irNameId @arg.@irNameId set
           refToVar @processor getMplSchema.irTypeId @arg.@irTypeId set
-          TRUE @arg.@byRef set
-          TRUE @arg.@byRef set
+          currentCapture.argCase ArgRef = [currentCapture.argCase ArgRefDeref =] || @arg.@byRef set
+
+          currentCapture.argCase ArgCopy = [
+            refToVar @processor @block createDerefToRegister @arg.@irNameId set
+          ] [
+            currentCapture.argCase ArgDerefCopy = [
+              currentPointee: VarRef refToVar getVar.data.get.refToVar;
+              @currentPointee @processor @block createDerefToRegister @arg.@irNameId set
+              currentPointee @processor getMplSchema.irTypeId @arg.@irTypeId set
+            ] when
+          ] if
 
           arg @argList.pushBack
         ] when
@@ -2199,7 +2212,7 @@ processDynamicLoop: [
     r getVar.data.getTag VarRef = [
       @r @processor @block getPointeeNoDerefIR @block push
     ] [
-      FALSE @r.setMutable
+      TRUE @r.setMutable
       r @block push
     ] if
   ] times
@@ -2324,8 +2337,10 @@ callImportWith: [
               input: stackEntry copy;
               @input makeVarRealCaptured
               nodeEntry: i @declarationNode.@matchingInfo.@inputs.at.@refToVar;
-              nodeMutable: nodeEntry.mutable;
-              i declarationNode.csignature.inputs.at getVar.data.getTag VarRef = [
+              forcedInput: i declarationNode.csignature.inputs.at;
+              nodeMutable: forcedInput getVar.data.getTag VarRef = [VarRef forcedInput getVar.data.get.refToVar.mutable] &&;
+
+              forcedInput getVar.data.getTag VarRef = [
                 TRUE @stackEntry getVar.@capturedAsMutable set
               ] when
 

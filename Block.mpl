@@ -13,10 +13,11 @@ ArgVirtual:     [0n8 dynamic];
 ArgGlobal:      [1n8 dynamic];
 ArgRef:         [2n8 dynamic];
 ArgCopy:        [3n8 dynamic];
-ArgMeta:        [4n8 dynamic];
-ArgReturn:      [5n8 dynamic];
-ArgRefDeref:    [6n8 dynamic];
-ArgReturnDeref: [7n8 dynamic];
+ArgDerefCopy:   [4n8 dynamic];
+ArgMeta:        [5n8 dynamic];
+ArgReturn:      [6n8 dynamic];
+ArgRefDeref:    [7n8 dynamic];
+ArgReturnDeref: [8n8 dynamic];
 
 NameCaseInvalid:               [ 0n8 dynamic];
 NameCaseBuiltin:               [ 1n8 dynamic];

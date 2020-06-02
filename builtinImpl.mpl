@@ -1779,7 +1779,7 @@ staticityOfBinResult: [
     [refToVar: @processor @block pop;]
     [refToVar isVirtual ["variable is virtual, cannot get address" @processor block compilerError] when]
     [
-      TRUE @refToVar getVar.@capturedAsMutable set #we need ref
+      TRUE @refToVar getVar.@capturedAsMutable set
       @refToVar makeVarRealCaptured
       refToVar @processor @block makeVarTreeDirty
       refToDst: 0n64 makeValuePair VarNatX @processor @block createVariable;
