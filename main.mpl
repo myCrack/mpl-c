@@ -160,7 +160,7 @@ processIntegerOption: [
     ("Invalid argument value: " text ", " parserResult.error LF) printList
     FALSE !success
   ] [
-    parserResult.value @option set
+    parserResult.value @option set 
   ] if
 ];
 

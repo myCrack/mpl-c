@@ -143,7 +143,7 @@ Variable: [{
   storageStaticity:                  Static;
   global:                            FALSE dynamic;
   usedInHeader:                      FALSE dynamic;
-  capturedAsMutable:                 FALSE dynamic;
+  capturedByPtr:                     FALSE dynamic;
   capturedAsRealValue:               FALSE dynamic;
   globalId:                          -1 dynamic;
   buildingTopologyIndex:             -1 dynamic;
@@ -275,7 +275,8 @@ isTinyArg: [
   #  var.data.getTag VarRef =
   #] ||
 
-  refToVar @processor getStorageSize 16nx > ~
+  refToVar isUnallocable ~
+  [refToVar @processor getStorageSize 16nx > ~] &&
 ];
 
 isUnallocable: [

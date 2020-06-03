@@ -112,6 +112,7 @@
 "defaultImpl.defaultMakeConstWith" use
 "defaultImpl.defaultSet" use
 "defaultImpl.findNameInfo" use
+"defaultImpl.makeVarPtrCaptured" use
 "defaultImpl.makeVarRealCaptured" use
 "defaultImpl.pop" use
 "irWriter.createAllocIR" use
@@ -306,8 +307,6 @@ mplNumberBinaryOp: [
           ] when
         ] staticCall
       ] [
-        @arg1 makeVarRealCaptured
-        @arg2 makeVarRealCaptured
         opName: arg1 arg2 @getOpName call;
         var1.data.getTag firstTag lastTag [
           copy tag:;
@@ -461,9 +460,6 @@ mplShiftBinaryOp: [
           ] staticCall
         ] staticCall
       ] [
-        @arg1 makeVarRealCaptured
-        @arg2 makeVarRealCaptured
-
         opName: arg1 arg2 @getOpName call;
         var1.data.getTag VarNat8 VarIntX 1 + [
           copy tag:;
@@ -683,9 +679,6 @@ staticityOfBinResult: [
           ] staticCall
         ] if
       ] [
-        @arg1 makeVarRealCaptured
-        @arg2 makeVarRealCaptured
-
         var1.data.getTag VarString = [
           result: FALSE makeValuePair VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
           arg1 arg2 @result "icmp eq" makeStringView @processor @block createBinaryOperation
@@ -821,6 +814,8 @@ staticityOfBinResult: [
   refToVar: @processor @block pop;
 
   processor compilable [
+    @refToVar makeVarRealCaptured
+
     var: refToVar getVar;
     varSchema: refToSchema getVar;
     var.data.getTag VarNatX = [
@@ -1098,8 +1093,6 @@ staticityOfBinResult: [
 [
   refToVar: @processor @block pop;
   processor compilable [
-    refToVar isVirtual ~ [@refToVar makeVarRealCaptured] when
-
     refToVar getVar.temporary [
       "temporary objects cannot be copied" @processor block compilerError
     ] [
@@ -1109,15 +1102,30 @@ staticityOfBinResult: [
         refToVar getVar.data.getTag VarString = [
           "builtin-strings cannot be copied" @processor block compilerError
         ] [
-          result: refToVar @processor @block copyVarToNew;
-          result isVirtual [
-            result isAutoStruct ["unable to copy virtual autostruct" @processor block compilerError] when
+          refToVar isPlain [
+            refToVar staticityOfVar Dynamic > [
+              result: refToVar @processor @block copyVarToNew @processor @block createPlainIR;
+              TRUE @result.setMutable
+              result @block push
+            ] [
+              refToVar isVirtual ~ [@refToVar makeVarRealCaptured] when
+              result: refToVar @processor @block copyVarToNew;
+              TRUE @result.setMutable
+              @refToVar @result @processor @block createCopyToNew
+              result @block push
+            ] if
           ] [
-            TRUE @result.setMutable
-            @refToVar @result @processor @block createCopyToNew
-          ] if
+            refToVar isVirtual ~ [@refToVar makeVarRealCaptured] when
+            result: refToVar @processor @block copyVarToNew;
+            result isVirtual [
+              result isAutoStruct ["unable to copy virtual autostruct" @processor block compilerError] when
+            ] [
+              TRUE @result.setMutable
+              @refToVar @result @processor @block createCopyToNew
+            ] if
 
-          result @block push
+            result @block push
+          ] if
         ] if
       ] if
     ] if
@@ -1418,6 +1426,8 @@ staticityOfBinResult: [
           VarCode varElse.data.get.index VarCode varElse.data.get.file "staticIfElse" makeStringView @processor @block processCall
         ] if
       ] [
+        condition makeVarRealCaptured
+
         condition
         VarCode varThen.data.get.index processor.multiParserResult.memory.at
         VarCode varThen.data.get.file
@@ -1496,6 +1506,9 @@ staticityOfBinResult: [
   refToVar1: @processor @block pop;
   refToVar2: @processor @block pop;
   processor compilable [
+    @refToVar1 makeVarPtrCaptured
+    @refToVar2 makeVarPtrCaptured
+
     refToVar1 refToVar2 variablesAreSame [
       cmpResult: 0 dynamic; # -1 false, 1 true, 0 need to check
       refToVar1 refToVar2 refsAreEqual [
@@ -1779,7 +1792,7 @@ staticityOfBinResult: [
     [refToVar: @processor @block pop;]
     [refToVar isVirtual ["variable is virtual, cannot get address" @processor block compilerError] when]
     [
-      TRUE @refToVar getVar.@capturedAsMutable set
+      @refToVar makeVarPtrCaptured
       @refToVar makeVarRealCaptured
       refToVar @processor @block makeVarTreeDirty
       refToDst: 0n64 makeValuePair VarNatX @processor @block createVariable;

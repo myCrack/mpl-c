@@ -120,6 +120,7 @@
 "defaultImpl.getStackDepth" use
 "defaultImpl.getStackEntry" use
 "defaultImpl.getStackEntryUnchecked" use
+"defaultImpl.makeVarPtrCaptured" use
 "defaultImpl.makeVarRealCaptured" use
 "defaultImpl.pop" use
 "irWriter.createAllocIR" use
@@ -129,6 +130,7 @@
 "irWriter.createComment" use
 "irWriter.createDerefTo" use
 "irWriter.createDerefToRegister" use
+"irWriter.createDerefFromRegisterToRegister" use
 "irWriter.createJump" use
 "irWriter.createLabel" use
 "irWriter.createPhiNode" use
@@ -932,8 +934,12 @@ applyNodeChanges: [
         [cacheEntry noMatterToCopy [cacheEntry getVar.host cacheEntry getVar.sourceOfValue getVar.host is] ||] "Val source incorrest!" assert
       ] when
 
-      cacheEntry getVar.capturedAsMutable [
-        TRUE stackEntry getVar.@capturedAsMutable set
+      cacheEntry getVar.capturedByPtr [
+        stackEntry makeVarPtrCaptured
+      ] when
+
+      cacheEntry getVar.capturedAsRealValue [
+        stackEntry makeVarRealCaptured
       ] when
     ] when
   ];
@@ -1183,7 +1189,7 @@ makeCallInstructionWith: [
 
       currentInput: i inputs.at;
 
-      currentInputArgCase ArgVirtual = [currentInputArgCase ArgGlobal =] || [
+      currentInputArgCase ArgVirtual = currentInputArgCase ArgGlobal = or currentInputArgCase ArgMeta = or [
       ] [
         arg: IRArgument;
         currentInput getVar.irNameId @arg.@irNameId set
@@ -1251,8 +1257,9 @@ makeCallInstructionWith: [
           ] [
             currentCapture.argCase ArgDerefCopy = [
               currentPointee: VarRef refToVar getVar.data.get.refToVar;
-              @currentPointee @processor @block createDerefToRegister @arg.@irNameId set
               currentPointee @processor getMplSchema.irTypeId @arg.@irTypeId set
+              pointeeName: refToVar @processor @block createDerefToRegister;
+              pointeeName arg.irTypeId @processor @block createDerefFromRegisterToRegister @arg.@irNameId set
             ] when
           ] if
 
@@ -2341,7 +2348,7 @@ callImportWith: [
               nodeMutable: forcedInput getVar.data.getTag VarRef = [VarRef forcedInput getVar.data.get.refToVar.mutable] &&;
 
               forcedInput getVar.data.getTag VarRef = [
-                TRUE @stackEntry getVar.@capturedAsMutable set
+                @stackEntry makeVarPtrCaptured
               ] when
 
               stackEntry nodeEntry variablesAreSame ~ [

@@ -12,6 +12,7 @@
 "Block.Instruction" use
 "Block.makeInstruction" use
 "File.File" use
+"Var.Dynamic" use
 "Var.RefToVar" use
 "Var.VarBuiltin" use
 "Var.VarStruct" use
@@ -26,6 +27,7 @@
 "Var.isVirtual" use
 "Var.makeStringId" use
 "Var.markAsUnableToDie" use
+"Var.staticityOfVar" use
 "Var.varIsMoved" use
 "declarations.addDebugLocationForLastInstruction" use
 "declarations.callAssign" use
@@ -36,6 +38,7 @@
 "declarations.makeVarString" use
 "declarations.setVar" use
 "defaultImpl.findNameInfo" use
+"defaultImpl.makeVarRealCaptured" use
 "defaultImpl.nodeHasCode" use
 "processor.Processor" use
 
@@ -110,16 +113,28 @@ getStaticStructIR: [
   result
 ];
 
+createDerefWith: [
+  refNameId: refTypeId: derefNameId: processor: block: ;;;;;
+  ("  " @derefNameId @processor getNameById " = load " refTypeId @processor getNameById ", " refTypeId @processor getNameById "* " refNameId @processor getNameById) @block appendInstruction
+];
+
 createDerefTo: [
   refToVar: derefNameId: processor: block: ;;;;
-  ("  " @derefNameId @processor getNameById " = load " refToVar @processor getIrType ", " refToVar @processor getIrType "* " refToVar @processor getIrName) @block appendInstruction
+  refToVar getVar.irNameId refToVar @processor getMplSchema.irTypeId derefNameId @processor @block createDerefWith
 ];
 
 createDerefToRegister: [
   srcRef: processor: block: ;;;
-  derefName: @processor @block generateRegisterIRName;
-  srcRef derefName @processor @block createDerefTo
-  derefName
+  derefNameId: @processor @block generateRegisterIRName;
+  srcRef getVar.irNameId srcRef @processor getMplSchema.irTypeId derefNameId @processor @block createDerefWith
+  derefNameId
+];
+
+createDerefFromRegisterToRegister: [
+  srcNameId: srcTypeId: processor: block: ;;;;
+  derefNameId: @processor @block generateRegisterIRName;
+  srcNameId srcTypeId derefNameId @processor @block createDerefWith
+  derefNameId
 ];
 
 createAllocIR: [
@@ -277,19 +292,33 @@ createStoreFromRegister: [
   ("  store " destRefToVar @processor getIrType " " @regName @processor getNameById ", " destRefToVar @processor getIrType "* " destRefToVar @processor getIrName) @block appendInstruction
 ];
 
+getValueOrDeref: [
+  refToVar:;
+  refToVar staticityOfVar Dynamic > [
+    refToVar getPlainConstantIR
+  ] [
+    @refToVar makeVarRealCaptured
+    refToVar @processor @block createDerefToRegister @processor getNameById toString
+  ] if
+];
+
 createBinaryOperation: [
   arg1: arg2: result: opName: processor: block: ;;;;;;
-  var1p: arg1 @processor @block createDerefToRegister;
-  var2p: arg2 @processor @block createDerefToRegister;
+
+  var1name: @arg1 getValueOrDeref;
+  var2name: @arg2 getValueOrDeref;
+
   resultReg: @processor @block generateRegisterIRName;
-  ("  " resultReg @processor getNameById " = " @opName " " arg1 @processor getIrType " " var1p @processor getNameById ", " var2p @processor getNameById) @block appendInstruction
+  ("  " resultReg @processor getNameById " = " @opName " " arg1 @processor getIrType " " var1name ", " var2name) @block appendInstruction
   resultReg result @processor @block createStoreFromRegister
 ];
 
 createBinaryOperationDiffTypes: [
   arg1: arg2: result: opName: processor: block: ;;;;;;
-  var1p: arg1 @processor @block createDerefToRegister;
-  var2p: arg2 @processor @block createDerefToRegister;
+
+  var1name: @arg1 getValueOrDeref;
+  var2name: @arg2 getValueOrDeref;
+
   castedReg: @processor @block generateRegisterIRName;
   castName: arg1 @processor getStorageSize arg2 @processor getStorageSize > [
     arg1 isNat ["zext"] ["sext"] if
@@ -297,9 +326,9 @@ createBinaryOperationDiffTypes: [
     "trunc"
   ] if;
 
-  ("  " castedReg @processor getNameById " = " castName " " arg2 @processor getIrType " " var2p @processor getNameById " to " arg1 @processor getIrType) @block appendInstruction
+  ("  " castedReg @processor getNameById " = " castName " " arg2 @processor getIrType " " var2name " to " arg1 @processor getIrType) @block appendInstruction
   resultReg: @processor @block generateRegisterIRName;
-  ("  " resultReg @processor getNameById " = " opName " " arg1 @processor getIrType " " var1p @processor getNameById ", " castedReg @processor getNameById) @block appendInstruction
+  ("  " resultReg @processor getNameById " = " opName " " arg1 @processor getIrType " " var1name ", " castedReg @processor getNameById) @block appendInstruction
   resultReg result @processor @block createStoreFromRegister
 ];
 
@@ -715,6 +744,9 @@ generateRegisterIRName: [processor: block: ;; @block TRUE @processor block gener
 } () {} [
   srcRef: dstRef: processor: block: ;;;;
   srcRef isAutoStruct [
+    @srcRef makeVarRealCaptured
+    @dstRef makeVarRealCaptured
+
     srcRef getVar.temporary [
       # die-bytemove is faster than assign-die, I think
       processor.options.verboseIR ["set from temporary" @block createComment] when
@@ -738,6 +770,20 @@ generateRegisterIRName: [processor: block: ;; @block TRUE @processor block gener
       ] if
     ] if
   ] [
-    srcRef dstRef @processor @block createMemset
+    srcRef isPlain [
+      srcRef staticityOfVar Dynamic > [
+        srcRef dstRef @processor @block setVar
+        @dstRef makeVarRealCaptured
+        dstRef dstRef @processor @block createStoreConstant
+      ] [
+        @srcRef makeVarRealCaptured
+        @dstRef makeVarRealCaptured
+        srcRef dstRef @processor @block createMemset
+      ] if
+    ] [
+      @srcRef makeVarRealCaptured
+      @dstRef makeVarRealCaptured
+      srcRef dstRef @processor @block createMemset
+    ] if
   ] if
 ] "createCopyToExists" exportFunction

@@ -86,6 +86,11 @@ makeVarRealCaptured: [
   TRUE @refToVar getVar.@capturedAsRealValue set
 ];
 
+makeVarPtrCaptured: [
+  refToVar:;
+  TRUE @refToVar getVar.@capturedByPtr set
+];
+
 defaultFailProc: [
   processor: block: ;;
   text: @processor @block pop;
@@ -96,9 +101,6 @@ defaultSet: [
   refToDst: @processor @block pop;
   refToSrc: @processor @block pop;
   processor compilable [
-    @refToSrc makeVarRealCaptured
-    @refToDst makeVarRealCaptured
-
     refToDst refToSrc variablesAreSame [
       refToSrc getVar.data.getTag VarImport = [
         "functions cannot be copied" @processor block compilerError

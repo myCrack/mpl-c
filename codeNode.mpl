@@ -169,6 +169,7 @@
 "defaultImpl.getStackDepth" use
 "defaultImpl.getStackEntry" use
 "defaultImpl.getStackEntryUnchecked" use
+"defaultImpl.makeVarPtrCaptured" use
 "defaultImpl.makeVarRealCaptured" use
 "defaultImpl.nodeHasCode" use
 "defaultImpl.pop" use
@@ -704,7 +705,8 @@ setOneVar: [
     ] if
   ] when
 
-  TRUE @dstVar.@capturedAsMutable set
+  @refDst makeVarPtrCaptured
+  @refDst makeVarRealCaptured
 
   [srcVar.sourceOfValue getVar.host dstVar.sourceOfValue getVar.host is] "Source of value is from another node!" assert
   srcVar.sourceOfValue @dstVar.@sourceOfValue set
@@ -979,7 +981,7 @@ makePointeeDirtyIfRef: [
   var: refToVar getVar;
   var.data.getTag VarRef = [var.staticity.end Static =] && [
     pointee: @refToVar @processor @block getPointeeWhileDynamize;
-    @pointee makeVarRealCaptured
+    @pointee makeVarPtrCaptured
     pointee.mutable [pointee @processor @block makeVarTreeDirty] when
   ] when
 ];
@@ -1925,7 +1927,7 @@ setRef: [
         processor compilable [
           src pointee variablesAreSame [
             src @block push
-            TRUE @src getVar.@capturedAsMutable set
+            @src makeVarPtrCaptured
             TRUE @processor @block defaultRef #source
             refToVar @block push
             @processor @block defaultSet
@@ -2638,7 +2640,7 @@ argAbleToCopy: [
 
 argRecommendedToCopy: [
   arg: processor: ;;
-  arg @processor argAbleToCopy [arg getVar.capturedAsMutable ~] &&
+  arg @processor argAbleToCopy [arg getVar.capturedByPtr ~] &&
 ];
 
 {
@@ -2955,7 +2957,7 @@ finalizeListNode: [
           curRef @newField.@refToVar set
         ] [
           @curRef TRUE dynamic @processor @block createRef @newField.@refToVar set
-          TRUE @curRef getVar.@capturedAsMutable set
+          @curRef makeVarPtrCaptured
         ] if
 
         newField @struct.@fields.pushBack
@@ -3006,7 +3008,7 @@ finalizeObjectNode: [
       dstFieldRef: i @structInfo.@fields.at.@refToVar;
       dstFieldRef getVar.data.getTag VarRef = [
         pointee: VarRef dstFieldRef getVar.data.get.refToVar;
-        TRUE @pointee getVar.@capturedAsMutable set
+        @pointee makeVarPtrCaptured
       ] when
 
       @dstFieldRef markAsUnableToDie
@@ -3546,18 +3548,18 @@ makeCompilerPosition: [
       ] when
     ] if
 
-    var: @refToVar getVar;
-    regNameId 0 < [var.irNameId @regNameId set] when
-
-
-    asCopy ~ [
+    asCopy [
+      #do nothing
+    ] [
+      var: @refToVar getVar;
+      regNameId 0 < [var.irNameId @regNameId set] when
       TRUE @var.@usedInHeader set
 
       aii: refToVar getVar.allocationInstructionIndex copy;
       aii 0 < ~ [
         FALSE aii @block.@program.at.@enabled set
       ] when # otherwise it was popped or captured
-    ] when
+    ] if
 
     asCopy output and ~ [
       dii: refToVar getVar.getInstructionIndex copy;
@@ -3618,8 +3620,27 @@ makeCompilerPosition: [
       (
         ShadowReasonField [
           branch:;
-          branch.field getVar.capturedAsMutable [
-            TRUE @branch.@object getVar.@capturedAsMutable set
+          branch.field getVar.data.getTag VarRef = [ #if it was dynamic ptr for ptr reasons, we need use it
+            branchPointee: VarRef branch.field getVar.data.get.refToVar;
+            branchPointee getVar.host block is [
+              branchPointee getVar.capturedByPtr [
+                @branch.@field makeVarRealCaptured
+              ] when
+            ] when
+          ] when
+
+          branch.field getVar.capturedByPtr [
+            @branch.@object makeVarPtrCaptured
+          ] when
+
+          branch.field getVar.capturedAsRealValue [
+            @branch.@object makeVarRealCaptured
+          ] when
+        ]
+        ShadowReasonPointee [
+          branch:;
+          branch.pointee getVar.capturedByPtr [branch.pointee getVar.capturedAsRealValue copy] || [
+            @branch.@pointer makeVarRealCaptured
           ] when
         ]
         []
@@ -3723,11 +3744,27 @@ makeCompilerPosition: [
     ] if
   ];
 
+  addMetaArg: [
+    refToVar:;
+    refToVar isGlobal [refToVar isVirtual] || [refToVar isUnallocable] || ~ [
+      dii: refToVar getVar.getInstructionIndex copy;
+      dii 0 < ~ [
+        FALSE dii @block.@program.at.@enabled set
+      ] when
+
+      aii: refToVar getVar.allocationInstructionIndex copy; #may be was faked before
+      aii 0 < [
+        refToVar @processor @block createAllocIR drop #it is fake
+      ] when
+    ] when
+  ];
+
   processor compilable [
     block.stack [
       current:;
       @current isRefDeref [
-        TRUE @current getVar.@capturedAsMutable set
+        @current makeVarRealCaptured
+        @current makeVarPtrCaptured
       ] when
     ] each
    ] when
@@ -3741,6 +3778,10 @@ makeCompilerPosition: [
         # const to plain make copy
         current: i @block.@buildingMatchingInfo.@inputs.at;
 
+        hasForcedSignature ~ [current.refToVar getVar.capturedAsRealValue ~] && [
+          ArgMeta @current.@argCase set
+        ] when
+
         current.refToVar getVar.data.getTag VarInvalid = [
           ArgMeta @current.@argCase set
         ] [
@@ -3750,20 +3791,24 @@ makeCompilerPosition: [
             current.argCase ArgGlobal = [
               TRUE @hasEffect set
             ] [
-              currentVar: current.refToVar getVar;
-              currentIsRef: hasForcedSignature [i forcedSignature.inputs.at getVar.data.getTag VarRef =] &&;
-
-              needToCopy: hasForcedSignature [
-                currentIsRef ~
+              current.argCase ArgMeta = [
+                current.refToVar addMetaArg
               ] [
-                current.refToVar @processor argRecommendedToCopy
-              ] if;
+                currentVar: current.refToVar getVar;
+                currentIsRef: hasForcedSignature [i forcedSignature.inputs.at getVar.data.getTag VarRef =] &&;
 
-              needToCopy [current.refToVar @processor argAbleToCopy ~] && [isRealFunction copy] && [
-                "getting huge agrument by copy; mpl's export function can not have this signature" @processor block compilerError
-              ] when
+                needToCopy: hasForcedSignature [
+                  currentIsRef ~
+                ] [
+                  current.refToVar @processor argRecommendedToCopy
+                ] if;
 
-              needToCopy @current addRefOrCopyArg
+                needToCopy [current.refToVar @processor argAbleToCopy ~] && [isRealFunction copy] && [
+                  "getting huge agrument by copy; mpl's export function can not have this signature" @processor block compilerError
+                ] when
+
+                needToCopy @current addRefOrCopyArg
+              ] if
             ] if
           ] if
         ] if
@@ -3835,6 +3880,10 @@ makeCompilerPosition: [
     i block.buildingMatchingInfo.captures.dataSize < [
       current: i @block.@buildingMatchingInfo.@captures.at;
       current.refToVar.assigned [
+        current.refToVar getVar.capturedAsRealValue ~ [
+          ArgMeta @current.@argCase set
+        ] when
+
         current.argCase ArgRef = [
           isRealFunction [
             ("real function can not have local capture; name=" current.nameInfo processor.nameManager.getText "; type=" current.refToVar @processor block getMplType) assembleString @processor block compilerError
@@ -3872,7 +3921,11 @@ makeCompilerPosition: [
         ] [
           current.argCase ArgGlobal = [
             TRUE @hasEffect set
-          ] when
+          ] [
+            current.argCase ArgMeta = [
+              current.refToVar addMetaArg
+            ] when
+          ] if
         ] if
 
         current.refToVar getVar.data.getTag VarImport = [TRUE @hasImport set] when
