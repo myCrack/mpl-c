@@ -333,6 +333,7 @@ addVariableMetadata: [
   refToVar isVirtualType ~ [
     localVariableDebugIndex: nameInfo refToVar @processor block addVariableDebugInfo;
     ("  call void @llvm.dbg.declare(metadata " refToVar @processor getIrType "* " refToVar @processor getIrName ", metadata !" localVariableDebugIndex ", metadata !" processor.debugInfo.unit 1 + ")") @block appendInstruction
+    refToVar getVar.irNameId @block.@program.last.@irName1 set
   ] when
 ];
 

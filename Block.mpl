@@ -97,6 +97,10 @@ makeInstruction: [{
   enabled: TRUE dynamic;
   alloca: FALSE dynamic;
   fakePointer: FALSE dynamic;
+  fakeAlloca: FALSE dynamic;
+  irName1: -1 dynamic;
+  irName2: -1 dynamic;
+  irName3: -1 dynamic;
   codeOffset: copy;
   codeSize: copy;
 }];
@@ -202,6 +206,7 @@ Block: [{
   buildingMatchingInfo: MatchingInfo;
   matchingInfo:         MatchingInfo;
   outputs:              Argument Array;
+  dependentPointers:    (RefToVar RefToVar FALSE dynamic) Array;
 
   fromModuleNames:   NameWithOverloadAndRefToVar Array;
   labelNames:        NameWithOverloadAndRefToVar Array;

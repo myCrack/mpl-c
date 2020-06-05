@@ -1,3 +1,4 @@
+
 "Array.Array" use
 "HashTable.hash" use
 "Owner.owner" use
@@ -169,6 +170,7 @@
 "defaultImpl.getStackDepth" use
 "defaultImpl.getStackEntry" use
 "defaultImpl.getStackEntryUnchecked" use
+"defaultImpl.makeVarDerefCaptured" use
 "defaultImpl.makeVarPtrCaptured" use
 "defaultImpl.makeVarRealCaptured" use
 "defaultImpl.nodeHasCode" use
@@ -176,6 +178,7 @@
 "irWriter.addStrToProlog" use
 "irWriter.appendInstruction" use
 "irWriter.createAllocIR" use
+"irWriter.createAllocIRByReg" use
 "irWriter.createComment" use
 "irWriter.createCopyToNew" use
 "irWriter.createDerefTo" use
@@ -189,6 +192,7 @@
 "irWriter.createStaticGEP" use
 "irWriter.createStoreConstant" use
 "irWriter.createStoreFromRegister" use
+"irWriter.createStoreFromRegisterToRegister" use
 "irWriter.createStringIR" use
 "irWriter.generateRegisterIRName" use
 "irWriter.getIrName" use
@@ -296,8 +300,8 @@ getNameLastIndexInfo: [
   currentNameInfo: nameInfo @processor.@nameInfos.at;
 
   result: IndexInfo;
-  currentNameInfo.stack.dataSize 1 - @result.@overload set
-  currentNameInfo.stack.last.dataSize 1 - @result.@index set
+  currentNameInfo.stack.size 1 - @result.@overload set
+  currentNameInfo.stack.last.size 1 - @result.@index set
   result
 ];
 
@@ -513,6 +517,8 @@ getPointeeWith: [
         pointeeCopy.mutable @pointee.setMutable
       ] if
 
+      (refToVar copy pointee copy TRUE) @block.@dependentPointers.pushBack
+
       TRUE @needReallyDeref set
     ] [
       pointeeGDI: pointee getVar.globalDeclarationInstructionIndex;
@@ -559,7 +565,7 @@ getPointeeWith: [
 
     needReallyDeref makeDerefIR and [
       refToVar pointeeVar.irNameId @processor @block createDerefTo
-      block.program.dataSize 1 - @pointeeVar.@getInstructionIndex set
+      block.program.size 1 - @pointeeVar.@getInstructionIndex set
     ] when
 
     result: pointee copy;
@@ -625,19 +631,23 @@ getFieldWith: [
 
     refToVar.mutable @fieldRefToVar.setMutable
 
-    var.buildingTopologyIndex 0 < ~ [refToVar noMatterToCopy ~] && [var.capturedHead getVar.host block is ~] && [fieldRefToVar noMatterToCopy ~] && [mplFieldIndex structInfo.fields.at.usedHere ~] &&  [
-      TRUE mplFieldIndex @structInfo.@fields.at.!usedHere
+    refToVar noMatterToCopy ~ [fieldRefToVar noMatterToCopy ~] && [
+      var.capturedHead getVar.host block is ~ [var.buildingTopologyIndex 0 < ~] && [mplFieldIndex structInfo.fields.at.usedHere ~] &&  [
+        TRUE mplFieldIndex @structInfo.@fields.at.!usedHere
 
-      newEvent: ShadowEvent;
-      ShadowReasonField @newEvent.setTag
-      branch: ShadowReasonField @newEvent.get;
+        newEvent: ShadowEvent;
+        ShadowReasonField @newEvent.setTag
+        branch: ShadowReasonField @newEvent.get;
 
-      refToVar      @branch.@object set
-      mplFieldIndex @branch.@mplFieldIndex set
-      fieldRefToVar @branch.@field set
+        refToVar      @branch.@object set
+        mplFieldIndex @branch.@mplFieldIndex set
+        fieldRefToVar @branch.@field set
 
-      @block @branch.@field setTopologyIndex
-      @newEvent @block addShadowEvent
+        @block @branch.@field setTopologyIndex
+        @newEvent @block addShadowEvent
+      ] [
+        (refToVar copy fieldRefToVar copy FALSE) @block.@dependentPointers.pushBack
+      ] if
     ] when
 
     @fieldRefToVar
@@ -661,14 +671,14 @@ captureEntireStruct: [
 
   i: 0 dynamic;
   [
-    i unprocessed.dataSize < [
+    i unprocessed.size < [
       current: i unprocessed.at copy;
       currentVar: current getVar;
       currentVar.data.getTag VarStruct = [current noMatterToCopy ~] && [
         branch: VarStruct currentVar.data.get.get;
         f: 0 dynamic;
         [
-          f branch.fields.dataSize < [
+          f branch.fields.size < [
             f @current @processor @block getField @unprocessed.pushBack
             f 1 + @f set TRUE
           ] &&
@@ -757,7 +767,7 @@ createCheckedStaticGEP: [
   fieldVar.getInstructionIndex 0 < [fieldVar.allocationInstructionIndex 0 <] && [
     @fieldRef @processor block unglobalize
     fieldRef index refToStruct @processor @block createStaticGEP
-    block.program.dataSize 1 - @fieldVar.@getInstructionIndex set
+    block.program.size 1 - @fieldVar.@getInstructionIndex set
   ] when
 ];
 
@@ -784,7 +794,7 @@ makeVirtualVarReal: [
 
       # first pass: make new variable type
       [
-        unfinishedSrc.dataSize 0 > [
+        unfinishedSrc.size 0 > [
           lastSrc: unfinishedSrc.last copy;
           lastDst: unfinishedDst.last copy;
           @unfinishedSrc.popBack
@@ -800,7 +810,7 @@ makeVirtualVarReal: [
             struct: VarStruct varSrc.data.get.get;
             j: 0 dynamic;
             [
-              j struct.fields.dataSize < [
+              j struct.fields.size < [
                 srcField: j struct.fields.at;
                 srcField.refToVar isVirtual ~ [
                   srcField.refToVar @unfinishedSrc.pushBack
@@ -828,7 +838,7 @@ makeVirtualVarReal: [
       @result @processor @block createAllocIR @unfinishedDst.pushBack
 
       [
-        unfinishedSrc.dataSize 0 > [
+        unfinishedSrc.size 0 > [
           lastSrc: unfinishedSrc.last copy;
           lastDst: unfinishedDst.last copy;
           @unfinishedSrc.popBack
@@ -839,7 +849,7 @@ makeVirtualVarReal: [
             struct: VarStruct varSrc.data.get.get;
             j: 0 dynamic;
             [
-              j struct.fields.dataSize < [
+              j struct.fields.size < [
                 srcField: j struct.fields.at;
                 srcField.refToVar isVirtual ~ [
                   srcField.refToVar @unfinishedSrc.pushBack
@@ -885,7 +895,7 @@ makeVarVirtual: [
   unfinished: RefToVar Array;
   refToVar @unfinished.pushBack
   [
-    unfinished.dataSize 0 > [
+    unfinished.size 0 > [
       cur: @unfinished.last copy;
       @unfinished.popBack
       curVar: cur getVar;
@@ -896,7 +906,7 @@ makeVarVirtual: [
           struct: VarStruct curVar.data.get.get;
           j: 0 dynamic;
           [
-            j struct.fields.dataSize < [processor compilable] && [
+            j struct.fields.size < [processor compilable] && [
               curField: j struct.fields.at;
               curField.refToVar isVirtual ~ [
                 curField.refToVar @unfinished.pushBack
@@ -932,7 +942,7 @@ makeVarTreeDirty: [
   refToVar @unfinishedVars.pushBack
 
   [
-    unfinishedVars.dataSize 0 > [
+    unfinishedVars.size 0 > [
       lastRefToVar: unfinishedVars.last copy;
       @unfinishedVars.popBack
 
@@ -947,7 +957,7 @@ makeVarTreeDirty: [
             struct: VarStruct var.data.get.get;
             j: 0 dynamic;
             [
-              j struct.fields.dataSize < [
+              j struct.fields.size < [
                 j struct.fields.at.refToVar isVirtual ~ [
                   j @lastRefToVar @processor @block getField @unfinishedVars.pushBack
                 ] when
@@ -1010,7 +1020,7 @@ makeVarTreeDynamicWith: [
   refToVar @unfinishedVars.pushBack
 
   [
-    unfinishedVars.dataSize 0 > [
+    unfinishedVars.size 0 > [
       lastRefToVar: unfinishedVars.last copy;
       @unfinishedVars.popBack
 
@@ -1021,7 +1031,7 @@ makeVarTreeDynamicWith: [
         struct: VarStruct var.data.get.get;
         j: 0 dynamic;
         [
-          j struct.fields.dataSize < [
+          j struct.fields.size < [
             j struct.fields.at.refToVar isVirtual ~ [
               dynamicStoraged j @lastRefToVar @processor @block getFieldWith @unfinishedVars.pushBack
             ] when
@@ -1205,7 +1215,7 @@ findLocalObject: [
   pattern @resultRefToVar set
   i: 0 dynamic;
   [
-    i block.buildingMatchingInfo.captures.dataSize < [
+    i block.buildingMatchingInfo.captures.size < [
       currentCapture: i block.buildingMatchingInfo.captures.at;
       currentCapture.captureCase captureCase = [
         currentCapture.refToVar pattern variablesAreSame
@@ -1628,7 +1638,7 @@ addFieldsNameInfos: [
 
   i: 0 dynamic;
   [
-    i struct.fields.dataSize < [
+    i struct.fields.size < [
       currentField: i struct.fields.at;
       [currentField.nameInfo processor.emptyNameInfo = ~] "Closured list!" assert
 
@@ -1652,7 +1662,7 @@ deleteFieldsNameInfos: [
   var: refToVar getVar;
   struct: VarStruct var.data.get.get;
 
-  i: struct.fields.dataSize copy dynamic;
+  i: struct.fields.size;
   [
     i 0 > [
       i 1 - @i set TRUE
@@ -1928,6 +1938,7 @@ setRef: [
           src pointee variablesAreSame [
             src @block push
             @src makeVarPtrCaptured
+            @src makeVarRealCaptured
             TRUE @processor @block defaultRef #source
             refToVar @block push
             @processor @block defaultSet
@@ -2132,7 +2143,7 @@ setRef: [
 
     i: 0 dynamic;
     [
-      i uncopiedSrc.dataSize < [
+      i uncopiedSrc.size < [
         currentSrc: i uncopiedSrc.at copy;
         currentDst: i @uncopiedDst.at.@data;
 
@@ -2148,7 +2159,7 @@ setRef: [
             branchDst: VarStruct @currentDstVar.@data.get.get;
             f: 0 dynamic;
             [
-              f branchSrc.fields.dataSize < [
+              f branchSrc.fields.size < [
                 fromChild fromType or [
                   f branchSrc.fields.at.refToVar @uncopiedSrc.pushBack
                 ] [
@@ -2187,7 +2198,7 @@ setRef: [
 
   i: 0 dynamic;
   [
-    i uncopiedSrc.dataSize < [
+    i uncopiedSrc.size < [
       currentSrc: i uncopiedSrc.at copy;
       currentDst: i @uncopiedDst.at.@data;
       currentSrc noMatterToCopy ~ [@currentSrc @currentDst i 0 = setOneVar] when
@@ -2199,7 +2210,7 @@ setRef: [
         branchDst: VarStruct currentDstVar.data.get.get;
         f: 0 dynamic;
         [
-          f branchSrc.fields.dataSize < [
+          f branchSrc.fields.size < [
             fieldSrc: f @currentSrc @processor @block getField;
             fieldDst: f @currentDst @processor @block getField;
 
@@ -2229,7 +2240,7 @@ setRef: [
 
   overload failProc: processor block FailProcForProcessor;
 
-  block.stack.dataSize 0 = [
+  block.stack.size 0 = [
     entryRef: forMatching [
       0 @processor block getStackEntryUnchecked
     ] [
@@ -2658,11 +2669,11 @@ argRecommendedToCopy: [
     refToVar @uninited.pushBack
     i: 0 dynamic;
     [
-      i uninited.dataSize < [
+      i uninited.size < [
         current: i uninited.at copy;
         current getVar.data.getTag VarStruct = [
           struct: VarStruct current getVar.data.get.get;
-          f: struct.fields.dataSize copy dynamic;
+          f: struct.fields.size;
           [
             f 0 > [
               f 1 - @f set TRUE
@@ -2676,7 +2687,7 @@ argRecommendedToCopy: [
       ] &&
     ] loop
 
-    i: uninited.dataSize copy dynamic;
+    i: uninited.size;
     [
       i 0 > [
         i 1 - @i set
@@ -2689,10 +2700,10 @@ argRecommendedToCopy: [
               index: fr.index copy;
               fieldRef: index @current @processor @block processStaticAt;
               initName: processor.initNameInfo processor.nameManager.getText;
-              stackSize: block.stack.dataSize copy;
+              stackSize: block.stack.size;
               fieldRef getVar.data.getTag VarCode = [
                 current fieldRef @initName callCallableField
-                processor compilable [block.state NodeStateNoOutput = ~] && [block.stack.dataSize stackSize = ~] && [
+                processor compilable [block.state NodeStateNoOutput = ~] && [block.stack.size stackSize = ~] && [
                   ("Struct " current @processor block getMplType "'s INIT method dont save stack") assembleString @processor block compilerError
                 ] when
               ] [
@@ -2729,7 +2740,7 @@ argRecommendedToCopy: [
     refToSrc @unfinishedSrc.pushBack
     refToDst @unfinishedDst.pushBack
     [
-      unfinishedSrc.dataSize 0 > [
+      unfinishedSrc.size 0 > [
         curSrc: @unfinishedSrc.last copy;
         curDst: @unfinishedDst.last copy dynamic;
         [curSrc curDst variablesAreSame] "Assign vars must have same type!" assert
@@ -2746,7 +2757,7 @@ argRecommendedToCopy: [
               index: fr.index copy;
               fieldRef: index @curSrc @processor @block processStaticAt;
               assignName: processor.assignNameInfo processor.nameManager.getText;
-              stackSize: block.stack.dataSize copy;
+              stackSize: block.stack.size;
 
               fieldRef getVar.data.getTag VarCode = [
                 curDst isVirtual [
@@ -2754,7 +2765,7 @@ argRecommendedToCopy: [
                 ] [
                   curSrc @block push
                   curDst fieldRef @assignName callCallableField
-                  processor compilable [block.state NodeStateNoOutput = ~] && [block.stack.dataSize stackSize = ~] && [
+                  processor compilable [block.state NodeStateNoOutput = ~] && [block.stack.size stackSize = ~] && [
                     ("Struct " curSrc @processor block getMplType "'s ASSIGN method dont save stack") assembleString @processor block compilerError
                   ] when
                 ] if
@@ -2769,7 +2780,7 @@ argRecommendedToCopy: [
             structDst: VarStruct curDstVar.data.get.get;
             f: 0 dynamic;
             [
-              f structSrc.fields.dataSize < [
+              f structSrc.fields.size < [
                 srcField: f @curSrc @processor @block processStaticAt;
                 srcField @unfinishedSrc.pushBack
                 f @curDst @processor @block processStaticAt @unfinishedDst.pushBack
@@ -2795,13 +2806,13 @@ argRecommendedToCopy: [
   overload failProc: processor block FailProcForProcessor;
 
   processor compilable [
-    unkilled: RefToVar Array;
+    unkilled: @processor.acquireVarRefArray;
     @refToVar fullUntemporize
     TRUE dynamic @refToVar.setMutable
     refToVar @unkilled.pushBack
 
     [
-      unkilled.dataSize 0 > [
+      unkilled.size 0 > [
         last: unkilled.last copy dynamic;
         @unkilled.popBack
         last getVar.data.getTag VarStruct = [
@@ -2811,11 +2822,11 @@ argRecommendedToCopy: [
             index: fr.index copy;
             fieldRef: index @last @processor @block processStaticAt;
             dieName: processor.dieNameInfo processor.nameManager.getText;
-            stackSize: block.stack.dataSize copy;
+            stackSize: block.stack.size;
 
             fieldRef getVar.data.getTag VarCode = [
               last fieldRef @dieName callCallableField
-              processor compilable [block.state NodeStateNoOutput = ~] && [block.stack.dataSize stackSize = ~] && [
+              processor compilable [block.state NodeStateNoOutput = ~] && [block.stack.size stackSize = ~] && [
                 ("Struct " last @processor block getMplType "'s DIE method dont save stack") assembleString @processor block compilerError
               ] when
             ] [
@@ -2825,7 +2836,7 @@ argRecommendedToCopy: [
 
           f: 0 dynamic;
           [
-            f struct.fields.dataSize < [
+            f struct.fields.size < [
               f struct.fields.at.refToVar isAutoStruct [
                 f @last @processor @block processStaticAt @unkilled.pushBack
               ] when
@@ -2836,6 +2847,8 @@ argRecommendedToCopy: [
         processor compilable [block.state NodeStateNoOutput = ~] &&
       ] &&
     ] loop
+
+    @unkilled @processor.releaseVarRefArray
   ] when
 ] "callDie" exportFunction
 
@@ -2889,7 +2902,7 @@ killStruct: [
       ", line: " processor.positions.last.line ", column: " processor.positions.last.column ", token: " astNode.token) assembleString @block createComment
   ] when
 
-  programSize: block.program.dataSize copy;
+  programSize: block.program.size;
 
   (
     AstNodeType.Code            [drop indexOfAstNode processCodeNode]
@@ -2917,7 +2930,7 @@ killStruct: [
     AstNodeType.String          [processStringNode]
   ) astNode.data.visit
 
-  block.program.dataSize programSize > [
+  block.program.size programSize > [
     @processor @block addDebugLocationForLastInstruction
   ] when
 ] "processNodeImpl" exportFunction
@@ -2947,7 +2960,7 @@ finalizeListNode: [
   processor compilable [
     i: 0 dynamic;
     [
-      i block.stack.dataSize < [
+      i block.stack.size < [
         curRef: i @block.@stack.at;
 
         newField: Field;
@@ -2958,6 +2971,7 @@ finalizeListNode: [
         ] [
           @curRef TRUE dynamic @processor @block createRef @newField.@refToVar set
           @curRef makeVarPtrCaptured
+          @curRef makeVarRealCaptured
         ] if
 
         newField @struct.@fields.pushBack
@@ -2976,7 +2990,7 @@ finalizeListNode: [
 
     i: 0 dynamic;
     [
-      i block.stack.dataSize < [
+      i block.stack.size < [
         curFieldRef: i @struct.@fields.at.@refToVar;
 
         curFieldRef isVirtual [
@@ -3004,11 +3018,13 @@ finalizeObjectNode: [
 
   i: 0 dynamic;
   [
-    i structInfo.fields.dataSize < [
+    i structInfo.fields.size < [
       dstFieldRef: i @structInfo.@fields.at.@refToVar;
-      dstFieldRef getVar.data.getTag VarRef = [
+
+      dstFieldRef isVirtual ~ [dstFieldRef getVar.data.getTag VarRef =] && [
         pointee: VarRef dstFieldRef getVar.data.get.refToVar;
         @pointee makeVarPtrCaptured
+        @pointee makeVarRealCaptured
       ] when
 
       @dstFieldRef markAsUnableToDie
@@ -3020,13 +3036,13 @@ finalizeObjectNode: [
     @refToStruct @processor @block createAllocIR drop
     i: 0 dynamic;
     [
-      i structInfo.fields.dataSize < [
+      i structInfo.fields.size < [
         dstFieldRef: i @structInfo.@fields.at.@refToVar;
 
         [dstFieldRef staticityOfVar Weak = ~] "Field label is weak!" assert
         [dstFieldRef noMatterToCopy [dstFieldRef getVar.host block is] ||] "field host incorrect" assert
         dstFieldRef isVirtual ~ [
-          [dstFieldRef getVar.allocationInstructionIndex block.program.dataSize <] "field is not allocated" assert
+          [dstFieldRef getVar.allocationInstructionIndex block.program.size <] "field is not allocated" assert
           @dstFieldRef i refToStruct @processor @block createGEPInsteadOfAlloc
         ] when
 
@@ -3530,23 +3546,25 @@ makeCompilerPosition: [
     refToVar: copy dynamic;
     var: refToVar getVar;
 
-    output [
-      [var.usedInHeader ~ [var.allocationInstructionIndex 0 < ~] &&] "Cannot use simple return!" assert
+    refToVar getVar.host block is [
+      output [
+        [var.usedInHeader ~ [var.allocationInstructionIndex 0 < ~] &&] "Cannot use simple return!" assert
 
-      [
-        refToVar getVar.data.getTag VarStruct = ~ [
-          struct: VarStruct refToVar getVar.@data.get.get;
-          struct.unableToDie ~
-        ] ||
-      ] "Double returning same struct!" assert
+        [
+          refToVar getVar.data.getTag VarStruct = ~ [
+            struct: VarStruct refToVar getVar.@data.get.get;
+            struct.unableToDie ~
+          ] ||
+        ] "Double returning same struct!" assert
 
-      @refToVar markAsUnableToDie
-    ] [
-      var.usedInHeader [
-        copyForArg: refToVar @processor @block copyOneVar;
-        copyForArg @refToVar set
-      ] when
-    ] if
+        @refToVar markAsUnableToDie
+      ] [
+        var.usedInHeader [
+          copyForArg: refToVar @processor @block copyOneVar;
+          copyForArg @refToVar set
+        ] when
+      ] if
+    ] when
 
     asCopy [
       #do nothing
@@ -3562,16 +3580,18 @@ makeCompilerPosition: [
     ] if
 
     asCopy output and ~ [
-      dii: refToVar getVar.getInstructionIndex copy;
-      dii 0 < ~ [ #it was got by
-        FALSE dii @block.@program.at.@enabled set
+      refToVar getVar.host block is [
+        dii: refToVar getVar.getInstructionIndex copy;
+        dii 0 < ~ [ #it was got by
+          FALSE dii @block.@program.at.@enabled set
+        ] when
       ] when
 
-      argumentList.chars.dataSize 0 > [", " makeStringView @argumentList.cat] when
+      argumentList.chars.size 0 > [", " makeStringView @argumentList.cat] when
       refToVar @processor getIrType @argumentList.cat
       asCopy ~ ["*"                 @argumentList.cat] when
 
-      signature.chars.dataSize 0 > [", " makeStringView @signature.cat] when
+      signature.chars.size 0 > [", " makeStringView @signature.cat] when
       refToVar @processor getIrType @signature.cat
       asCopy ~ ["*"                 @signature.cat] when
 
@@ -3614,20 +3634,45 @@ makeCompilerPosition: [
   ];
 
   backPassEvents: [
+    block.dependentPointers.getSize [
+      current: block.dependentPointers.size 1 - i - @block.@dependentPointers.at;
+      dependent: 1 current @ getVar;
+
+      2 current @ [
+        dependent.capturedByPtr [
+          0 @current @ makeVarRealCaptured
+        ] when
+
+        dependent.capturedAsRealValue [
+          0 @current @ makeVarDerefCaptured
+        ] when
+      ] [
+        dependent.capturedByPtr [
+          0 @current @ makeVarPtrCaptured
+        ] when
+
+        dependent.capturedAsRealValue [
+          0 @current @ makeVarRealCaptured
+        ] when
+
+        dependent.capturedForDeref [
+          0 @current @ makeVarRealCaptured
+        ] when
+      ] if
+    ] times
+
     block.buildingMatchingInfo.shadowEvents.size [
       event: block.buildingMatchingInfo.shadowEvents.size 1 - i - @block.@buildingMatchingInfo.@shadowEvents.at;
 
       (
+        ShadowReasonInput [
+          branch:;
+        ]
+        ShadowReasonCapture [
+          branch:;
+        ]
         ShadowReasonField [
           branch:;
-          branch.field getVar.data.getTag VarRef = [ #if it was dynamic ptr for ptr reasons, we need use it
-            branchPointee: VarRef branch.field getVar.data.get.refToVar;
-            branchPointee getVar.host block is [
-              branchPointee getVar.capturedByPtr [
-                @branch.@field makeVarRealCaptured
-              ] when
-            ] when
-          ] when
 
           branch.field getVar.capturedByPtr [
             @branch.@object makeVarPtrCaptured
@@ -3636,11 +3681,20 @@ makeCompilerPosition: [
           branch.field getVar.capturedAsRealValue [
             @branch.@object makeVarRealCaptured
           ] when
+
+          branch.field getVar.capturedForDeref [
+            @branch.@object makeVarRealCaptured
+          ] when
         ]
         ShadowReasonPointee [
           branch:;
-          branch.pointee getVar.capturedByPtr [branch.pointee getVar.capturedAsRealValue copy] || [
+
+          branch.pointee getVar.capturedByPtr [
             @branch.@pointer makeVarRealCaptured
+          ] when
+
+          branch.pointee getVar.capturedAsRealValue [
+            @branch.@pointer makeVarDerefCaptured
           ] when
         ]
         []
@@ -3652,7 +3706,7 @@ makeCompilerPosition: [
     block.parent 0 = [
       i: 0 dynamic;
       [
-        i block.candidatesToDie.dataSize < [
+        i block.candidatesToDie.size < [
           current: i @block.@candidatesToDie.at;
           current @processor.@globalDestructibleVars.pushBack
           i 1 + @i set TRUE
@@ -3666,8 +3720,8 @@ makeCompilerPosition: [
         ] when
       ] each
     ] [
-      retInstructionIndex: block.program.dataSize 1 -;
-      i: block.candidatesToDie.dataSize copy dynamic;
+      retInstructionIndex: block.program.size 1 -;
+      i: block.candidatesToDie.size;
       [
         i 0 > [
           i 1 - @i set
@@ -3746,7 +3800,8 @@ makeCompilerPosition: [
 
   addMetaArg: [
     refToVar:;
-    refToVar isGlobal [refToVar isVirtual] || [refToVar isUnallocable] || ~ [
+
+    refToVar isGlobal [refToVar isVirtual] || ~ [
       dii: refToVar getVar.getInstructionIndex copy;
       dii 0 < ~ [
         FALSE dii @block.@program.at.@enabled set
@@ -3755,6 +3810,7 @@ makeCompilerPosition: [
       aii: refToVar getVar.allocationInstructionIndex copy; #may be was faked before
       aii 0 < [
         refToVar @processor @block createAllocIR drop #it is fake
+        TRUE @block.@program.last.@fakeAlloca set #fake for good sorting
       ] when
     ] when
   ];
@@ -3774,7 +3830,7 @@ makeCompilerPosition: [
   processor compilable [
     i: 0 dynamic;
     [
-      i block.buildingMatchingInfo.inputs.dataSize < [
+      i block.buildingMatchingInfo.inputs.size < [
         # const to plain make copy
         current: i @block.@buildingMatchingInfo.@inputs.at;
 
@@ -3819,14 +3875,14 @@ makeCompilerPosition: [
   ] when
 
   block.parent 0 =
-  [block.stack.dataSize 0 >] && [
+  [block.stack.size 0 >] && [
     "module can not have inputs or outputs" @processor block compilerError
   ] when
 
   @block.@outputs.clear
   i: 0 dynamic;
   [
-    i block.stack.dataSize < [
+    i block.stack.size < [
       current: i @block.@stack.at;
       newArg: Argument;
 
@@ -3877,10 +3933,21 @@ makeCompilerPosition: [
 
   i: 0 dynamic;
   [
-    i block.buildingMatchingInfo.captures.dataSize < [
+    i block.buildingMatchingInfo.captures.size < [
       current: i @block.@buildingMatchingInfo.@captures.at;
       current.refToVar.assigned [
-        current.refToVar getVar.capturedAsRealValue ~ [
+        currentVar: current.refToVar getVar;
+
+        needToDerefCopy:
+          currentVar.capturedForDeref
+          [currentVar.capturedByPtr ~] &&
+          [currentVar.capturedAsRealValue ~] &&
+          [currentVar.data.getTag VarRef =] &&
+          [VarRef currentVar.data.get.refToVar @processor argAbleToCopy] &&;
+
+        currentVar.capturedAsRealValue ~
+          [currentVar.capturedForDeref ~] &&
+          [currentVar.capturedByPtr ~] && [
           ArgMeta @current.@argCase set
         ] when
 
@@ -3890,13 +3957,6 @@ makeCompilerPosition: [
           ] when
 
           needToCopy: current.refToVar @processor argRecommendedToCopy;
-          needToDerefCopy: FALSE dynamic;
-          needToCopy [
-            current.refToVar getVar.data.getTag VarRef = [
-              pointee: VarRef current.refToVar getVar.data.get.refToVar;
-              pointee @processor argRecommendedToCopy !needToDerefCopy
-            ] when
-          ] when
 
           needToDerefCopy [
             pointee: VarRef current.refToVar getVar.data.get.refToVar;
@@ -3904,17 +3964,29 @@ makeCompilerPosition: [
             ArgDerefCopy @current.@argCase set
             pointee regNameId addCopyArg
 
-            pointee isGlobal ~ [
-            pointee getVar.allocationInstructionIndex 0 <] && [
-              regNameId @pointee @processor @block createAllocIR @processor @block createStoreFromRegister
-              TRUE @block.@program.last.@alloca set #fake for good sorting
-            ] when
+            pointee getVar.host block is [
+              pointee isGlobal ~ [pointee getVar.allocationInstructionIndex 0 <] && [
+                regNameId @pointee @processor @block createAllocIR @processor @block createStoreFromRegister
+                TRUE @block.@program.last.@alloca set #fake for good sorting
+              ] when
 
-            current.refToVar isGlobal ~ [
-            current.refToVar getVar.allocationInstructionIndex 0 <] && [
-              pointee getVar.irNameId @current.@refToVar @processor @block createAllocIR @processor @block createStoreFromRegister
-              TRUE @block.@program.last.@alloca set #fake for good sorting
-            ] when
+              current.refToVar isGlobal ~ [current.refToVar getVar.allocationInstructionIndex 0 <] && [
+                pointee getVar.irNameId @current.@refToVar @processor @block createAllocIR @processor @block createStoreFromRegister
+                TRUE @block.@program.last.@alloca set #fake for good sorting
+              ] when
+            ] [
+              pointee isGlobal ~  [
+                pointeeNameId: @processor @block generateRegisterIRName;
+                pointeeNameId pointee @processor getMplSchema.irTypeId @processor @block createAllocIRByReg
+                regNameId pointeeNameId pointee @processor getMplSchema.irTypeId @processor @block createStoreFromRegisterToRegister
+                TRUE @block.@program.last.@alloca set #fake for good sorting
+
+                current.refToVar isGlobal ~ [current.refToVar getVar.allocationInstructionIndex 0 <] && [
+                  pointeeNameId @current.@refToVar @processor @block createAllocIR @processor @block createStoreFromRegister
+                  TRUE @block.@program.last.@alloca set #fake for good sorting
+                ] when
+              ] when
+            ] if
           ] [
             needToCopy @current addRefOrCopyArg
           ] if
@@ -3948,14 +4020,14 @@ makeCompilerPosition: [
     ] if
   ] when
 
-  @block sortInstructions
+  @block @processor sortInstructions
 
   addNames: [
     s:;
     names:;
     i: 0 dynamic;
     [
-      i names.dataSize < [
+      i names.size < [
         nameWithOverload: i names.at;
         nameWithOverload.nameInfo processor.nameManager.getText @s.cat
         nameWithOverload.nameOverloadDepth 0 > [
@@ -4113,15 +4185,15 @@ makeCompilerPosition: [
       "null" toString @declarationNode.@irName set
       topNode.parent 0 = [
         (";declare func: " functionName) assembleString @processor addStrToProlog #fix global import var matching bug
-        processor.prolog.dataSize 1 - @refToVar getVar.@globalDeclarationInstructionIndex set
+        processor.prolog.size 1 - @refToVar getVar.@globalDeclarationInstructionIndex set
       ] [
         (";declare func: " functionName) assembleString @topNode createComment #fix global import var matching bug
-        topNode.program.dataSize 1 - @refToVar getVar.@allocationInstructionIndex set
+        topNode.program.size 1 - @refToVar getVar.@allocationInstructionIndex set
       ] if
     ] [
       declarationNode.irName toString @processor makeStringId @refToVar getVar.@irNameId set
       (";declare func: " functionName) assembleString @processor addStrToProlog #fix global import var matching bug
-      processor.prolog.dataSize 1 - @refToVar getVar.@globalDeclarationInstructionIndex set
+      processor.prolog.size 1 - @refToVar getVar.@globalDeclarationInstructionIndex set
     ] if
 
     nameInfo: functionName @processor findNameInfo;
@@ -4262,7 +4334,7 @@ makeCompilerPosition: [
 addIndexArrayToProcess: [
   indexArray: block: file: ;;;
 
-  i: indexArray.dataSize copy dynamic;
+  i: indexArray.size;
   [
     i 0 > [
       i 1 - @i set
@@ -4295,7 +4367,6 @@ addIndexArrayToProcess: [
   copy parentIndex:;
   functionName:;
   compileOnce
-
 
   @processor addBlock
   codeNode: @processor.@blocks.last.get;
@@ -4344,6 +4415,7 @@ addIndexArrayToProcess: [
     @block.@captureNames.clear
     @block.@fieldCaptureNames.clear
     @block.@unprocessedAstNodes.clear
+    @block.@dependentPointers.clear
 
     processor.options.debug [
       @processor addDebugReserve @block.@funcDbgIndex set
@@ -4352,7 +4424,7 @@ addIndexArrayToProcess: [
     indexArray @block file addIndexArrayToProcess
 
     [
-      block.unprocessedAstNodes.dataSize 0 > [
+      block.unprocessedAstNodes.size 0 > [
         tokenRef: block.unprocessedAstNodes.last copy;
         @block.@unprocessedAstNodes.popBack
 

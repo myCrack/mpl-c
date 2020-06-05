@@ -150,7 +150,7 @@ debugMemory [
 
   lastFile: File Cref;
 
-  multiParserResult.nodes.dataSize 0 > [
+  multiParserResult.nodes.size 0 > [
 
     dependedFiles: String IndexArray HashTable; # string -> array of indexes of dependent files
     cachedGlobalErrorInfoSize: 0;
@@ -196,8 +196,8 @@ debugMemory [
           fr.success [
             i: 0 dynamic;
             [
-              i fr.value.dataSize < [
-                numberOfDependent: fr.value.dataSize 1 - i - fr.value.at;
+              i fr.value.size < [
+                numberOfDependent: fr.value.size 1 - i - fr.value.at;
                 (numberOfDependent processor.files.at.get.name " is dependent from it, try to recompile") addLog
                 numberOfDependent @unfinishedFiles.pushBack
                 i 1 + @i set TRUE
@@ -214,14 +214,14 @@ debugMemory [
     unfinishedFiles: IndexArray;
     n: 0 dynamic;
     [
-      n processor.multiParserResult.nodes.dataSize < [
-        processor.multiParserResult.nodes.dataSize 1 - n - @unfinishedFiles.pushBack
+      n processor.multiParserResult.nodes.size < [
+        processor.multiParserResult.nodes.size 1 - n - @unfinishedFiles.pushBack
         n 1 + @n set TRUE
       ] &&
     ] loop
 
     [
-      0 unfinishedFiles.dataSize < [
+      0 unfinishedFiles.size < [
         n: unfinishedFiles.last copy;
         @unfinishedFiles.popBack
         n runFile
@@ -250,7 +250,7 @@ debugMemory [
         dependedFiles [
           # queue is empty, but has uncompiled files
           pair:;
-          pair.value.dataSize 0 > [
+          pair.value.size 0 > [
             fr: pair.key processor.modules.find;
             fr.success ~ [
               ("missing module \"" @pair.@key "\" used in file: \"" pair.value.last processor.options.fileNames.at "\"" LF) assembleString @processor.@result.@errorInfo.@message.cat
@@ -269,7 +269,7 @@ debugMemory [
           dependedFiles [
             # queue is empty, but has uncompiled files
             pair:;
-            pair.value.dataSize 0 > [
+            pair.value.size 0 > [
               ("need module: " @pair.@key "; used in file: " pair.value.last processor.options.fileNames.at LF) assembleString @processor.@result.@errorInfo.@message.cat
             ] when
           ] each
@@ -287,8 +287,8 @@ debugMemory [
   [processor compilable ~ [processor.recursiveNodesStack.getSize 0 =] ||] "Recursive stack is not empty!" assert
 
   processor.result.success [
-    ("nameCount=" processor.nameManager.names.dataSize
-      "; irNameCount=" processor.nameBuffer.dataSize "; block count=" processor.blocks.getSize "; block size=" BlockSchema storageSize "; est var count=" processor.variables.getSize 4096 * "; var size=" VarSchema storageSize) addLog
+    ("nameCount=" processor.nameManager.names.size
+      "; irNameCount=" processor.nameBuffer.size "; block count=" processor.blocks.getSize "; block size=" BlockSchema storageSize "; est var count=" processor.variables.getSize 4096 * "; var size=" VarSchema storageSize) addLog
 
     ("max depth of recursion=" processor.maxDepthOfRecursion) addLog
 
@@ -412,7 +412,7 @@ debugMemory [
 
     i: 0 dynamic;
     [
-      i processor.prolog.dataSize < [
+      i processor.prolog.size < [
         i @processor.@prolog.at @processor.@result.@program.cat
         LF  @processor.@result.@program.cat
         i 1 + @i set TRUE
@@ -421,7 +421,7 @@ debugMemory [
 
     i: 1 dynamic; # 0th node is root fake node
     [
-      i processor.blocks.dataSize < [
+      i processor.blocks.size < [
         block: i @processor.@blocks.at.get;
         block nodeHasCode [
           LF makeStringView @processor.@result.@program.cat

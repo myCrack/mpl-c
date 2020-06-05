@@ -91,6 +91,11 @@ makeVarPtrCaptured: [
   TRUE @refToVar getVar.@capturedByPtr set
 ];
 
+makeVarDerefCaptured: [
+  refToVar:;
+  TRUE @refToVar getVar.@capturedForDeref set
+];
+
 defaultFailProc: [
   processor: block: ;;
   text: @processor @block pop;

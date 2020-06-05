@@ -145,6 +145,7 @@ Variable: [{
   usedInHeader:                      FALSE dynamic;
   capturedByPtr:                     FALSE dynamic;
   capturedAsRealValue:               FALSE dynamic;
+  capturedForDeref:                  FALSE dynamic;
   globalId:                          -1 dynamic;
   buildingTopologyIndex:             -1 dynamic;
   topologyIndex:                     -1 dynamic;
@@ -276,7 +277,7 @@ isTinyArg: [
   #] ||
 
   refToVar isUnallocable ~
-  [refToVar @processor getStorageSize 16nx > ~] &&
+  [refToVar @processor getStorageSize processor.options.pointerSize 8nx / 2nx * > ~] &&
 ];
 
 isUnallocable: [
@@ -541,7 +542,7 @@ makeStringId: [
   fr.success [
     fr.value copy
   ] [
-    result: processor.nameBuffer.dataSize copy;
+    result: processor.nameBuffer.size;
     string makeStringView result @processor.@nameTable.insert
     @string move @processor.@nameBuffer.pushBack
     result

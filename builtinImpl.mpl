@@ -133,6 +133,7 @@
 "irWriter.createGlobalAliasIR" use
 "irWriter.createPlainIR" use
 "irWriter.createStoreFromRegister" use
+"irWriter.createStringCompare" use
 "irWriter.createUnaryOperation" use
 "irWriter.createVarExportIR" use
 "irWriter.createVarImportIR" use
@@ -215,7 +216,7 @@ mplBuiltinProcessAtList: [
           struct: VarStruct structVar.data.get.get;
           refToIndex staticityOfVar Weak < [
             struct.homogeneous [
-              struct.fields.dataSize 0 > [
+              struct.fields.size 0 > [
                 # create dynamic getIndex
                 realRefToStruct: refToStruct;
                 realStructVar: structVar;
@@ -224,7 +225,10 @@ mplBuiltinProcessAtList: [
                   "can't get dynamic index in virtual struct" @processor block compilerError
                 ] when
 
-                @refToIndex makeVarRealCaptured
+                @refToIndex  makeVarRealCaptured
+                @refToStruct makeVarPtrCaptured
+                @refToStruct makeVarRealCaptured
+
                 firstField: 0 realStruct.fields.at.refToVar;
                 fieldRef: firstField @processor @block copyVarFromType;
                 firstField getVar.host block is ~ [
@@ -242,7 +246,7 @@ mplBuiltinProcessAtList: [
                   @fieldRef @processor block unglobalize
                   fieldRef refToIndex realRefToStruct @processor @block createDynamicGEP
                   fieldVar: @fieldRef getVar;
-                  block.program.dataSize 1 - @fieldVar.@getInstructionIndex set
+                  block.program.size 1 - @fieldVar.@getInstructionIndex set
                   fieldRef @result set
                 ] if
 
@@ -681,7 +685,7 @@ staticityOfBinResult: [
       ] [
         var1.data.getTag VarString = [
           result: FALSE makeValuePair VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
-          arg1 arg2 @result "icmp eq" makeStringView @processor @block createBinaryOperation
+          arg1 arg2 @result "icmp eq" makeStringView @processor @block createStringCompare
           result @block push
         ] [
           arg1 isReal [
@@ -916,13 +920,13 @@ staticityOfBinResult: [
 
           i: 0 dynamic;
           [
-            i resultStruct.fields.dataSize < [
+            i resultStruct.fields.size < [
               field: i @resultStruct.@fields.at;
               field.refToVar isVirtual [
                 field.refToVar isAutoStruct ["unable to copy virtual autostruct" @processor block compilerError] when
               ] [
                 @field.@refToVar @processor block unglobalize
-                block.program.dataSize @field.@refToVar getVar.@allocationInstructionIndex set
+                block.program.size @field.@refToVar getVar.@allocationInstructionIndex set
                 "no alloc..." @block createComment # fake instruction
                 @refToElement @field.@refToVar @processor @block createCheckedCopyToNew
                 @field.@refToVar markAsUnableToDie
@@ -992,10 +996,13 @@ staticityOfBinResult: [
           refToVar staticityOfVar makeValuePair @refToDst getVar.@staticity set
           refToDst @block push
         ] [
+          refToVar makeVarRealCaptured
+
           refToDst: RefToVar;
           varSchema: refToSchema getVar;
           varSchema.data.getTag VarNat8 VarReal64 1 + [
             copy tagDst:;
+
             branchSchema: tagDst @varSchema.@data.get.end;
             branchSchema makeValuePair tagDst @processor @block createVariable @refToDst set
           ] staticCall
@@ -1248,12 +1255,12 @@ staticityOfBinResult: [
       pointeeVar: pointee getVar;
       pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
       processor compilable [
-        VarStruct pointeeVar.data.get.get.fields.dataSize 0i64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+        VarStruct pointeeVar.data.get.get.fields.size 0i64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
       ] when
     ] [
       var.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
       processor compilable [
-        VarStruct var.data.get.get.fields.dataSize 0i64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+        VarStruct var.data.get.get.fields.size 0i64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
       ] when
     ] if
   ] when
@@ -1506,9 +1513,6 @@ staticityOfBinResult: [
   refToVar1: @processor @block pop;
   refToVar2: @processor @block pop;
   processor compilable [
-    @refToVar1 makeVarPtrCaptured
-    @refToVar2 makeVarPtrCaptured
-
     refToVar1 refToVar2 variablesAreSame [
       cmpResult: 0 dynamic; # -1 false, 1 true, 0 need to check
       refToVar1 refToVar2 refsAreEqual [
@@ -1523,6 +1527,10 @@ staticityOfBinResult: [
       ] if
 
       cmpResult 0 = [
+        @refToVar1 makeVarPtrCaptured
+        @refToVar1 makeVarRealCaptured
+        @refToVar2 makeVarPtrCaptured
+        @refToVar2 makeVarRealCaptured
         result: FALSE makeValuePair VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
         refToVar1 refToVar2 result "icmp eq" @processor @block createDirectBinaryOperation
         result @block push
@@ -1722,12 +1730,6 @@ staticityOfBinResult: [
 ] "mplPrintCompilerMaxAllocationSize"  @declareBuiltin ucall
 
 [
-  processor compilable [
-    ("var count=" processor.varCount LF) printList
-  ] when
-] "mplBuiltinPrintVariableCount" @declareBuiltin ucall
-
-[
   refToName: @processor @block pop;
   processor compilable [
     refToName staticityOfVar Weak < ["name must be static string" @processor block compilerError] when
@@ -1860,7 +1862,7 @@ staticityOfBinResult: [
         string: VarString varName.data.get;
         struct: Struct;
 
-        string.chars.dataSize 0 < ~ [
+        string.chars.size 0 < ~ [
           splitted: string splitString;
           splitted.success [
             splitted.chars [
@@ -1877,11 +1879,11 @@ staticityOfBinResult: [
 
             i: 0 dynamic;
             [
-              i resultStruct.fields.dataSize < [
+              i resultStruct.fields.size < [
                 field: i @resultStruct.@fields.at;
 
                 result isGlobal [
-                  block.program.dataSize @field.@refToVar getVar.@allocationInstructionIndex set
+                  block.program.size @field.@refToVar getVar.@allocationInstructionIndex set
                   "no alloc..." @block createComment # fake instruction
 
                   loadReg: field.refToVar @processor @block createDerefToRegister;
