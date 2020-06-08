@@ -497,6 +497,7 @@ debugMemory [
   @processor addBlock
   codeNode: @processor.@blocks.last.get;
   block: @codeNode;
+  compilerPositionInfo @codeNode.@beginPosition set
   overload failProc: processor block FailProcForProcessor;
 
   NodeCaseDtor @codeNode.@nodeCase set

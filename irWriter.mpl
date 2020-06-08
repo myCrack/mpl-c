@@ -40,6 +40,8 @@
 "defaultImpl.findNameInfo" use
 "defaultImpl.makeVarRealCaptured" use
 "defaultImpl.nodeHasCode" use
+"pathUtils.nameWithoutBadSymbols" use
+"pathUtils.stripExtension" use
 "processor.Processor" use
 
 appendInstruction: [
@@ -709,7 +711,7 @@ createCallTraceData: [
   ] when
 ];
 
-createCallTraceProlog: [ 
+createCallTraceProlog: [
   processor: block: ;;
   ptr: @processor @block generateRegisterIRName;
   ptrNext: @processor @block generateRegisterIRName;
@@ -793,10 +795,10 @@ createGetCallTrace: [
 generateVariableIRNameWith: [
   hostOfVariable: temporaryRegister: processor: block: ;;;;
   temporaryRegister ~ [block.parent 0 =] && [
-    ("@global." processor.globalVarCount) assembleString @processor makeStringId
+    ("@global.id" processor.globalVarCount) assembleString @processor makeStringId
     processor.globalVarCount 1 + @processor.@globalVarCount set
   ] [
-    ("%var." hostOfVariable.lastVarName) assembleString @processor makeStringId
+    ("%var.id" hostOfVariable.lastVarName) assembleString @processor makeStringId
     hostOfVariable.lastVarName 1 + @hostOfVariable.@lastVarName set
   ] if
 ];

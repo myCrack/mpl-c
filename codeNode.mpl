@@ -201,6 +201,7 @@
 "irWriter.getNameById" use
 "irWriter.sortInstructions" use
 "pathUtils.extractFilename" use
+"pathUtils.nameWithoutBadSymbols" use
 "pathUtils.stripExtension" use
 "processor.MatchingNode" use
 "processor.NameInfoCoord" use
@@ -1237,12 +1238,12 @@ findNameStackObject: [
   [
     i file nameInfo processor.nameManager.findItem !i
     i 0 < [
-      processor.varForFails @result.@refToVar set 
+      processor.varForFails @result.@refToVar set
       FALSE
     ] [
       item: i nameInfo processor.nameManager.getItem;
       nameCase item.nameCase = [pattern item.refToVar variablesAreSame] && [
-        item.refToVar   @result.@refToVar set 
+        item.refToVar   @result.@refToVar set
         item.nameCase   @result.@nameCase   set
         item.startPoint @result.@startPoint set
         FALSE
@@ -1405,7 +1406,6 @@ captureName: [
   };
 
   processor compilable [getNameResult.nameCase NameCaseInvalid = ~] && [
-    captureError: FALSE dynamic;
 
     addBlockIdTo: [
       whereNames: nameInfo: nameOverloadDepth: captureCase: mplSchemaId: ;;;;;
@@ -1494,7 +1494,12 @@ captureName: [
         realCapture: newCapture.argCase ArgRef =;
 
         realCapture [block.exportDepth refToVar getVar.host.exportDepth = ~] && [
-          TRUE !captureError
+          @newCapture.@refToVar @processor @block makeVarTreeDirty
+          captureId: block.buildingMatchingInfo.captures.size;
+          fr: captureId block.captureErrors.find;
+          fr.success ~ [
+            captureId processor.positions.last @block.@captureErrors.insert
+          ] when
         ] when
 
         nameInfo processor.selfNameInfo = [overloadDepth 0 = ~] && [
@@ -1604,10 +1609,6 @@ captureName: [
         } @processor @block addNameInfo
       ] when
     ] if
-
-    captureError [
-      "real function can not have real local capture" @processor block compilerError
-    ] when
   ] [
     file getNameResult.nameInfo overloadDepth @processor @block addEmptyCapture
     processor.varForFails @result.@refToVar set
@@ -3241,7 +3242,7 @@ changeTopologyIndexForAllVars: [
           branch:;
           @branch.@field eachEventVarAction
         ]
-      []
+        []
       ) @currentEvent.visit
     ] each
   ];
@@ -3788,7 +3789,7 @@ makeCompilerPosition: [
       current.refToVar regNameId addCopyArg
 
       current.refToVar isGlobal ~ [
-      current.refToVar getVar.allocationInstructionIndex 0 <] && [
+        current.refToVar getVar.allocationInstructionIndex 0 <] && [
         regNameId @current.@refToVar @processor @block createAllocIR @processor @block createStoreFromRegister
         TRUE @block.@program.last.@alloca set #fake for good sorting
       ] when
@@ -3823,7 +3824,7 @@ makeCompilerPosition: [
         @current makeVarPtrCaptured
       ] when
     ] each
-   ] when
+  ] when
 
   backPassEvents
 
@@ -3939,20 +3940,25 @@ makeCompilerPosition: [
         currentVar: current.refToVar getVar;
 
         needToDerefCopy:
-          currentVar.capturedForDeref
-          [currentVar.capturedByPtr ~] &&
-          [currentVar.capturedAsRealValue ~] &&
-          [currentVar.data.getTag VarRef =] &&
-          [VarRef currentVar.data.get.refToVar @processor argAbleToCopy] &&;
+        currentVar.capturedForDeref
+        [currentVar.capturedByPtr ~] &&
+        [currentVar.capturedAsRealValue ~] &&
+        [currentVar.data.getTag VarRef =] &&
+        [VarRef currentVar.data.get.refToVar @processor argAbleToCopy] &&;
 
         currentVar.capturedAsRealValue ~
-          [currentVar.capturedForDeref ~] &&
-          [currentVar.capturedByPtr ~] && [
+        [currentVar.capturedForDeref ~] &&
+        [currentVar.capturedByPtr ~] && [
           ArgMeta @current.@argCase set
         ] when
 
         current.argCase ArgRef = [
           isRealFunction [
+            fr: i block.captureErrors.find;
+            fr.success [
+              fr.value @processor.@positions.last set
+            ] when
+
             ("real function can not have local capture; name=" current.nameInfo processor.nameManager.getText "; type=" current.refToVar @processor block getMplType) assembleString @processor block compilerError
           ] when
 
@@ -4220,31 +4226,18 @@ makeCompilerPosition: [
         "@func."   @block.@irName.cat
       ] if
 
-      block.id @block.@irName.cat
+      (block.beginPosition.file.name stripExtension nameWithoutBadSymbols "."
+        block.beginPosition.line "."
+        block.beginPosition.column ".id"
+        block.id) @block.@irName.catMany
+
       # create name with only correct symbols
       block.nodeCase NodeCaseLambda = [
         ".lambda" @block.@irName.cat
       ] [
-        wasDot: FALSE;
-        functionName.size 0 > [
-          splitted: functionName splitString;
-          splitted.success [
-            splitted.chars [
-              symbol:;
-              codePoint: symbol.data Nat8 addressToReference;
-              codePoint 48n8 < ~ [codePoint 57n8 > ~] &&         #0..9
-              [codePoint 65n8 < ~ [codePoint 90n8 > ~] &&] ||    #A..Z
-              [codePoint 97n8 < ~ [codePoint 122n8 > ~] &&] || [ #a..z
-                wasDot ~ [
-                  "." @block.@irName.cat
-                  TRUE @wasDot set
-                ] when
-                symbol @block.@irName.cat
-              ] when
-            ] each
-          ] [
-            ("Wrong function name encoding:" functionName) assembleString @processor block compilerError
-          ] if
+        goodName: functionName nameWithoutBadSymbols;
+        goodName.size 0 > [
+          ("." goodName) @block.@irName.catMany
         ] when
       ] if
     ] if
@@ -4320,7 +4313,11 @@ makeCompilerPosition: [
   signature @block.@argTypes set
 
   processor.options.debug [block.empty ~] && [isDeclaration ~] && [block.nodeCase NodeCaseEmpty = ~] && [
-    compilerPositionInfo functionName makeStringView block.irName makeStringView block.funcDbgIndex @processor addFuncDebugInfo
+    fullFunctionName: (functionName "." block.beginPosition.file.name stripExtension nameWithoutBadSymbols "."
+      block.beginPosition.line "."
+      block.beginPosition.column) assembleString;
+
+    compilerPositionInfo fullFunctionName makeStringView block.irName makeStringView block.funcDbgIndex @processor addFuncDebugInfo
     block.funcDbgIndex @processor moveLastDebugString
     " !dbg !"          @block.@header.cat
     block.funcDbgIndex @block.@header.cat
@@ -4380,6 +4377,7 @@ addIndexArrayToProcess: [
   processor.varCount              @codeNode.@variableCountDelta set
   processor.exportDepth           @codeNode.@exportDepth set
   file                            @codeNode.@file.set
+  compilerPositionInfo            @codeNode.@beginPosition set
 
   compilerPositionInfo @processor.@positions.pushBack
 
@@ -4416,6 +4414,7 @@ addIndexArrayToProcess: [
     @block.@fieldCaptureNames.clear
     @block.@unprocessedAstNodes.clear
     @block.@dependentPointers.clear
+    @block.@captureErrors.clear
 
     processor.options.debug [
       @processor addDebugReserve @block.@funcDbgIndex set

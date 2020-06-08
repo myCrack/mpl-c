@@ -276,7 +276,7 @@ getDebugType: [
     ("Wrong dbgType name encoding" splitted.chars assembleString) assembleString @processor block compilerError
   ] if
 
-  result: (dbgType hash ".") assembleString;
+  result: (refToVar getVar.mplSchemaId ".") assembleString;
   splitted.chars @result.catMany
   @result
 ];
@@ -412,7 +412,7 @@ addFuncDebugInfo: [
   funcImplementation: funcName makeStringView getStringImplementation;
 
   (
-    "!" funcDebugIndex " = distinct !DISubprogram(name: \"" funcImplementation "." funcDebugIndex "\", linkageName: \"" @funcIRName
+    "!" funcDebugIndex " = distinct !DISubprogram(name: \"" funcImplementation ".dbgId" funcDebugIndex "\", linkageName: \"" @funcIRName
     "\", scope: !" position.file.debugId
     ", file: !" position.file.debugId ", line: " position.line  ", type: !" subroutineIndex
     ", scopeLine: " position.line ", unit: !" processor.debugInfo.unit ")") assembleString @processor.@debugInfo.@strings.pushBack

@@ -168,6 +168,7 @@ Block: [{
   id:              Int32;
   root:            FALSE dynamic;
   file:            ["File.FileSchema" use FileSchema] Mref;
+  beginPosition:   CompilerPositionInfo;
   parent:          0 dynamic;
   nodeCase:        NodeCaseCode;
   stack:           RefToVar Array; # we must compile node without touching parent
@@ -207,6 +208,7 @@ Block: [{
   matchingInfo:         MatchingInfo;
   outputs:              Argument Array;
   dependentPointers:    (RefToVar RefToVar FALSE dynamic) Array;
+  captureErrors:        Int32 CompilerPositionInfo HashTable;
 
   fromModuleNames:   NameWithOverloadAndRefToVar Array;
   labelNames:        NameWithOverloadAndRefToVar Array;
