@@ -140,6 +140,7 @@
 "irWriter.getIrName" use
 "irWriter.getIrType" use
 "irWriter.getMplSchema" use
+"irWriter.getNameById" use
 "processor.IRArgument" use
 "processor.Processor" use
 "processor.ProcessorErrorInfo" use
@@ -1265,6 +1266,8 @@ makeCallInstructionWith: [
               currentPointee @processor getMplSchema.irTypeId @arg.@irTypeId set
               pointeeName: refToVar @processor @block createDerefToRegister;
               pointeeName arg.irTypeId @processor @block createDerefFromRegisterToRegister @arg.@irNameId set
+
+              ("create deref ffrom " refToVar @processor getIrName " and from " pointeeName @processor getNameById) assembleString print LF print
             ] when
           ] if
 

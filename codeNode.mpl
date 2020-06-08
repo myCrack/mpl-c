@@ -1,4 +1,3 @@
-
 "Array.Array" use
 "HashTable.hash" use
 "Owner.owner" use
@@ -511,7 +510,7 @@ getPointeeWith: [
         result.var     @pointee.setVar
         result.mutable @pointee.setMutable
       ] [
-        pointeeCopy: pointee @processor @block copyVarFromType; #this type of copy dont create shadows
+        pointeeCopy: pointee @processor @block copyOneVar; #this type of copy dont create shadows
         @pointeeCopy @processor block unglobalize
         dynamize ~ [pointeeCopy @processor @block makeVarTreeDynamicStoraged] when
         pointeeCopy.var     @pointee.setVar
@@ -565,6 +564,7 @@ getPointeeWith: [
     ] if
 
     needReallyDeref makeDerefIR and [
+      ("create deref ffrom " refToVar @processor getIrName) assembleString print LF print
       refToVar pointeeVar.irNameId @processor @block createDerefTo
       block.program.size 1 - @pointeeVar.@getInstructionIndex set
     ] when
@@ -992,8 +992,15 @@ makePointeeDirtyIfRef: [
   var: refToVar getVar;
   var.data.getTag VarRef = [var.staticity.end Static =] && [
     pointee: @refToVar @processor @block getPointeeWhileDynamize;
-    @pointee makeVarPtrCaptured
     pointee.mutable [pointee @processor @block makeVarTreeDirty] when
+
+    pointeeData: VarRef @refToVar getVar.@data.get.@refToVar;
+    wasMutable: pointeeData.mutable;
+    wasMoved: pointeeData.moved;
+
+    pointeeData @processor @block getDynamicStoragedInstance @pointeeData set
+    wasMutable @pointeeData.setMutable
+    wasMoved @pointeeData.setMoved
   ] when
 ];
 
@@ -1053,7 +1060,7 @@ makeVarTreeDynamicWith: [
       ] if
 
       dynamicStoraged [
-        lastRefToVar  Dynamic @processor block makeStorageStaticity drop
+        @lastRefToVar Dynamic @processor block makeStorageStaticity drop
         @lastRefToVar Dirty   @processor block makeEndStaticity drop
       ] [
         var.staticity.end Dynamic > [
@@ -2039,6 +2046,21 @@ setRef: [
   ] if
 ] "makeShadowsWith" exportFunction
 
+getDynamicStoragedInstance: [
+  refToVar: processor: block: ;;;
+
+  schemaOfVar: refToVar @processor getMplSchema;
+  schemaOfVar.instanceForDynamicAddress.assigned ~ [
+    rootBlock: 0 @processor.@blocks.at.get;
+    result: refToVar @processor @rootBlock copyVarFromType;
+    @result Dirty   @processor @block makeStaticity        drop
+    @result Dynamic @processor @block makeStorageStaticity drop
+    result @schemaOfVar.@instanceForDynamicAddress set
+  ] when
+
+  schemaOfVar.instanceForDynamicAddress copy
+];
+
 {
   block: Block Ref;
   processor: Processor Ref;
@@ -2957,7 +2979,7 @@ addNamesFromModule: [
 ];
 
 finalizeListNode: [
-  struct: Struct;
+  structInfo: Struct;
   processor compilable [
     i: 0 dynamic;
     [
@@ -2975,15 +2997,15 @@ finalizeListNode: [
           @curRef makeVarRealCaptured
         ] if
 
-        newField @struct.@fields.pushBack
+        newField @structInfo.@fields.pushBack
         i 1 + @i set processor compilable
       ] &&
     ] loop
   ] when
 
   processor compilable [
-    refToStruct: @struct move owner VarStruct @processor @block createVariable;
-    struct: VarStruct @refToStruct getVar.@data.get.get;
+    refToStruct: @structInfo move owner VarStruct @processor @block createVariable;
+    structInfo: VarStruct @refToStruct getVar.@data.get.get;
 
     refToStruct isVirtual ~ [
       @refToStruct @processor @block createAllocIR @refToStruct set
@@ -2992,7 +3014,7 @@ finalizeListNode: [
     i: 0 dynamic;
     [
       i block.stack.size < [
-        curFieldRef: i @struct.@fields.at.@refToVar;
+        curFieldRef: i @structInfo.@fields.at.@refToVar;
 
         curFieldRef isVirtual [
           @curFieldRef markAsUnableToDie

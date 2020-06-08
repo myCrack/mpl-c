@@ -76,6 +76,7 @@
 "codeNode.createVariable" use
 "codeNode.createVariableWithVirtual" use
 "codeNode.derefAndPush" use
+"codeNode.getDynamicStoragedInstance" use
 "codeNode.getNameWithOverloadIndex" use
 "codeNode.getName" use
 "codeNode.makeStaticity" use
@@ -230,7 +231,7 @@ mplBuiltinProcessAtList: [
                 @refToStruct makeVarRealCaptured
 
                 firstField: 0 realStruct.fields.at.refToVar;
-                fieldRef: firstField @processor @block copyVarFromType;
+                fieldRef: firstField @processor @block getDynamicStoragedInstance;
                 firstField getVar.host block is ~ [
                   shadow: RefToVar;
                   @shadow fieldRef ShadowReasonField @processor @block makeShadowsDynamic
@@ -828,7 +829,7 @@ staticityOfBinResult: [
       schemaOfResult: RefToVar;
       varSchema.data.getTag VarRef = [
         refToSchema isSchema [
-          VarRef varSchema.data.get.refToVar @processor @block copyVarFromChild @schemaOfResult set
+          VarRef varSchema.data.get.refToVar @schemaOfResult set
           refToSchema.mutable schemaOfResult.mutable and @schemaOfResult.setMutable
         ] [
           [FALSE] "Unable in current semantic!" assert
@@ -840,11 +841,14 @@ staticityOfBinResult: [
       schemaOfResult isVirtual [
         "pointee is virtual, cannot cast" @processor block compilerError
       ] [
-        refBranch: schemaOfResult makeRefBranch;
+        pointee: schemaOfResult @processor @block getDynamicStoragedInstance;
+        schemaOfResult.mutable @pointee.setMutable
+
+        refBranch: pointee makeRefBranch;
         FALSE @refBranch.@refToVar.setMoved
 
         refToDst: refBranch VarRef @processor @block createVariable;
-        Dirty makeValuePair @refToDst getVar.@staticity set
+        Dynamic makeValuePair @refToDst getVar.@staticity set
         refToVar @refToDst "inttoptr" @processor @block createCastCopyToNew
         @refToDst @processor @block derefAndPush
       ] if

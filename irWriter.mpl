@@ -85,15 +85,15 @@ getStaticStructIR: [
           curVar: current getVar;
           curVar.data.getTag VarStruct = [
             (current @processor getIrType " ") @result.catMany
-            struct: VarStruct curVar.data.get.get;
-            struct.homogeneous ["[" makeStringView] ["{" makeStringView] if @result.cat
+            structInfo: VarStruct curVar.data.get.get;
+            structInfo.homogeneous ["[" makeStringView] ["{" makeStringView] if @result.cat
             first: TRUE dynamic;
-            struct.fields.getSize [
-              current: struct.fields.getSize 1 - i - struct.fields.at.refToVar;
+            structInfo.fields.getSize [
+              current: structInfo.fields.getSize 1 - i - structInfo.fields.at.refToVar;
               current isVirtual ~ [
                 current @unfinishedVars.pushBack
                 first [
-                  struct.homogeneous ["]" makeStringView] ["}" makeStringView] if @unfinishedTerminators.pushBack
+                  structInfo.homogeneous ["]" makeStringView] ["}" makeStringView] if @unfinishedTerminators.pushBack
                   FALSE dynamic @first set
                 ] [
                   ", " makeStringView @unfinishedTerminators.pushBack
@@ -257,8 +257,9 @@ createTypeDeclaration: [
 
 createStaticGEP: [
   resultRefToVar: index: structRefToVar: processor: block:;;;;;
-  struct: structRefToVar getVar;
-  realIndex: index VarStruct struct.data.get.get.realFieldIndexes.at;
+  structVar: structRefToVar getVar;
+  structInfo: VarStruct structVar.data.get.get;
+  realIndex: index structInfo.realFieldIndexes.at;
   ("  " resultRefToVar @processor getIrName " = getelementptr " structRefToVar @processor getIrType ", " structRefToVar @processor getIrType "* " structRefToVar @processor getIrName ", i32 0, i32 " realIndex) @block appendInstruction
 
   structRefToVar getVar.irNameId @block.@program.last.@irName1 set
@@ -267,10 +268,10 @@ createStaticGEP: [
 
 createDynamicGEP: [
   resultRefToVar: indexRefToVar: structRefToVar: processor: block:;;;;;
-  struct: structRefToVar getVar;
+  structInfo: structRefToVar getVar;
   indexRegister: indexRefToVar @processor @block createDerefToRegister;
   processor.options.arrayChecks [
-    structSize: VarStruct struct.data.get.get.fields.getSize; #in homogenius struct it is = realFieldIndex
+    structSize: VarStruct structInfo.data.get.get.fields.getSize; #in homogenius struct it is = realFieldIndex
     checkRegister: @processor @block generateRegisterIRName;
 
     ("  " checkRegister @processor getNameById " = icmp ult i32 " indexRegister @processor getNameById ", " structSize) @block appendInstruction
@@ -286,11 +287,11 @@ createDynamicGEP: [
 ];
 
 createGEPInsteadOfAlloc: [
-  dstRef: index: struct: processor: block: ;;;;;
+  dstRef: index: structInfo: processor: block: ;;;;;
   dstVar: @dstRef getVar;
 
   # create GEP instruction
-  dstRef index struct @processor @block createStaticGEP
+  dstRef index structInfo @processor @block createStaticGEP
   # change allocation instruction
   [dstVar.allocationInstructionIndex block.program.size <] "Var is not allocated!" assert
   instruction: dstVar.allocationInstructionIndex @block.@program.at;
@@ -795,10 +796,10 @@ createGetCallTrace: [
 generateVariableIRNameWith: [
   hostOfVariable: temporaryRegister: processor: block: ;;;;
   temporaryRegister ~ [block.parent 0 =] && [
-    ("@global.id" processor.globalVarCount) assembleString @processor makeStringId
+    ("@global." processor.globalVarCount) assembleString @processor makeStringId
     processor.globalVarCount 1 + @processor.@globalVarCount set
   ] [
-    ("%var.id" hostOfVariable.lastVarName) assembleString @processor makeStringId
+    ("%var." hostOfVariable.lastVarName) assembleString @processor makeStringId
     hostOfVariable.lastVarName 1 + @hostOfVariable.@lastVarName set
   ] if
 ];
@@ -812,6 +813,7 @@ generateRegisterIRName: [processor: block: ;; @block TRUE @processor block gener
   refToSrc: RefToVar Ref;
 } () {} [
   srcRef: dstRef: processor: block: ;;;;
+
   srcRef isAutoStruct [
     @srcRef makeVarRealCaptured
     @dstRef makeVarRealCaptured

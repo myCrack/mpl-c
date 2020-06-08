@@ -105,13 +105,13 @@ debugMemory [
 
   @processor addBlock
   TRUE dynamic @processor.@blocks.last.get.@root set
+  -1 dynamic @processor.@blocks.last.get.@parent set
 
   @processor initBuiltins
 
   [
     block: @processor.@blocks.last.get;
     0n8 VarInvalid @processor @block createVariable
-    Dynamic @processor block makeStorageStaticity
     Dirty   @processor block makeStaticity
     @processor.@varForFails set
   ] call
