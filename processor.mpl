@@ -133,6 +133,10 @@ Processor: [{
     closureNames: NameInfoCoord Array Array Array; #overload; mplTypeId; vector of blocks
   };
 
+  rootNodeIndex:                     0 dynamic;
+  dynamicStoragedVariablesNodeIndex: 1 dynamic;
+  definitionsNodeIndex:              2 dynamic;
+
   emptyNameInfo:               -1 dynamic;
   callNameInfo:                -1 dynamic;
   preNameInfo:                 -1 dynamic;

@@ -758,64 +758,87 @@ fixOutputRefsRec: [
   stackEntry: appliedVars: ;;
 
   unfinishedStack: @processor.acquireVarRefArray;
+  unfinishedPointees: @processor.acquireVarRefArray;
   stackEntry @unfinishedStack.pushBack
 
-  i: 0 dynamic;
-  [
-    i unfinishedStack.size < [
-      currentFromStack: i @unfinishedStack.at copy;
-      stackEntryVar: @currentFromStack getVar;
-      sourceVar: stackEntryVar.sourceOfValue getVar;
+  handleCurrent: [
+    currentFromStack: fromPointees: ;;
 
-      currentFromStack noMatterToCopy [
-        #do nothing
+    stackEntryVar: @currentFromStack getVar;
+    sourceVar: stackEntryVar.sourceOfValue getVar;
+
+    currentFromStack noMatterToCopy [
+      #do nothing
+    ] [
+      sourceVar.host block is [
+        [currentFromStack hasGoodSource] "Stack var source invariant failed!" assert
       ] [
-        sourceVar.host block is [
-          [currentFromStack hasGoodSource] "Stack var source invariant failed!" assert
+        sourceIndex: sourceVar.topologyIndex copy;
+        sourceIndex 0 < ~ [
+          sourceIndex appliedVars.stackVars.at @stackEntryVar.@sourceOfValue set
         ] [
-          sourceIndex: sourceVar.topologyIndex copy;
-          sourceIndex 0 < ~ [
-            sourceIndex appliedVars.stackVars.at @stackEntryVar.@sourceOfValue set
+          sourceVar.host currentChangesNode is [
+            currentFromStack @stackEntryVar.@sourceOfValue set
           ] [
-            sourceVar.host currentChangesNode is [
-              currentFromStack @stackEntryVar.@sourceOfValue set
-            ] [
-              [FALSE] "Source of value is unknown!" assert
-            ] if
-          ] if
-
-          [currentFromStack hasGoodSource] "Stack var source invariant failed!" assert
-
-          stackEntryVar.data.getTag VarRef = [
-            currentFromStack isSchema ~ [
-              stackPointee: VarRef @stackEntryVar.@data.get.@refToVar;
-              stackPointee getVar.host currentChangesNode is [
-                fixed: currentFromStack appliedVars fixRef @processor @block getPointeeNoDerefIR;
-                fixed @unfinishedStack.pushBack
-              ] when
-            ] when
-          ] [
-            stackEntryVar.data.getTag VarStruct = [
-              stackStruct: VarStruct stackEntryVar.data.get.get;
-              j: 0 dynamic;
-              [
-                j stackStruct.fields.size < [
-                  stackField: j currentFromStack @processor @block getField;
-                  stackField @unfinishedStack.pushBack
-                  j 1 + @j set TRUE
-                ] &&
-              ] loop
-            ] when
+            ("source of var has id=" sourceVar.host.id " for " stackEntryVar.sourceOfValue @processor @block getMplType " and " currentFromStack @processor @block getMplType) assembleString print LF print
+            [FALSE] "Source of value is unknown!" assert
           ] if
         ] if
+
+        [currentFromStack hasGoodSource] "Stack var source invariant failed!" assert
+
+        stackEntryVar.data.getTag VarRef = [
+          currentFromStack isSchema ~ [
+            stackPointee: VarRef @stackEntryVar.@data.get.@refToVar;
+            stackPointee getVar.host currentChangesNode is [
+              fixed: currentFromStack appliedVars fixRef @processor @block getPointeeNoDerefIR;
+              fixed @unfinishedPointees.pushBack
+            ] when
+          ] when
+        ] [
+          stackEntryVar.data.getTag VarStruct = [
+            stackStruct: VarStruct stackEntryVar.data.get.get;
+            j: 0 dynamic;
+            [
+              j stackStruct.fields.size < [
+                fromPointees ~ [j stackStruct.fields.at.refToVar getVar.host currentChangesNode is] || [
+                  stackField: j currentFromStack @processor @block getField;
+                  stackField @unfinishedStack.pushBack
+                ] when
+                j 1 + @j set TRUE
+              ] &&
+            ] loop
+          ] when
+        ] if
       ] if
+    ] if
 
-      i 1 + @i set processor compilable
+  ];
 
-    ] &&
+  [
+    hasSomething: FALSE;
+
+    unfinishedStack.size 0 > [
+      current: unfinishedStack.last;
+      @unfinishedStack.popBack
+
+      current FALSE handleCurrent
+      TRUE !hasSomething
+    ] when
+
+    unfinishedPointees.size 0 > [
+      current: unfinishedPointees.last;
+      @unfinishedPointees.popBack
+
+      current TRUE handleCurrent
+      TRUE !hasSomething
+    ] when
+
+    hasSomething
   ] loop
 
   @unfinishedStack @processor.releaseVarRefArray
+  @unfinishedPointees @processor.releaseVarRefArray
 ];
 
 fixCaptureRefOld: [
@@ -1266,8 +1289,6 @@ makeCallInstructionWith: [
               currentPointee @processor getMplSchema.irTypeId @arg.@irTypeId set
               pointeeName: refToVar @processor @block createDerefToRegister;
               pointeeName arg.irTypeId @processor @block createDerefFromRegisterToRegister @arg.@irNameId set
-
-              ("create deref ffrom " refToVar @processor getIrName " and from " pointeeName @processor getNameById) assembleString print LF print
             ] when
           ] if
 

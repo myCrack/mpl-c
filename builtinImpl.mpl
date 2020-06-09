@@ -232,11 +232,10 @@ mplBuiltinProcessAtList: [
 
                 firstField: 0 realStruct.fields.at.refToVar;
                 fieldRef: firstField @processor @block getDynamicStoragedInstance;
-                firstField getVar.host block is ~ [
-                  shadow: RefToVar;
-                  @shadow fieldRef ShadowReasonField @processor @block makeShadowsDynamic
-                  shadow @fieldRef set
-                ] when
+
+                shadow: RefToVar;
+                @shadow fieldRef ShadowReasonField @processor @block makeShadowsDynamic
+                shadow @fieldRef set
 
                 refToStruct.mutable @fieldRef.setMutable
                 @fieldRef fullUntemporize

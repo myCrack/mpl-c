@@ -103,9 +103,10 @@ debugMemory [
   "failProc"   makeStringView @processor findNameInfo @processor.@failProcNameInfo set
   "convention" makeStringView @processor findNameInfo @processor.@conventionNameInfo set
 
+  #rootNode
   @processor addBlock
   TRUE dynamic @processor.@blocks.last.get.@root set
-  -1 dynamic @processor.@blocks.last.get.@parent set
+  0 dynamic @processor.@blocks.last.get.@parent set
 
   @processor initBuiltins
 
@@ -115,6 +116,13 @@ debugMemory [
     Dirty   @processor block makeStaticity
     @processor.@varForFails set
   ] call
+
+  #dynamicStoragedVariablesNode
+  @processor addBlock
+  FALSE dynamic @processor.@blocks.last.get.@root set
+  -1 dynamic @processor.@blocks.last.get.@parent set
+
+  countOfFakeNodes: processor.blocks.getSize;
 
   s1: String;
   s2: String;
@@ -137,7 +145,14 @@ debugMemory [
   processor.options.fileNames.size [
     File owner i @processor.@files.at set
     i processor.options.fileNames.at i @processor.@files.at.get.@name set
-    i processor.options.fileNames.at stripExtension extractFilename toString i @processor.@fileNameIds.insert
+    newKey: i processor.options.fileNames.at stripExtension extractFilename toString;
+    fr: newKey processor.fileNameIds.find;
+    fr.success [
+      ("duplicate filename: " newKey) assembleString @processor.@result.@errorInfo.@message.cat
+      FALSE @processor.@result.@success set
+    ] [
+      @newKey move i @processor.@fileNameIds.insert
+    ] if
   ] times
 
   processor.options.debug [
@@ -419,7 +434,7 @@ debugMemory [
       ] &&
     ] loop
 
-    i: 1 dynamic; # 0th node is root fake node
+    i: processor.definitionsNodeIndex copy; # 0th node is root fake node
     [
       i processor.blocks.size < [
         block: i @processor.@blocks.at.get;

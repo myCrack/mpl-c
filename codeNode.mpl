@@ -564,7 +564,6 @@ getPointeeWith: [
     ] if
 
     needReallyDeref makeDerefIR and [
-      ("create deref ffrom " refToVar @processor getIrName) assembleString print LF print
       refToVar pointeeVar.irNameId @processor @block createDerefTo
       block.program.size 1 - @pointeeVar.@getInstructionIndex set
     ] when
@@ -2051,7 +2050,7 @@ getDynamicStoragedInstance: [
 
   schemaOfVar: refToVar @processor getMplSchema;
   schemaOfVar.instanceForDynamicAddress.assigned ~ [
-    rootBlock: 0 @processor.@blocks.at.get;
+    rootBlock: processor.dynamicStoragedVariablesNodeIndex @processor.@blocks.at.get;
     result: refToVar @processor @rootBlock copyVarFromType;
     @result Dirty   @processor @block makeStaticity        drop
     @result Dynamic @processor @block makeStorageStaticity drop
@@ -4422,7 +4421,7 @@ addIndexArrayToProcess: [
   indexArray storageAddress @block addMatchingNode
 
   block.parent 0 = [block.id 1 >] && [
-    1 dynamic addNamesFromModule
+    processor.definitionsNodeIndex addNamesFromModule
   ] when
 
   recursionTries: 0 dynamic;
