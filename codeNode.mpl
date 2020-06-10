@@ -612,6 +612,7 @@ getFieldWith: [
       structIsDynamicStoraged [
         mplFieldIndex structInfo.fields.at.usedHere ~ [
           fieldRefToVar @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity @fieldShadow set
+          TRUE mplFieldIndex @structInfo.@fields.at.!usedHere
           TRUE
         ] &&
       ] [
