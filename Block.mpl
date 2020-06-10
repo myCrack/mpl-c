@@ -212,8 +212,6 @@ Block: [{
 
   fromModuleNames:   NameWithOverloadAndRefToVar Array;
   labelNames:        NameWithOverloadAndRefToVar Array;
-  captureNames:      NameWithOverloadAndRefToVar Array;
-  fieldCaptureNames: NameWithOverloadAndRefToVar Array;
 
   candidatesToDie:     RefToVar Array;
   unprocessedAstNodes: TokenRef Array;

@@ -95,6 +95,7 @@
 "codeNode.makeCompilerPosition" use
 "codeNode.makePointeeDirtyIfRef" use
 "codeNode.makeStaticity" use
+"codeNode.makeStorageStaticity" use
 "codeNode.makeVarDirty" use
 "codeNode.makeVarDynamic" use
 "codeNode.makeVarTreeDirty" use
@@ -105,6 +106,7 @@
 "debugWriter.addDebugReserve" use
 "declarations.compilerError" use
 "declarations.copyOneVar" use
+"declarations.copyOneVarFromType" use
 "declarations.copyVar" use
 "declarations.copyVarFromChild" use
 "declarations.copyVarToNew" use
@@ -723,25 +725,23 @@ fixRef: [
       index 0 < ~ [
         index appliedVars.stackVars.at @fixed set
       ] [
-        pointee @processor @block copyVarFromChild @fixed set
-        TRUE dynamic @makeDynamic set
+        #pointee @processor @block copyVarFromChild @fixed set
+        #TRUE dynamic @makeDynamic set
       ] if
     ] [
       # dont have shadow - to deref of captured dynamic pointer
       # must by dynamic
       var.staticity.end Static = [pointeeVar.storageStaticity Static =] && ["returning pointer to local variable" @processor block compilerError] when
-      pointee @processor @block copyVarFromChild @fixed set
+      pointee @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity @fixed set
       TRUE dynamic @makeDynamic set
     ] if
   ] if
 
   @fixed.var @pointee.setVar
 
-  wasVirtual [@refToVar Virtual @processor block makeStaticity @refToVar set] [
-    makeDynamic [
-      @refToVar Dynamic @processor block makeStaticity @refToVar set
-    ] when
-  ] if
+  wasVirtual [
+    @refToVar Virtual @processor block makeStaticity @refToVar set
+  ] when
 
   @refToVar
 ];
@@ -799,8 +799,11 @@ fixOutputRefsRec: [
               j: 0 dynamic;
               [
                 j stackStruct.fields.size < [
-                  stackField: j currentFromStack @processor @block getField;
-                  stackField @unfinishedStack.pushBack
+                  stackEntryVar.storageStaticity Static = [j stackStruct.fields.at.usedHere copy] || [
+                    stackField: j currentFromStack @processor @block getField;
+                    stackField @unfinishedStack.pushBack
+                  ] when
+
                   j 1 + @j set TRUE
                 ] &&
               ] loop
@@ -991,9 +994,9 @@ applyNodeChanges: [
           branch:;
 
           cacheEntry: branch.pointee;
-          stackPointer: branch.pointer getVar.topologyIndex appliedVars.stackVars.at;
+          stackPointer: branch.pointer getVar.topologyIndex @appliedVars.@stackVars.at;
 
-          stackEntry: stackPointer @processor @block getPointeeNoDerefIR;
+          stackEntry: @stackPointer @processor @block getPointeeNoDerefIR;
           stackEntry cacheEntry @appliedVars addAppliedVar
         ]
         ShadowReasonField [
@@ -1373,7 +1376,7 @@ useMatchingInfoOnly: [
       ShadowReasonPointee [
         branch:;
         cacheEntry: branch.pointee;
-        stackEntry: branch.pointer getVar.topologyIndex eventVars.at @processor @block getPointeeNoDerefIR;
+        stackEntry: branch.pointer getVar.topologyIndex @eventVars.at @processor @block getPointeeNoDerefIR;
         stackEntry cacheEntry addEventVar
       ]
       ShadowReasonField [
@@ -2357,7 +2360,7 @@ callImportWith: [
               ] when
 
               stackEntry nodeEntry variablesAreSame ~ [
-                lambdaCastResult: input @nodeEntry @processor @block tryImplicitLambdaCast;
+                lambdaCastResult: @input @nodeEntry @processor @block tryImplicitLambdaCast;
                 lambdaCastResult.success [
                   lambdaCastResult.refToVar @input set
                 ] [

@@ -125,7 +125,7 @@ defaultSet: [
       refToDst.mutable ~ [
         "destination is immutable" @processor block compilerError
       ] [
-        lambdaCastResult: refToSrc @refToDst @processor @block tryImplicitLambdaCast;
+        lambdaCastResult: @refToSrc @refToDst @processor @block tryImplicitLambdaCast;
         lambdaCastResult.success [
           newSrc: @lambdaCastResult.@refToVar TRUE @processor @block createRef;
           @newSrc @refToDst @processor @block createCopyToExists

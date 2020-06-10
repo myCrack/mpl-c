@@ -365,6 +365,7 @@ debugMemory [
     meventCount: 0;
     captureCount: 0;
     failedCaptureCount: 0;
+    dependentsSize: 0;
 
     eventTagCount: Int32 6 array;
 
@@ -373,6 +374,7 @@ debugMemory [
       block.buildingMatchingInfo.shadowEvents.size beventCount + !beventCount
       block.matchingInfo.shadowEvents.size meventCount + !meventCount
       block.matchingInfo.captures.size captureCount + !captureCount
+      block.dependentPointers.size dependentsSize + !dependentsSize
 
       block.matchingInfo.shadowEvents [
         event:;
@@ -402,6 +404,7 @@ debugMemory [
       "; eventSize=" ShadowEvent storageSize
       "; captureCount=" captureCount "; failedCaptureCount=" failedCaptureCount
       "; captureSize=" Capture storageSize
+      "; dependentPointersCount=" dependentsSize "; dependentPointer size=" (RefToVar RefToVar FALSE dynamic) storageSize
     ) addLog
 
     processor.usedFloatBuiltins [@processor createFloatBuiltins] when

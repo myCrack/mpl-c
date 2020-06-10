@@ -136,6 +136,7 @@
 "declarations.compareOnePair" use
 "declarations.compilerError" use
 "declarations.copyOneVar" use
+"declarations.copyOneVarFromType" use
 "declarations.copyOneVarWith" use
 "declarations.copyVar" use
 "declarations.copyVarFromChild" use
@@ -256,11 +257,9 @@ addNameInfo: [
             nameWithOverload @block.@fromModuleNames.pushBack
           ] [
             addNameCase NameCaseCapture = [addNameCase NameCaseSelfObjectCapture =] || [addNameCase NameCaseClosureObjectCapture =] || [
-              nameWithOverload @block.@captureNames.pushBack
               FALSE @addInfo set
             ] [
               addNameCase NameCaseSelfMember = [addNameCase NameCaseClosureMember =] || [
-                nameWithOverload @block.@fieldCaptureNames.pushBack
                 FALSE @addInfo set
               ] [
                 addNameCase NameCaseSelfObject = [addNameCase NameCaseClosureObject =] || [
@@ -500,24 +499,17 @@ getPointeeWith: [
     needReallyDeref: FALSE dynamic;
 
     refToVar staticityOfVar Dynamic > ~ [
-
       # create new var of dynamic dereference
-      fromParent [
-        pointeeCopy: pointee @processor @block copyOneVar;
-        result: RefToVar;
-        @result pointeeCopy ShadowReasonPointee @processor @block makeShadowsDynamic
-        @result @processor block unglobalize
-        dynamize ~ [result @processor @block makeVarTreeDynamicStoraged] when
-        result.var     @pointee.setVar
-        result.mutable @pointee.setMutable
-      ] [
-        pointeeCopy: pointee @processor @block copyVarFromType; #this type of copy dont create shadows
-        @pointeeCopy @processor block unglobalize
-        dynamize ~ [pointeeCopy @processor @block makeVarTreeDynamicStoraged] when
-        pointeeCopy.var     @pointee.setVar
-        pointeeCopy.mutable @pointee.setMutable
-      ] if
-
+      result: pointee @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity;
+      @result @processor block unglobalize
+      dynamize ~ [
+        result @processor @block makeVarTreeDynamicStoraged
+        refToVar staticityOfVar Dynamic = [
+          @refToVar Static @processor @block makeEndStaticity drop
+        ] when
+      ] when
+      result.var     @pointee.setVar
+      result.mutable @pointee.setMutable
       (refToVar copy pointee copy TRUE) @block.@dependentPointers.pushBack
 
       TRUE @needReallyDeref set
@@ -537,16 +529,16 @@ getPointeeWith: [
       ] when
 
       sourceValueVar: var.sourceOfValue getVar;
-      var.sourceOfValue getVar.buildingTopologyIndex 0 < ~ [ #source can be local var in child scope, we must handle this case
+      sourceValueVar.buildingTopologyIndex 0 < ~ [ #source can be local var in child scope, we must handle this case
         shadowUsed: VarRef @sourceValueVar.@data.get.@usedHere;
 
-        refToVar noMatterToCopy ~ [sourceValueVar.capturedHead getVar.host block is ~] && [pointee noMatterToCopy ~] && [shadowUsed ~] && [
+        refToVar noMatterToCopy ~ [sourceValueVar.capturedHead getVar.host block is ~] && [pointee noMatterToCopy ~] && [shadowUsed ~] && [sourceValueVar.staticity.begin Static =] && [
           TRUE @shadowUsed set
 
           newEvent: ShadowEvent;
           ShadowReasonPointee @newEvent.setTag
           branch: ShadowReasonPointee @newEvent.get;
-          [var.sourceOfValue getVar.host var.host is] "Source of value is from another node!" assert
+          [sourceValueVar.host var.host is] "Source of value is from another node!" assert
           var.sourceOfValue @branch.@pointer set
           pointee           @branch.@pointee set
           @block @branch.@pointee setTopologyIndex
@@ -613,11 +605,23 @@ getFieldWith: [
       refToVar varIsMoved @fieldRefToVar.setMoved
     ] when
 
-    fieldRefToVar noMatterToCopy [fieldVar.host block is] || ~ [ # capture or argument
-      fieldShadow: RefToVar;
-      @fieldShadow fieldRefToVar ShadowReasonField @processor @block makeShadows
-      @fieldShadow @processor block unglobalize
+    structIsDynamicStoraged: var.storageStaticity Dynamic =;
+    fieldShadow: RefToVar;
 
+    fieldRefToVar noMatterToCopy ~ [
+      structIsDynamicStoraged [
+        mplFieldIndex structInfo.fields.at.usedHere ~ [
+          fieldRefToVar @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity @fieldShadow set
+          TRUE
+        ] &&
+      ] [
+        fieldVar.host block is ~ [
+          @fieldShadow fieldRefToVar ShadowReasonField @processor @block makeShadows
+          @fieldShadow @processor block unglobalize
+          TRUE
+        ] &&
+      ] if
+    ] && [ # capture or argument
       fieldShadow getVar.data.getTag VarStruct = [
         fieldStruct: VarStruct @fieldShadow getVar.@data.get.get;
         refToVar varIsMoved @fieldShadow.setMoved
@@ -633,7 +637,7 @@ getFieldWith: [
     refToVar.mutable @fieldRefToVar.setMutable
 
     refToVar noMatterToCopy ~ [fieldRefToVar noMatterToCopy ~] && [
-      var.capturedHead getVar.host block is ~ [var.buildingTopologyIndex 0 < ~] && [mplFieldIndex structInfo.fields.at.usedHere ~] &&  [
+      var.capturedHead getVar.host block is ~ [var.buildingTopologyIndex 0 < ~] && [mplFieldIndex structInfo.fields.at.usedHere ~] && [structIsDynamicStoraged ~] && [
         TRUE mplFieldIndex @structInfo.@fields.at.!usedHere
 
         newEvent: ShadowEvent;
@@ -2593,8 +2597,8 @@ addBlock: [
 {
   block: Block Ref;
   processor: Processor Ref;
-  refToDst: RefToVar Cref;
-  refToSrc: RefToVar Cref;
+  refToDst: RefToVar Ref;
+  refToSrc: RefToVar Ref;
   result: TryImplicitLambdaCastResult Ref;
 } () {} [
   refToSrc: refToDst: processor: block: ;;;;
@@ -3116,9 +3120,6 @@ unregCodeNodeNames: [
     @block.@labelNames      unregisterNamesIn
     @block.@fromModuleNames unregisterNamesIn
   ] when
-
-  @block.@captureNames      @processor.@captureTable unregTable
-  @block.@fieldCaptureNames @processor.@captureTable unregTable
 
   @block.@capturedVars [
     curVar: getVar;
@@ -4410,8 +4411,6 @@ addIndexArrayToProcess: [
     0 @block.@countOfUCall set
     @block.@labelNames.clear
     @block.@fromModuleNames.clear
-    @block.@captureNames.clear
-    @block.@fieldCaptureNames.clear
     @block.@unprocessedAstNodes.clear
     @block.@dependentPointers.clear
     @block.@captureErrors.clear

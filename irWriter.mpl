@@ -795,10 +795,10 @@ createGetCallTrace: [
 generateVariableIRNameWith: [
   hostOfVariable: temporaryRegister: processor: block: ;;;;
   temporaryRegister ~ [block.parent 0 =] && [
-    ("@global.id" processor.globalVarCount) assembleString @processor makeStringId
+    ("@global." processor.globalVarCount) assembleString @processor makeStringId
     processor.globalVarCount 1 + @processor.@globalVarCount set
   ] [
-    ("%var.id" hostOfVariable.lastVarName) assembleString @processor makeStringId
+    ("%var." hostOfVariable.lastVarName) assembleString @processor makeStringId
     hostOfVariable.lastVarName 1 + @hostOfVariable.@lastVarName set
   ] if
 ];

@@ -79,6 +79,7 @@
 "codeNode.getNameWithOverloadIndex" use
 "codeNode.getName" use
 "codeNode.makeStaticity" use
+"codeNode.makeStorageStaticity" use
 "codeNode.makeVarDirty" use
 "codeNode.makeVarTreeDirty" use
 "codeNode.makeVarTreeDynamic" use
@@ -93,6 +94,8 @@
 "declarations.callDie" use
 "declarations.callInit" use
 "declarations.compilerError" use
+"declarations.copyOneVar" use
+"declarations.copyOneVarFromType" use
 "declarations.copyVar" use
 "declarations.copyVarFromChild" use
 "declarations.copyVarFromType" use
@@ -230,12 +233,7 @@ mplBuiltinProcessAtList: [
                 @refToStruct makeVarRealCaptured
 
                 firstField: 0 realStruct.fields.at.refToVar;
-                fieldRef: firstField @processor @block copyVarFromType;
-                firstField getVar.host block is ~ [
-                  shadow: RefToVar;
-                  @shadow fieldRef ShadowReasonField @processor @block makeShadowsDynamic
-                  shadow @fieldRef set
-                ] when
+                fieldRef: firstField @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity;
 
                 refToStruct.mutable @fieldRef.setMutable
                 @fieldRef fullUntemporize
@@ -844,7 +842,7 @@ staticityOfBinResult: [
         FALSE @refBranch.@refToVar.setMoved
 
         refToDst: refBranch VarRef @processor @block createVariable;
-        Dirty makeValuePair @refToDst getVar.@staticity set
+        Dynamic makeValuePair @refToDst getVar.@staticity set
         refToVar @refToDst "inttoptr" @processor @block createCastCopyToNew
         @refToDst @processor @block derefAndPush
       ] if
