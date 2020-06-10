@@ -257,9 +257,11 @@ addNameInfo: [
             nameWithOverload @block.@fromModuleNames.pushBack
           ] [
             addNameCase NameCaseCapture = [addNameCase NameCaseSelfObjectCapture =] || [addNameCase NameCaseClosureObjectCapture =] || [
+              nameWithOverload @block.@captureNames.pushBack
               FALSE @addInfo set
             ] [
               addNameCase NameCaseSelfMember = [addNameCase NameCaseClosureMember =] || [
+                nameWithOverload @block.@fieldCaptureNames.pushBack
                 FALSE @addInfo set
               ] [
                 addNameCase NameCaseSelfObject = [addNameCase NameCaseClosureObject =] || [
@@ -2652,6 +2654,7 @@ addBlock: [
 
 argAbleToCopy: [
   arg: processor: ;;
+  compileOnce
   arg @processor isTinyArg
 ];
 
@@ -3122,6 +3125,9 @@ unregCodeNodeNames: [
     @block.@fromModuleNames unregisterNamesIn
   ] when
 
+  @block.@captureNames      @processor.@captureTable unregTable
+  @block.@fieldCaptureNames @processor.@captureTable unregTable
+
   @block.@capturedVars [
     curVar: getVar;
     curVar.capturedPrev @curVar.@capturedHead getVar.@capturedTail set # head->prev of tail
@@ -3489,6 +3495,8 @@ makeCompilerPosition: [
   compilerPositionInfo:;
   functionName:;
 
+  "FinalizeCodeNode1" printCompilerMessage
+
   overload failProc: processor block FailProcForProcessor;
 
   block.nextLabelIsVirtual  ["unused virtual specifier"  @processor block compilerError] when
@@ -3740,6 +3748,8 @@ makeCompilerPosition: [
     ] if
   ];
 
+  "FinalizeCodeNode2" printCompilerMessage
+
   isDeclaration:
   block.nodeCase NodeCaseDeclaration =
   [block.nodeCase NodeCaseCodeRefDeclaration =] ||;
@@ -3818,6 +3828,8 @@ makeCompilerPosition: [
     ] when
   ];
 
+  "FinalizeCodeNode3" printCompilerMessage
+
   processor compilable [
     block.stack [
       current:;
@@ -3877,6 +3889,8 @@ makeCompilerPosition: [
     ] loop
   ] when
 
+  "FinalizeCodeNode4" printCompilerMessage
+
   block.parent 0 =
   [block.stack.size 0 >] && [
     "module can not have inputs or outputs" @processor block compilerError
@@ -3930,16 +3944,23 @@ makeCompilerPosition: [
   ] [
     ("  ret void") @block appendInstruction
   ] if
+  
+  "FinalizeCodeNode5" printCompilerMessage
 
   callDestructors
   processor.options.verboseIR ["called destructors" @block createComment] when
 
+  "FinalizeCodeNode6" printCompilerMessage
+
   i: 0 dynamic;
   [
+    "FinalizeCodeNode6.1" printCompilerMessage
     i block.buildingMatchingInfo.captures.size < [
       current: i @block.@buildingMatchingInfo.@captures.at;
       current.refToVar.assigned [
         currentVar: current.refToVar getVar;
+
+        "FinalizeCodeNode6.2" printCompilerMessage
 
         needToDerefCopy:
         currentVar.capturedForDeref
@@ -3954,6 +3975,8 @@ makeCompilerPosition: [
           ArgMeta @current.@argCase set
         ] when
 
+
+      "FinalizeCodeNode6.3" printCompilerMessage
         current.argCase ArgRef = [
           isRealFunction [
             fr: i block.captureErrors.find;
@@ -3967,12 +3990,16 @@ makeCompilerPosition: [
           needToCopy: current.refToVar @processor argRecommendedToCopy;
 
           needToDerefCopy [
+            compileOnce
+            "FinalizeCodeNode6.4" printCompilerMessage
             pointee: VarRef current.refToVar getVar.data.get.refToVar;
             regNameId: @processor @block generateRegisterIRName;
             ArgDerefCopy @current.@argCase set
             pointee regNameId addCopyArg
+            "FinalizeCodeNode6.5" printCompilerMessage
 
             pointee getVar.host block is [
+              "FinalizeCodeNode6.6" printCompilerMessage
               pointee isGlobal ~ [pointee getVar.allocationInstructionIndex 0 <] && [
                 regNameId @pointee @processor @block createAllocIR @processor @block createStoreFromRegister
                 TRUE @block.@program.last.@alloca set #fake for good sorting
@@ -3983,6 +4010,7 @@ makeCompilerPosition: [
                 TRUE @block.@program.last.@alloca set #fake for good sorting
               ] when
             ] [
+              "FinalizeCodeNode6.7" printCompilerMessage
               pointee isGlobal ~  [
                 pointeeNameId: @processor @block generateRegisterIRName;
                 pointeeNameId pointee @processor getMplSchema.irTypeId @processor @block createAllocIRByReg
@@ -4014,6 +4042,8 @@ makeCompilerPosition: [
     ] &&
   ] loop
 
+  "FinalizeCodeNode7" printCompilerMessage
+
   block.variadic [
     isDeclaration [
       block.buildingMatchingInfo.inputs.getSize 0 = [
@@ -4029,6 +4059,8 @@ makeCompilerPosition: [
   ] when
 
   @block @processor sortInstructions
+
+  "FinalizeCodeNode8" printCompilerMessage
 
   addNames: [
     s:;
@@ -4325,7 +4357,11 @@ makeCompilerPosition: [
     block.funcDbgIndex @block.@header.cat
   ] when
 
+  "FinalizeCodeNode9" printCompilerMessage
+
   checkRecursionOfCodeNode
+
+  "FinalizeCodeNode10" printCompilerMessage
 
   processor compilable ~ [TRUE @block.@empty set] when
 ] "finalizeCodeNode" exportFunction
@@ -4412,6 +4448,8 @@ addIndexArrayToProcess: [
     0 @block.@countOfUCall set
     @block.@labelNames.clear
     @block.@fromModuleNames.clear
+    @block.@captureNames.clear
+    @block.@fieldCaptureNames.clear
     @block.@unprocessedAstNodes.clear
     @block.@dependentPointers.clear
     @block.@captureErrors.clear
