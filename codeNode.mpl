@@ -415,6 +415,18 @@ createVariableWithVirtual: [
   @result
 ];
 
+createRefVariable: [
+  branch: processor: block: ;;;
+  result: branch VarRef @processor @block createVariable;
+
+  branch.refToVar getVar.storageStaticity Dynamic = [
+    @result Dynamic @processor @block makeStaticity drop
+    (result copy branch.refToVar copy TRUE) @block.@dependentPointers.pushBack
+  ] when
+
+  @result
+];
+
 {
   block: Block Ref;
   entry: RefToVar Cref;
@@ -502,14 +514,11 @@ getPointeeWith: [
 
     refToVar staticityOfVar Dynamic > ~ [
       # create new var of dynamic dereference
-      result: pointee @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity;
+      result: pointee @processor @block copyOneVarFromType
+        Dynamic @processor @block  makeStorageStaticity
+        Dirty @processor @block makeStaticity
+      ;
       @result @processor block unglobalize
-      dynamize ~ [
-        result @processor @block makeVarTreeDynamicStoraged
-        refToVar staticityOfVar Dynamic = [
-          @refToVar Static @processor @block makeEndStaticity drop
-        ] when
-      ] when
       result.var     @pointee.setVar
       result.mutable @pointee.setMutable
       (refToVar copy pointee copy TRUE) @block.@dependentPointers.pushBack
@@ -763,7 +772,7 @@ setOneVar: [
     @pointee fullUntemporize
 
     pointee.mutable [mutable copy] && @pointee.setMutable
-    newRefToVar: pointee makeRefBranch VarRef @processor @block createVariable;
+    newRefToVar: pointee makeRefBranch @processor @block createRefVariable;
     createOperation [pointee @newRefToVar @processor @block createRefOperation] when
     newRefToVar @result set
   ] if
@@ -1063,7 +1072,7 @@ makeVarTreeDynamicWith: [
         lastRefToVar  Dynamic @processor block makeStorageStaticity drop
         @lastRefToVar Dirty   @processor block makeEndStaticity drop
       ] [
-        var.staticity.end Dynamic > [
+        var.data.getTag VarStruct = ~ [var.staticity.end Dynamic >] && [
           @lastRefToVar Dynamic @processor block makeEndStaticity drop
         ] when
       ] if
@@ -1528,7 +1537,7 @@ captureName: [
         @newEvent @block addShadowEvent
 
         processor.options.debug [shadow isVirtual ~] && [shadow isGlobal ~] && [
-          fakePointer: shadow makeRefBranch VarRef @processor @block createVariable;
+          fakePointer: shadow makeRefBranch @processor @block createRefVariable;
           shadow @fakePointer @processor @block createRefOperation
           nameInfo fakePointer @processor @block addVariableMetadata
           programSize: block.program.getSize;
@@ -2654,7 +2663,6 @@ addBlock: [
 
 argAbleToCopy: [
   arg: processor: ;;
-  compileOnce
   arg @processor isTinyArg
 ];
 
@@ -2673,7 +2681,11 @@ argRecommendedToCopy: [
 
   processor compilable [
     uninited: RefToVar Array;
-    refToVar isVirtual ~ [refToVar @processor @block makeVarTreeDynamic] when
+    refToVar isVirtual ~ [
+      refToVar @processor @block makeVarTreeDynamic
+      @refToVar Static @processor @block makeStaticity drop
+    ] when
+
     TRUE dynamic @refToVar.setMutable
     refToVar @uninited.pushBack
     i: 0 dynamic;
@@ -2700,7 +2712,7 @@ argRecommendedToCopy: [
     [
       i 0 > [
         i 1 - @i set
-        current: i @uninited.at;
+        current: i @uninited.at copy dynamic;
         current getVar.data.getTag VarStruct = [
           fr: processor.dieNameInfo current @processor block findField;
           fr.success [
@@ -3495,8 +3507,6 @@ makeCompilerPosition: [
   compilerPositionInfo:;
   functionName:;
 
-  "FinalizeCodeNode1" printCompilerMessage
-
   overload failProc: processor block FailProcForProcessor;
 
   block.nextLabelIsVirtual  ["unused virtual specifier"  @processor block compilerError] when
@@ -3536,7 +3546,7 @@ makeCompilerPosition: [
     var.usedInHeader [var.allocationInstructionIndex 0 <] || [
       refToVar isVirtual ~
       [isDeclaration ~] && [
-        refForArg: refToVar makeRefBranch VarRef @processor @block createVariable;
+        refForArg: refToVar makeRefBranch @processor @block createRefVariable;
         refToVar @refForArg @processor @block createRefOperation
         refForArg TRUE
       ] [
@@ -3647,7 +3657,7 @@ makeCompilerPosition: [
   backPassEvents: [
     block.dependentPointers.getSize [
       current: block.dependentPointers.size 1 - i - @block.@dependentPointers.at;
-      dependent: 1 current @ getVar;
+      dependent: 1 @current @ getVar;
 
       2 current @ [
         dependent.capturedByPtr [
@@ -3656,6 +3666,15 @@ makeCompilerPosition: [
 
         dependent.capturedAsRealValue [
           0 @current @ makeVarDerefCaptured
+        ] when
+
+        currentVar: 0 @current @ getVar;
+        currentVar.capturedAsRealValue [
+          1 @current @ makeVarPtrCaptured
+        ] when
+
+        currentVar.capturedForDeref [
+          1 @current @ makeVarRealCaptured
         ] when
       ] [
         dependent.capturedByPtr [
@@ -3748,8 +3767,6 @@ makeCompilerPosition: [
     ] if
   ];
 
-  "FinalizeCodeNode2" printCompilerMessage
-
   isDeclaration:
   block.nodeCase NodeCaseDeclaration =
   [block.nodeCase NodeCaseCodeRefDeclaration =] ||;
@@ -3828,8 +3845,6 @@ makeCompilerPosition: [
     ] when
   ];
 
-  "FinalizeCodeNode3" printCompilerMessage
-
   processor compilable [
     block.stack [
       current:;
@@ -3889,8 +3904,6 @@ makeCompilerPosition: [
     ] loop
   ] when
 
-  "FinalizeCodeNode4" printCompilerMessage
-
   block.parent 0 =
   [block.stack.size 0 >] && [
     "module can not have inputs or outputs" @processor block compilerError
@@ -3944,23 +3957,16 @@ makeCompilerPosition: [
   ] [
     ("  ret void") @block appendInstruction
   ] if
-  
-  "FinalizeCodeNode5" printCompilerMessage
 
   callDestructors
   processor.options.verboseIR ["called destructors" @block createComment] when
 
-  "FinalizeCodeNode6" printCompilerMessage
-
   i: 0 dynamic;
   [
-    "FinalizeCodeNode6.1" printCompilerMessage
     i block.buildingMatchingInfo.captures.size < [
       current: i @block.@buildingMatchingInfo.@captures.at;
       current.refToVar.assigned [
         currentVar: current.refToVar getVar;
-
-        "FinalizeCodeNode6.2" printCompilerMessage
 
         needToDerefCopy:
         currentVar.capturedForDeref
@@ -3975,8 +3981,6 @@ makeCompilerPosition: [
           ArgMeta @current.@argCase set
         ] when
 
-
-      "FinalizeCodeNode6.3" printCompilerMessage
         current.argCase ArgRef = [
           isRealFunction [
             fr: i block.captureErrors.find;
@@ -3990,16 +3994,12 @@ makeCompilerPosition: [
           needToCopy: current.refToVar @processor argRecommendedToCopy;
 
           needToDerefCopy [
-            compileOnce
-            "FinalizeCodeNode6.4" printCompilerMessage
             pointee: VarRef current.refToVar getVar.data.get.refToVar;
             regNameId: @processor @block generateRegisterIRName;
             ArgDerefCopy @current.@argCase set
             pointee regNameId addCopyArg
-            "FinalizeCodeNode6.5" printCompilerMessage
 
             pointee getVar.host block is [
-              "FinalizeCodeNode6.6" printCompilerMessage
               pointee isGlobal ~ [pointee getVar.allocationInstructionIndex 0 <] && [
                 regNameId @pointee @processor @block createAllocIR @processor @block createStoreFromRegister
                 TRUE @block.@program.last.@alloca set #fake for good sorting
@@ -4010,7 +4010,6 @@ makeCompilerPosition: [
                 TRUE @block.@program.last.@alloca set #fake for good sorting
               ] when
             ] [
-              "FinalizeCodeNode6.7" printCompilerMessage
               pointee isGlobal ~  [
                 pointeeNameId: @processor @block generateRegisterIRName;
                 pointeeNameId pointee @processor getMplSchema.irTypeId @processor @block createAllocIRByReg
@@ -4042,8 +4041,6 @@ makeCompilerPosition: [
     ] &&
   ] loop
 
-  "FinalizeCodeNode7" printCompilerMessage
-
   block.variadic [
     isDeclaration [
       block.buildingMatchingInfo.inputs.getSize 0 = [
@@ -4059,8 +4056,6 @@ makeCompilerPosition: [
   ] when
 
   @block @processor sortInstructions
-
-  "FinalizeCodeNode8" printCompilerMessage
 
   addNames: [
     s:;
@@ -4357,11 +4352,7 @@ makeCompilerPosition: [
     block.funcDbgIndex @block.@header.cat
   ] when
 
-  "FinalizeCodeNode9" printCompilerMessage
-
   checkRecursionOfCodeNode
-
-  "FinalizeCodeNode10" printCompilerMessage
 
   processor compilable ~ [TRUE @block.@empty set] when
 ] "finalizeCodeNode" exportFunction

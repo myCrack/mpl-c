@@ -197,64 +197,71 @@
       cacheEntryVar: cacheEntry getVar;
       stackEntryVar: stackEntry getVar;
 
-      stackEntryVar.data.getTag VarStruct = [
-        cacheStaticity: cacheEntryVar.staticity.end copy;
-        stackStaticity: stackEntryVar.staticity.end copy;
-
-        cacheStaticity Dynamic = [Static !cacheStaticity] when
-        stackStaticity Dynamic = [Static !stackStaticity] when
-
-        cacheStaticity stackStaticity = ~ [
-          makeMessage [
-            ("variables has different staticity; was " cacheStaticity " but now " stackStaticity) assembleString @comparingMessage set
-          ] when
-          FALSE
-        ] [
-          cacheStruct: VarStruct cacheEntryVar.data.get.get;
-          cacheStruct.hasDestructor [cacheEntry varIsMoved stackEntry varIsMoved = ~] && [
-            makeMessage ["variables has different moveness" toString @comparingMessage set] when
-            FALSE
-          ] [
-            TRUE
-          ] if
-        ] if
+      cacheEntryVar.storageStaticity stackEntryVar.storageStaticity = ~ [
+        makeMessage [
+          ("variables has different storageStaticity; was " cacheEntryVar.storageStaticity " but now " stackEntryVar.storageStaticity) assembleString @comparingMessage set
+        ] when
+        FALSE
       ] [
-        cacheStaticity: cacheEntryVar.staticity.begin copy;
-        stackStaticity: stackEntryVar.staticity.end copy;
+        stackEntryVar.data.getTag VarStruct = [
+          cacheStaticity: cacheEntryVar.staticity.end copy;
+          stackStaticity: stackEntryVar.staticity.end copy;
 
-        cacheStaticity Weak > ~ stackStaticity stackDynamicBorder > ~ and [
-          # both dynamic
-          cacheStaticity Dirty = stackStaticity Dirty = = [
-            TRUE
-          ] [
+          cacheStaticity Dynamic = [Static !cacheStaticity] when
+          stackStaticity Dynamic = [Static !stackStaticity] when
+
+          cacheStaticity stackStaticity = ~ [
             makeMessage [
               ("variables has different staticity; was " cacheStaticity " but now " stackStaticity) assembleString @comparingMessage set
             ] when
             FALSE
+          ] [
+            cacheStruct: VarStruct cacheEntryVar.data.get.get;
+            cacheStruct.hasDestructor [cacheEntry varIsMoved stackEntry varIsMoved = ~] && [
+              makeMessage ["variables has different moveness" toString @comparingMessage set] when
+              FALSE
+            ] [
+              TRUE
+            ] if
           ] if
         ] [
-          cacheStaticity Weak > stackStaticity stackDynamicBorder > and [
-            # both static
-            cacheEntry isPlain [
-              result: TRUE;
+          cacheStaticity: cacheEntryVar.staticity.begin copy;
+          stackStaticity: stackEntryVar.staticity.end copy;
 
-              cacheEntryVar.data.getTag VarCond VarReal64 1 + [
-                tag:;
-                tag cacheEntryVar.data.get.begin
-                tag stackEntryVar.data.get.end =
-                !result
-              ] staticCall
-
-              result ~ makeMessage and ["variables has different values" toString @comparingMessage set] when
-              result
+          cacheStaticity Weak > ~ stackStaticity stackDynamicBorder > ~ and [
+            # both dynamic
+            cacheStaticity Dirty = stackStaticity Dirty = = [
+              TRUE
             ] [
-              TRUE # go recursive
+              makeMessage [
+                ("variables has different staticity; was " cacheStaticity " but now " stackStaticity) assembleString @comparingMessage set
+              ] when
+              FALSE
             ] if
           ] [
-            makeMessage [
-              ("variables has different staticity; was " cacheStaticity " but now " stackStaticity) assembleString @comparingMessage set
-            ] when
-            FALSE
+            cacheStaticity Weak > stackStaticity stackDynamicBorder > and [
+              # both static
+              cacheEntry isPlain [
+                result: TRUE;
+
+                cacheEntryVar.data.getTag VarCond VarReal64 1 + [
+                  tag:;
+                  tag cacheEntryVar.data.get.begin
+                  tag stackEntryVar.data.get.end =
+                  !result
+                ] staticCall
+
+                result ~ makeMessage and ["variables has different values" toString @comparingMessage set] when
+                result
+              ] [
+                TRUE # go recursive
+              ] if
+            ] [
+              makeMessage [
+                ("variables has different staticity; was " cacheStaticity " but now " stackStaticity) assembleString @comparingMessage set
+              ] when
+              FALSE
+            ] if
           ] if
         ] if
       ] if
@@ -283,7 +290,6 @@
     ] [
       cacheStaticity: cacheEntryVar.staticity.end copy;
       stackStaticity: stackEntryVar.staticity.end copy;
-
 
       forLoop [cacheStaticity Static = stackStaticity Dynamic > ~ and] && [ #was dynamic but after loop is static
         TRUE
@@ -732,7 +738,10 @@ fixRef: [
       # dont have shadow - to deref of captured dynamic pointer
       # must by dynamic
       var.staticity.end Static = [pointeeVar.storageStaticity Static =] && ["returning pointer to local variable" @processor block compilerError] when
-      pointee @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity @fixed set
+
+      #pointee getVar.host currentChangesNode is ~
+
+      #pointee @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity @fixed set
       TRUE dynamic @makeDynamic set
     ] if
   ] if
@@ -789,8 +798,11 @@ fixOutputRefsRec: [
             currentFromStack isSchema ~ [
               stackPointee: VarRef @stackEntryVar.@data.get.@refToVar;
               stackPointee getVar.host currentChangesNode is [
-                fixed: currentFromStack appliedVars fixRef @processor @block getPointeeNoDerefIR;
-                fixed @unfinishedStack.pushBack
+                fixedPointer: currentFromStack appliedVars fixRef;
+                fixedPointer staticityOfVar Dynamic > [
+                  fixed: fixedPointer @processor @block getPointeeNoDerefIR;
+                  fixed @unfinishedStack.pushBack
+                ] when
               ] when
             ] when
           ] [
@@ -962,7 +974,6 @@ applyNodeChanges: [
           branch:;
           stackEntry: @processor @block popForMatching;
           cacheEntry: branch.refToVar;
-
           stackEntry getVar.data.getTag VarInvalid = ~ [stackEntry @pops.pushBack] when
           stackEntry cacheEntry @appliedVars addAppliedVar
         ]

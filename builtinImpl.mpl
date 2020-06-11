@@ -73,6 +73,7 @@
 "codeNode.captureName" use
 "codeNode.catPossibleModulesList" use
 "codeNode.createNamedVariable" use
+"codeNode.createRefVariable" use
 "codeNode.createVariable" use
 "codeNode.createVariableWithVirtual" use
 "codeNode.derefAndPush" use
@@ -841,7 +842,7 @@ staticityOfBinResult: [
         refBranch: schemaOfResult makeRefBranch;
         FALSE @refBranch.@refToVar.setMoved
 
-        refToDst: refBranch VarRef @processor @block createVariable;
+        refToDst: refBranch @processor @block createRefVariable;
         Dynamic makeValuePair @refToDst getVar.@staticity set
         refToVar @refToDst "inttoptr" @processor @block createCastCopyToNew
         @refToDst @processor @block derefAndPush
