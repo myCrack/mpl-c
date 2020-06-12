@@ -38,6 +38,7 @@
 "declarations.makeVarString" use
 "declarations.setVar" use
 "defaultImpl.findNameInfo" use
+"defaultImpl.makeVarPtrCaptured" use
 "defaultImpl.makeVarRealCaptured" use
 "defaultImpl.nodeHasCode" use
 "pathUtils.nameWithoutBadSymbols" use
@@ -319,7 +320,7 @@ getValueOrDeref: [
   refToVar staticityOfVar Dynamic > [
     refToVar getPlainConstantIR
   ] [
-    @refToVar makeVarRealCaptured
+    @refToVar @processor @block makeVarRealCaptured
     refToVar @processor @block createDerefToRegister @processor getNameById toString
   ] if
 ];
@@ -327,8 +328,8 @@ getValueOrDeref: [
 createStringCompare: [
   arg1: arg2: result: opName: processor: block: ;;;;;;
 
-  @arg1 makeVarRealCaptured
-  @arg2 makeVarRealCaptured
+  @arg1 @processor @block makeVarRealCaptured
+  @arg2 @processor @block makeVarRealCaptured
 
   var1name: @arg1 @processor getIrName toString;
   var2name: @arg2 @processor getIrName toString;
@@ -814,8 +815,9 @@ generateRegisterIRName: [processor: block: ;; @block TRUE @processor block gener
 } () {} [
   srcRef: dstRef: processor: block: ;;;;
   srcRef isAutoStruct [
-    @srcRef makeVarRealCaptured
-    @dstRef makeVarRealCaptured
+    @srcRef @processor @block makeVarRealCaptured
+    @dstRef @processor @block makeVarRealCaptured
+    @dstRef makeVarPtrCaptured
 
     srcRef getVar.temporary [
       # die-bytemove is faster than assign-die, I think
@@ -843,16 +845,19 @@ generateRegisterIRName: [processor: block: ;; @block TRUE @processor block gener
     srcRef isPlain [
       srcRef staticityOfVar Dynamic > [
         srcRef dstRef @processor @block setVar
-        @dstRef makeVarRealCaptured
+        @dstRef @processor @block makeVarRealCaptured
+        @dstRef makeVarPtrCaptured
         dstRef dstRef @processor @block createStoreConstant
       ] [
-        @srcRef makeVarRealCaptured
-        @dstRef makeVarRealCaptured
+        @srcRef @processor @block makeVarRealCaptured
+        @dstRef @processor @block makeVarRealCaptured
+        @dstRef makeVarPtrCaptured
         srcRef dstRef @processor @block createMemset
       ] if
     ] [
-      @srcRef makeVarRealCaptured
-      @dstRef makeVarRealCaptured
+      @srcRef @processor @block makeVarRealCaptured
+      @dstRef @processor @block makeVarRealCaptured
+      @dstRef makeVarPtrCaptured
       srcRef dstRef @processor @block createMemset
     ] if
   ] if

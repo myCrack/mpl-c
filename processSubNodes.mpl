@@ -959,7 +959,7 @@ applyNodeChanges: [
       ] when
 
       cacheEntry getVar.capturedAsRealValue [
-        stackEntry makeVarRealCaptured
+        stackEntry @processor @block makeVarRealCaptured
       ] when
 
       cacheEntry getVar.capturedForDeref [
@@ -2365,14 +2365,15 @@ callImportWith: [
             [stackEntry: @processor @block pop;]
             [
               input: stackEntry copy;
-              @input makeVarRealCaptured
               nodeEntry: i @declarationNode.@matchingInfo.@inputs.at.@refToVar;
               forcedInput: i declarationNode.csignature.inputs.at;
               nodeMutable: forcedInput getVar.data.getTag VarRef = [VarRef forcedInput getVar.data.get.refToVar.mutable] &&;
 
               forcedInput getVar.data.getTag VarRef = [
                 @stackEntry makeVarPtrCaptured
-              ] when
+              ] [
+                @stackEntry @processor @block makeVarRealCaptured
+              ] if
 
               stackEntry nodeEntry variablesAreSame ~ [
                 lambdaCastResult: @input @nodeEntry @processor @block tryImplicitLambdaCast;
@@ -2409,7 +2410,7 @@ callImportWith: [
               field @inputs.pushBack
             ] times
 
-            @refToVarargs makeVarRealCaptured
+            @refToVarargs @processor @block makeVarRealCaptured
           ]
         ) sequence
       ] when
@@ -2479,7 +2480,7 @@ callImportWith: [
   dynamicFunc: refToVar staticityOfVar Dynamic > ~;
 
   dynamicFunc [
-    @refToVar makeVarRealCaptured
+    @refToVar @processor @block makeVarRealCaptured
   ] [
     node.nodeCase NodeCaseCodeRefDeclaration = [
       "nullpointer call" @processor block compilerError

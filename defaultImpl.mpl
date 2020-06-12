@@ -21,6 +21,7 @@
 "Var.VarCode" use
 "Var.VarImport" use
 "Var.VarString" use
+"Var.Virtual" use
 "Var.Weak" use
 "Var.getPlainValueInformation" use
 "Var.getVar" use
@@ -82,7 +83,11 @@ createRefNoOp: [processor: block:;; FALSE dynamic @processor @block createRefWit
 compilable: [processor:; processor.result.success copy];
 
 makeVarRealCaptured: [
-  refToVar:;
+  refToVar: processor: block: ;;;
+  refToVar getVar.storageStaticity Virtual = [
+    "accessing nullptr" @processor @block compilerError
+  ] when
+
   TRUE @refToVar getVar.@capturedAsRealValue set
 ];
 

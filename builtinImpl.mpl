@@ -207,9 +207,8 @@ mplBuiltinProcessAtList: [
                 "can't get dynamic index in virtual struct" @processor block compilerError
               ] when
 
-              @refToIndex  makeVarRealCaptured
+              @refToIndex @processor @block makeVarRealCaptured
               @refToStruct makeVarPtrCaptured
-              @refToStruct makeVarRealCaptured
 
               firstField: 0 realStruct.fields.at.refToVar;
               fieldRef: firstField @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity;
@@ -329,7 +328,7 @@ mplNumberBuiltinOp: [
           ] when
         ] staticCall
       ] [
-        @arg makeVarRealCaptured
+        @arg @processor @block makeVarRealCaptured
         opName: arg @getOpName call;
         var.data.getTag VarReal32 VarReal64 1 + [
           copy tag:;
@@ -386,7 +385,7 @@ mplNumberUnaryOp: [
           ] when
         ] staticCall
       ] [
-        @arg makeVarRealCaptured
+        @arg @processor @block makeVarRealCaptured
         opName: arg @getOpName call;
         mopName: arg @getMidOpName call;
         var.data.getTag firstTag lastTag [
@@ -757,8 +756,8 @@ staticityOfBinResult: [
           ] when
         ] staticCall
       ] [
-        @arg1 makeVarRealCaptured
-        @arg2 makeVarRealCaptured
+        @arg1 @processor @block makeVarRealCaptured
+        @arg2 @processor @block makeVarRealCaptured
 
         var1.data.getTag VarReal32 VarReal64 1 + [
           copy tag:;
@@ -794,7 +793,7 @@ staticityOfBinResult: [
   refToVar: @processor @block pop;
 
   processor compilable [
-    @refToVar makeVarRealCaptured
+    @refToVar @processor @block makeVarRealCaptured
 
     var: refToVar getVar;
     varSchema: refToSchema getVar;
@@ -963,7 +962,7 @@ staticityOfBinResult: [
           refToVar staticityOfVar makeValuePair @refToDst getVar.@staticity set
           refToDst @block push
         ] [
-          refToVar makeVarRealCaptured
+          refToVar @processor @block makeVarRealCaptured
 
           refToDst: RefToVar;
           varSchema: refToSchema getVar;
@@ -1082,14 +1081,14 @@ staticityOfBinResult: [
               TRUE @result.setMutable
               result @block push
             ] [
-              refToVar isVirtual ~ [@refToVar makeVarRealCaptured] when
+              refToVar isVirtual ~ [@refToVar @processor @block makeVarRealCaptured] when
               result: refToVar @processor @block copyVarToNew;
               TRUE @result.setMutable
               @refToVar @result @processor @block createCopyToNew
               result @block push
             ] if
           ] [
-            refToVar isVirtual ~ [@refToVar makeVarRealCaptured] when
+            refToVar isVirtual ~ [@refToVar @processor @block makeVarRealCaptured] when
             result: refToVar @processor @block copyVarToNew;
             result isVirtual [
               result isAutoStruct ["unable to copy virtual autostruct" @processor block compilerError] when
@@ -1382,7 +1381,7 @@ staticityOfBinResult: [
           VarCode varElse.data.get.index VarCode varElse.data.get.file "staticIfElse" makeStringView @processor @block processCall
         ] if
       ] [
-        condition makeVarRealCaptured
+        condition @processor @block makeVarRealCaptured
 
         condition
         VarCode varThen.data.get.index processor.multiParserResult.memory.at

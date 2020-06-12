@@ -766,7 +766,7 @@ setOneVar: [
   ] when
 
   @refDst makeVarPtrCaptured
-  @refDst makeVarRealCaptured
+  @refDst @processor @block makeVarRealCaptured
 
   [srcVar.sourceOfValue getVar.host dstVar.sourceOfValue getVar.host is] "Source of value is from another node!" assert
   srcVar.sourceOfValue @dstVar.@sourceOfValue set
@@ -973,6 +973,9 @@ makeVarVirtual: [
           pointee:  VarRef curVar.data.get.refToVar;
 
           pointee isUnallocable [
+            cur staticityOfVar Weak < [
+              "can not virtualize dynamic value" @processor block compilerError
+            ] when
           ] [
             pointee getVar.storageStaticity Virtual = [
             ] [
@@ -1993,7 +1996,6 @@ setRef: [
           src pointee variablesAreSame [
             src @block push
             @src makeVarPtrCaptured
-            @src makeVarRealCaptured
             TRUE @processor @block defaultRef #source
             refToVar @block push
             @processor @block defaultSet
@@ -3005,7 +3007,7 @@ finalizeListNode: [
         ] [
           @curRef TRUE dynamic @processor @block createRef @newField.@refToVar set
           @curRef makeVarPtrCaptured
-          @curRef makeVarRealCaptured
+          @curRef @processor @block makeVarRealCaptured
         ] if
 
         newField @struct.@fields.pushBack
@@ -3058,7 +3060,6 @@ finalizeObjectNode: [
       dstFieldRef isVirtual ~ [dstFieldRef getVar.data.getTag VarRef =] && [
         pointee: VarRef dstFieldRef getVar.data.get.refToVar;
         @pointee makeVarPtrCaptured
-        @pointee makeVarRealCaptured
       ] when
 
       @dstFieldRef markAsUnableToDie
@@ -3675,7 +3676,7 @@ makeCompilerPosition: [
 
       2 current @ [
         dependent.capturedByPtr [
-          0 @current @ makeVarRealCaptured
+          0 @current @ @processor @block makeVarRealCaptured
         ] when
 
         dependent.capturedAsRealValue [
@@ -3688,7 +3689,7 @@ makeCompilerPosition: [
         ] when
 
         currentVar.capturedForDeref [
-          1 @current @ makeVarRealCaptured
+          1 @current @ @processor @block makeVarRealCaptured
         ] when
       ] [
         dependent.capturedByPtr [
@@ -3696,11 +3697,11 @@ makeCompilerPosition: [
         ] when
 
         dependent.capturedAsRealValue [
-          0 @current @ makeVarRealCaptured
+          0 @current @ @processor @block makeVarRealCaptured
         ] when
 
         dependent.capturedForDeref [
-          0 @current @ makeVarRealCaptured
+          0 @current @ @processor @block makeVarRealCaptured
         ] when
       ] if
     ] times
@@ -3723,18 +3724,18 @@ makeCompilerPosition: [
           ] when
 
           branch.field getVar.capturedAsRealValue [
-            @branch.@object makeVarRealCaptured
+            @branch.@object @processor @block makeVarRealCaptured
           ] when
 
           branch.field getVar.capturedForDeref [
-            @branch.@object makeVarRealCaptured
+            @branch.@object @processor @block makeVarRealCaptured
           ] when
         ]
         ShadowReasonPointee [
           branch:;
 
           branch.pointee getVar.capturedByPtr [
-            @branch.@pointer makeVarRealCaptured
+            @branch.@pointer @processor @block makeVarRealCaptured
           ] when
 
           branch.pointee getVar.capturedAsRealValue [
@@ -3863,7 +3864,6 @@ makeCompilerPosition: [
     block.stack [
       current:;
       @current isRefDeref [
-        @current makeVarRealCaptured
         @current makeVarPtrCaptured
       ] when
     ] each
