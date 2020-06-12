@@ -928,7 +928,10 @@ makeVirtualVarReal: [
       ] loop
     ] when
 
-    FALSE @result.setMutable
+    result isPlain [
+      FALSE @result.setMutable
+    ] when
+
     result @realValue set
 
     realValue copy

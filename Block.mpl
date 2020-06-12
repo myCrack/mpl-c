@@ -233,4 +233,4 @@ Block: [{
   DIE: [];
 }];
 
-schema BlockSchema: Block;
+virtual BlockSchema: Block NilRef;
