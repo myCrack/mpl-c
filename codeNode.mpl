@@ -413,12 +413,14 @@ createVariableWithVirtual: [
 ];
 
 createRefVariable: [
-  branch: processor: block: ;;;
+  branch: createDependent: processor: block: ;;;;
   result: branch VarRef @processor @block createVariable;
 
   branch.refToVar getVar.storageStaticity Dynamic = [
     @result Dynamic @processor @block makeStaticity drop
-    (result copy branch.refToVar copy TRUE) @block.@dependentPointers.pushBack
+    createDependent [
+      (result copy branch.refToVar copy TRUE) @block.@dependentPointers.pushBack
+    ] when
   ] when
 
   @result
@@ -439,7 +441,7 @@ getNilVar: [
   varSchema: refToVar @processor getMplSchema;
   varSchema.nilVar.assigned ~ [
     block: 0 @processor.@blocks.at.get;
-    refToVar @processor @block copyOneVarFromType Dirty @processor @block makeStaticity Virtual @processor @block makeStorageStaticity @varSchema.@nilVar set
+    refToVar @processor @block copyVarFromType Dirty @processor @block makeStaticity Virtual @processor @block makeStorageStaticity @varSchema.@nilVar set
     var: @varSchema.@nilVar getVar;
     "null" toString @processor makeStringId @var.@irNameId set
     @varSchema.@nilVar fullUntemporize
@@ -547,8 +549,8 @@ getPointeeWith: [
     refToVar staticityOfVar Dynamic > ~ [
       # create new var of dynamic dereference
       result: pointee @processor @block copyOneVarFromType
-        Dynamic @processor @block  makeStorageStaticity
-        Dirty @processor @block makeStaticity
+      Dynamic @processor @block  makeStorageStaticity
+      Dirty @processor @block makeStaticity
       ;
       @result @processor block unglobalize
       result.var     @pointee.setVar
@@ -696,7 +698,9 @@ getFieldWith: [
         @block @branch.@field setTopologyIndex
         @newEvent @block addShadowEvent
       ] [
-        (refToVar copy fieldRefToVar copy FALSE) @block.@dependentPointers.pushBack
+        structIsDynamicStoraged [
+          (refToVar copy fieldRefToVar copy FALSE) @block.@dependentPointers.pushBack
+        ] when
       ] if
     ] when
 
@@ -805,7 +809,7 @@ setOneVar: [
     @pointee fullUntemporize
 
     pointee.mutable [mutable copy] && @pointee.setMutable
-    newRefToVar: pointee makeRefBranch @processor @block createRefVariable;
+    newRefToVar: pointee makeRefBranch TRUE @processor @block createRefVariable;
     createOperation [pointee @newRefToVar @processor @block createRefOperation] when
     newRefToVar @result set
   ] if
@@ -1578,7 +1582,7 @@ captureName: [
         @newEvent @block addShadowEvent
 
         processor.options.debug [shadow isVirtual ~] && [shadow isGlobal ~] && [
-          fakePointer: shadow makeRefBranch @processor @block createRefVariable;
+          fakePointer: shadow makeRefBranch FALSE @processor @block createRefVariable;
           shadow @fakePointer @processor @block createRefOperation
           nameInfo fakePointer @processor @block addVariableMetadata
           programSize: block.program.getSize;
@@ -3561,7 +3565,7 @@ makeCompilerPosition: [
     var.usedInHeader [var.allocationInstructionIndex 0 <] || [
       refToVar isVirtual ~
       [isDeclaration ~] && [
-        refForArg: refToVar makeRefBranch @processor @block createRefVariable;
+        refForArg: refToVar makeRefBranch FALSE @processor @block createRefVariable;
         refToVar @refForArg @processor @block createRefOperation
         refForArg TRUE
       ] [
@@ -3979,6 +3983,7 @@ makeCompilerPosition: [
   [
     i block.buildingMatchingInfo.captures.size < [
       current: i @block.@buildingMatchingInfo.@captures.at;
+
       current.refToVar.assigned [
         currentVar: current.refToVar getVar;
 
@@ -4276,50 +4281,53 @@ makeCompilerPosition: [
       ] if
     ] if
 
-    block.nodeCase NodeCaseLambda = [addFunctionVariableInfo] when
+    block.nodeCase NodeCaseLambda = [
+      addFunctionVariableInfo
+    ] when
 
     "define internal " makeStringView @block.@header.cat
   ] [
-    # export func!!!
-    "@" makeStringView         @block.@irName.cat
-    @functionName              @block.@irName.cat
+    processor compilable [
+      # export func!!!
+      "@" makeStringView         @block.@irName.cat
+      @functionName              @block.@irName.cat
 
-    block.nodeCase NodeCaseDeclaration = [block.nodeCase NodeCaseCodeRefDeclaration =] || [
-      "declare " makeStringView   @block.@header.cat
-    ] [
-      block.nodeCase NodeCaseExport = [
-        "define " makeStringView   @block.@header.cat
+      block.nodeCase NodeCaseDeclaration = [block.nodeCase NodeCaseCodeRefDeclaration =] || [
+        "declare " makeStringView   @block.@header.cat
       ] [
-        "define internal " makeStringView @block.@header.cat
+        block.nodeCase NodeCaseExport = [
+          "define " makeStringView   @block.@header.cat
+        ] [
+          "define internal " makeStringView @block.@header.cat
+        ] if
       ] if
-    ] if
 
-    block.nodeCase NodeCaseCodeRefDeclaration = [block.nodeCase NodeCaseLambda =] || [
-      addFunctionVariableInfo
-    ] [
-      parentBlock: @block getTopNode;
-      fr: @functionName @processor.@namedFunctions.find;
-      fr.success [
-        prevNode: fr.value @processor.@blocks.at.get;
-        fakeNode: block.id VarImport @processor @parentBlock createVariable;
+      block.nodeCase NodeCaseCodeRefDeclaration = [block.nodeCase NodeCaseLambda =] || [
+        addFunctionVariableInfo
+      ] [
+        parentBlock: @block getTopNode;
+        fr: @functionName @processor.@namedFunctions.find;
+        fr.success [
+          prevNode: fr.value @processor.@blocks.at.get;
+          fakeNode: block.id VarImport @processor @parentBlock createVariable;
 
-        prevNode.state NodeStateCompiled = [
-          prevNode.refToVar fakeNode variablesAreSame ~ [
-            ("node " functionName " was defined with another signature") assembleString @processor block compilerError
-          ] [
-            block.nodeCase NodeCaseDeclaration = [
-              TRUE @block.@emptyDeclaration set
+          prevNode.state NodeStateCompiled = [
+            prevNode.refToVar fakeNode variablesAreSame ~ [
+              ("node " functionName " was defined with another signature") assembleString @processor block compilerError
             ] [
-              prevNode.nodeCase NodeCaseDeclaration = [
-                TRUE @prevNode.@emptyDeclaration set
-                block.id @fr.@value set
+              block.nodeCase NodeCaseDeclaration = [
+                TRUE @block.@emptyDeclaration set
               ] [
-                "dublicated func implementation" @processor block compilerError
+                prevNode.nodeCase NodeCaseDeclaration = [
+                  TRUE @prevNode.@emptyDeclaration set
+                  prevNode.refToVar @block.@refToVar set #for signature comparings only
+                  block.id @fr.@value set
+                ] [
+                  "dublicated func implementation" @processor block compilerError
+                ] if
               ] if
             ] if
-          ] if
 
-          processor compilable [
             fr: @functionName @parentBlock.@namedFunctions.find;
             fr.success ~ [
               functionName toString block.id @parentBlock.@namedFunctions.insert
@@ -4334,13 +4342,13 @@ makeCompilerPosition: [
               } @processor @parentBlock addNameInfo #it is not own local variable
             ] when
           ] when
-        ] when
-      ] [
-        functionName toString block.id @processor.@namedFunctions.insert
-        functionName toString block.id @parentBlock.@namedFunctions.insert
-        addFunctionVariableInfo
+        ] [
+          functionName toString block.id @processor.@namedFunctions.insert
+          functionName toString block.id @parentBlock.@namedFunctions.insert
+          addFunctionVariableInfo
+        ] if
       ] if
-    ] if
+    ] when
   ] if
 
   (block.convention retType " " block.irName "(" argumentList ")") @block.@header.catMany

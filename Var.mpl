@@ -411,9 +411,9 @@ getPlainConstantIR: [
                   var.data.getTag VarNat32 = [VarNat32 var.data.get.end toString @result set] [
                     var.data.getTag VarNat64 = [VarNat64 var.data.get.end toString @result set] [
                       var.data.getTag VarNatX = [VarNatX var.data.get.end toString @result set] [
-                        var.data.getTag VarReal32 = [VarReal32 var.data.get.end 0.0r32 cast 0.0r64 cast bitView @result set] [
+                        var.data.getTag VarReal32 = [VarReal32 var.data.get.end Real32 cast Real64 cast bitView @result set] [
                           var.data.getTag VarReal64 = [VarReal64 var.data.get.end bitView @result set] [
-                            ("Tag = " makeStringView var.data.getTag 0 cast) addLog
+                            ("Tag = " makeStringView var.data.getTag Int32 cast) addLog
                             [FALSE] "Unknown plain struct while getting IR value" assert
                           ] if
                         ] if
@@ -459,11 +459,12 @@ bitView: [
     "A" makeStringView "B" makeStringView "C" makeStringView "D" makeStringView "E" makeStringView "F" makeStringView);
   i: 0 dynamic;
   [
-    i 0ix cast 0nx cast f storageSize < [
-      d: f storageSize 0ix cast 0 cast i - 1 - buffer @ 0n32 cast;
-      d 4n32 rshift 0 cast @hexToStr @ @result.cat
-      d 15n32 and 0 cast @hexToStr @ @result.cat
-      i 1 + @i set TRUE
+    i Natx cast f storageSize < [
+      d: f storageSize Int32 cast i - 1 - buffer @ Nat32 cast;
+      d 4n32 rshift Int32 cast @hexToStr @ @result.cat
+      d 15n32 and Int32 cast @hexToStr @ @result.cat
+      i 1 + @i set
+      TRUE
     ] &&
   ] loop
 

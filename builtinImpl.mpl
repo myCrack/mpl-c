@@ -818,7 +818,7 @@ staticityOfBinResult: [
           refBranch: schemaOfResult makeRefBranch;
           FALSE @refBranch.@refToVar.setMoved
 
-          refToDst: refBranch @processor @block createRefVariable;
+          refToDst: refBranch FALSE @processor @block createRefVariable;
           Dynamic makeValuePair @refToDst getVar.@staticity set
           refToVar @refToDst "inttoptr" @processor @block createCastCopyToNew
           @refToDst @processor @block derefAndPush
