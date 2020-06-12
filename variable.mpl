@@ -22,8 +22,6 @@
 "Var.Dirty" use
 "Var.Dynamic" use
 "Var.RefToVar" use
-"Var.Schema" use
-"Var.Schema" use
 "Var.Static" use
 "Var.VarBuiltin" use
 "Var.VarCode" use

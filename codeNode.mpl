@@ -70,7 +70,6 @@
 "Var.Dynamic" use
 "Var.Field" use
 "Var.RefToVar" use
-"Var.Schema" use
 "Var.ShadowReasonCapture" use
 "Var.ShadowReasonField" use
 "Var.ShadowReasonFieldCapture" use
@@ -109,7 +108,6 @@
 "Var.isAutoStruct" use
 "Var.isNonrecursiveType" use
 "Var.isPlain" use
-"Var.isSchema" use
 "Var.isTinyArg" use
 "Var.isUnallocable" use
 "Var.isVirtual" use
@@ -352,13 +350,12 @@ makeStorageStaticity: [
 
 createVariable: [
   processor: block:;;
-  FALSE dynamic FALSE dynamic TRUE dynamic @processor @block createVariableWithVirtual
+  FALSE dynamic TRUE dynamic @processor @block createVariableWithVirtual
 ];
 
 createVariableWithVirtual: [
   processor: block: ;;
   copy makeType:;
-  copy makeSchema:;
   copy makeVirtual:;
   copy tag:;
   dataIsMoved: isMoved;
@@ -391,7 +388,7 @@ createVariableWithVirtual: [
   result @result getVar.@sourceOfValue set
 
   makeVirtual [
-    makeSchema [Schema] [Virtual] if @result getVar.@staticity.@begin set
+    Virtual @result getVar.@staticity.@begin set
   ] [
     result isPlain [processor.options.staticLiterals ~] && [
       Weak @result getVar.@staticity.@begin set
@@ -424,6 +421,41 @@ createRefVariable: [
     (result copy branch.refToVar copy TRUE) @block.@dependentPointers.pushBack
   ] when
 
+  @result
+];
+
+getTopNode: [
+  topNode:;
+  [topNode.parent 0 = ~] [
+    topNode.parent @processor.@blocks.at.get !topNode
+  ] while
+
+  @topNode
+];
+
+getNilVar: [
+  refToVar: processor: block: ;;;
+
+  varSchema: refToVar @processor getMplSchema;
+  varSchema.nilVar.assigned ~ [
+    block: 0 @processor.@blocks.at.get;
+    refToVar @processor @block copyOneVarFromType Dirty @processor @block makeStaticity Virtual @processor @block makeStorageStaticity @varSchema.@nilVar set
+    var: @varSchema.@nilVar getVar;
+    "null" toString @processor makeStringId @var.@irNameId set
+    @varSchema.@nilVar fullUntemporize
+    "; null" @block createComment
+    block.program.size 1 - @var.@allocationInstructionIndex set
+  ] when
+
+  varSchema.nilVar copy
+];
+
+getLastShadow: [
+  refToVar: processor: block: ;;;
+
+  result: RefToVar;
+  @result refToVar ShadowReasonCapture @processor @block makeShadows
+  @result fullUntemporize
   @result
 ];
 
@@ -640,9 +672,10 @@ getFieldWith: [
       ] when
 
       fieldShadow @fieldRefToVar set
+      fieldVar: @fieldRefToVar getVar;
 
-      var.staticity.end fieldRefToVar getVar.staticity.end < [
-        var.staticity.end @fieldRefToVar getVar.@staticity.@end set
+      var.staticity.end fieldVar.staticity.end < [
+        var.staticity.end @fieldVar.@staticity.@end set
       ] when
     ] when
 
@@ -934,9 +967,14 @@ makeVarVirtual: [
         ] if
       ] [
         curVar.data.getTag VarRef = [
-          VarRef curVar.data.get.refToVar isUnallocable [
+          pointee:  VarRef curVar.data.get.refToVar;
+
+          pointee isUnallocable [
           ] [
-            "can not virtualize reference to local variable" @processor block compilerError
+            pointee getVar.storageStaticity Virtual = [
+            ] [
+              "can not virtualize reference to local variable" @processor block compilerError
+            ] if
           ] if
         ] [
           cur staticityOfVar Weak < [
@@ -964,7 +1002,6 @@ makeVarTreeDirty: [
       @unfinishedVars.popBack
 
       lastRefToVar staticityOfVar Virtual = ["can't dynamize virtual value" @processor block compilerError] when
-      lastRefToVar staticityOfVar Schema = ["can't dynamize schema" @processor block compilerError] when
       lastRefToVar staticityOfVar Dirty = [
         #skip
       ] [
@@ -1095,7 +1132,6 @@ createNamedVariable: [
 
     block.nextLabelIsVirtual [
       refToVar isVirtual ~ [
-        staticity Dynamic > ~ ["value for virtual label must be static" @processor block compilerError] when
         staticity Weak = [Static @var.@staticity.@end set] when
       ] when
     ] when
@@ -1110,14 +1146,14 @@ createNamedVariable: [
       Dirty @staticity set
     ] when
 
-    var.temporary block.nextLabelIsSchema ~ and [
+    var.temporary [
       staticity @var.@staticity.@end set
       staticity Weak = [Dynamic @var.@staticity.@end set] when
     ] [
-      newRefToVar noMatterToCopy block.nextLabelIsVirtual or newRefToVar isUnallocable ~ and [
-        refToVar @processor @block copyVarToNew @newRefToVar set
+      newRefToVar noMatterToCopy [
+        refToVar @newRefToVar set
       ] [
-        @refToVar TRUE block.nextLabelIsSchema ~ @processor @block createRefWith @newRefToVar set
+        @refToVar TRUE block.nextLabelIsVirtual ~ @processor @block createRefWith @newRefToVar set
         newRefToVar isGlobalLabel [newRefToVar @processor @block makeVarTreeDirty] when
       ] if
     ] if
@@ -1127,11 +1163,10 @@ createNamedVariable: [
     @newRefToVar fullUntemporize
     FALSE @newRefToVar getVar.@tref set
 
-    block.nextLabelIsVirtual block.nextLabelIsSchema or [
+    block.nextLabelIsVirtual [
       @newRefToVar @processor block makeVariableType
-      block.nextLabelIsSchema [@newRefToVar makeVarSchema][@newRefToVar makeVarVirtual] if
+      @newRefToVar makeVarVirtual
       FALSE @block.@nextLabelIsVirtual set
-      FALSE @block.@nextLabelIsSchema set
     ] when
 
     {
@@ -1941,7 +1976,7 @@ setRef: [
 
   var: refToVar getVar;
   var.data.getTag VarRef = [
-    refToVar isSchema [
+    refToVar isVirtual [
       "can not write to virtual" @processor block compilerError
     ] [
       pointee: VarRef var.data.get.refToVar;
@@ -2084,7 +2119,7 @@ setRef: [
     dstStruct: Struct;
     srcStruct.fields          @dstStruct.@fields set
     @dstStruct.@fields [field:; FALSE @field.@usedHere set] each
-    @dstStruct move owner VarStruct src isVirtual src isSchema FALSE dynamic @processor @block createVariableWithVirtual
+    @dstStruct move owner VarStruct src isVirtual FALSE dynamic @processor @block createVariableWithVirtual
     src checkedStaticityOfVar @processor block makeStaticity @result set
     dstStructAc: VarStruct @result getVar.@data.get.get;
     srcStruct.homogeneous       @dstStructAc.@homogeneous set
@@ -2098,7 +2133,7 @@ setRef: [
     src isPlain [
       srcVar.data.getTag VarCond VarReal64 1 + [
         copy tag:;
-        tag srcVar.data.get.end makeValuePair tag src isVirtual src isSchema FALSE dynamic @processor @block createVariableWithVirtual
+        tag srcVar.data.get.end makeValuePair tag src isVirtual FALSE dynamic @processor @block createVariableWithVirtual
         src checkedStaticityOfVar @processor block makeStaticity
         @result set
       ] staticCall
@@ -2107,7 +2142,7 @@ setRef: [
         copy tag:;
 
         tag VarStruct = ~ [
-          tag srcVar.data.get tag src isVirtual src isSchema FALSE dynamic @processor @block createVariableWithVirtual
+          tag srcVar.data.get tag src isVirtual FALSE dynamic @processor @block createVariableWithVirtual
           src checkedStaticityOfVar @processor block makeStaticity
           @result set
         ] when
@@ -2430,42 +2465,17 @@ processMember: [
       (refToStruct @processor block getMplType " has no field " nameInfo processor.nameManager.getText) assembleString @processor block compilerError
     ];
 
-    refToStruct isSchema [
-      read -1 = [
-        "can not write to field of struct schema" @processor block compilerError
+    refToStruct getVar.data.getTag VarStruct = [
+      fr: nameInfo refToStruct @processor block findField;
+      fr.success [
+        index: fr.index copy;
+        fieldRef: index @refToStruct @processor @block processStaticAt;
+        TRUE dynamic refToStruct fieldRef read nameInfo pushName # let it be marker about field
       ] [
-        structVar: refToStruct getVar;
-        pointee: VarRef structVar.data.get.refToVar;
-        pointeeVar: pointee getVar;
-        pointeeVar.data.getTag VarStruct = [
-          fr: nameInfo pointee @processor block findField;
-          fr.success [
-            index: fr.index copy;
-            field: index 0 cast VarStruct pointeeVar.data.get.get.fields.at.refToVar;
-            result: field makeRefBranch VarRef TRUE dynamic TRUE dynamic TRUE dynamic @processor @block createVariableWithVirtual;
-            @result fullUntemporize
-            read 1 = result.mutable and @result.setMutable
-            result @block push
-          ] [
-            fieldError
-          ] if
-        ] [
-          "not a combined" @processor block compilerError
-        ] if
+        fieldError
       ] if
     ] [
-      refToStruct getVar.data.getTag VarStruct = [
-        fr: nameInfo refToStruct @processor block findField;
-        fr.success [
-          index: fr.index copy;
-          fieldRef: index @refToStruct @processor @block processStaticAt;
-          TRUE dynamic refToStruct fieldRef read nameInfo pushName # let it be marker about field
-        ] [
-          fieldError
-        ] if
-      ] [
-        "not a combined" @processor block compilerError
-      ] if
+      "not a combined" @processor block compilerError
     ] if
   ] when
 ];
@@ -3146,6 +3156,8 @@ unregCodeNodeNames: [
   ] each
 
   @block.@capturedVars.release
+  @block.@captureNames.release
+  @block.@fieldCaptureNames.release
 ];
 
 addMatchingNode: [
@@ -3511,7 +3523,6 @@ makeCompilerPosition: [
 
   block.nextLabelIsVirtual  ["unused virtual specifier"  @processor block compilerError] when
   block.nextLabelIsOverload ["unused overload specifier" @processor block compilerError] when
-  block.nextLabelIsSchema   ["unused schema specifier"   @processor block compilerError] when
 
   block.nodeCase NodeCaseList   = [finalizeListNode] when
   block.nodeCase NodeCaseObject = [finalizeObjectNode] when
@@ -3864,7 +3875,7 @@ makeCompilerPosition: [
         # const to plain make copy
         current: i @block.@buildingMatchingInfo.@inputs.at;
 
-        hasForcedSignature ~ [current.refToVar getVar.capturedAsRealValue ~] && [
+        hasForcedSignature ~ [current.refToVar getVar.capturedAsRealValue ~] && [current.refToVar getVar.capturedByPtr ~] && [
           ArgMeta @current.@argCase set
         ] when
 
@@ -4174,22 +4185,13 @@ makeCompilerPosition: [
 
   (retType "(" signature ")") assembleString @block.@signature set
 
-  getTopNode: [
-    topNode: @block;
-    [topNode.parent 0 = ~] [
-      topNode.parent @processor.@blocks.at.get !topNode
-    ] while
-
-    @topNode
-  ];
-
   # fix declarations
   addFunctionVariableInfo: [
     declarationNodeIndex: block.id copy;
     declarationNode: @block;
 
     # we can call func as imported
-    topNode: getTopNode;
+    topNode: @block getTopNode;
     currentFile: processor.positions.last.file;
 
     topNode.file currentFile is ~ [ #we calling func description from another file
@@ -4292,7 +4294,7 @@ makeCompilerPosition: [
     block.nodeCase NodeCaseCodeRefDeclaration = [block.nodeCase NodeCaseLambda =] || [
       addFunctionVariableInfo
     ] [
-      parentBlock: getTopNode;
+      parentBlock: @block getTopNode;
       fr: @functionName @processor.@namedFunctions.find;
       fr.success [
         prevNode: fr.value @processor.@blocks.at.get;

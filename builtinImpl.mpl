@@ -18,7 +18,7 @@
 "Var.Dynamic" use
 "Var.Field" use
 "Var.RefToVar" use
-"Var.Schema" use
+"Var.ShadowReasonCapture" use
 "Var.ShadowReasonField" use
 "Var.Static" use
 "Var.Struct" use
@@ -57,7 +57,6 @@
 "Var.isNumber" use
 "Var.isPlain" use
 "Var.isReal" use
-"Var.isSchema" use
 "Var.isUnallocable" use
 "Var.isVirtual" use
 "Var.makeRefBranch" use
@@ -77,8 +76,10 @@
 "codeNode.createVariable" use
 "codeNode.createVariableWithVirtual" use
 "codeNode.derefAndPush" use
+"codeNode.getLastShadow" use
 "codeNode.getNameWithOverloadIndex" use
 "codeNode.getName" use
+"codeNode.getNilVar" use
 "codeNode.makeStaticity" use
 "codeNode.makeStorageStaticity" use
 "codeNode.makeVarDirty" use
@@ -105,7 +106,7 @@
 "declarations.defaultPrintStack" use
 "declarations.defaultPrintStackTrace" use
 "declarations.getMplType" use
-"declarations.makeShadowsDynamic" use
+"declarations.makeShadows" use
 "declarations.makeVarString" use
 "declarations.processCall" use
 "defaultImpl.FailProcForProcessor" use
@@ -189,82 +190,58 @@ mplBuiltinProcessAtList: [
     structVar: refToStruct getVar;
     indexVar: refToIndex getVar;
 
-    refToStruct isSchema [
+    (
+      [processor compilable]
+      [structVar.data.getTag VarStruct = ~ [ "not a combined" @processor block compilerError] when]
+      [indexVar.data.getTag VarInt32 = ~ ["index must be Int32" @processor block compilerError] when]
+      [
+        struct: VarStruct structVar.data.get.get;
+        refToIndex staticityOfVar Weak < [
+          struct.homogeneous [
+            struct.fields.size 0 > [
+              # create dynamic getIndex
+              realRefToStruct: refToStruct;
+              realStructVar: structVar;
+              realStruct: struct;
+              refToStruct staticityOfVar Virtual < ~ [
+                "can't get dynamic index in virtual struct" @processor block compilerError
+              ] when
 
-      (
-        [processor compilable]
-        [
-          pointee: VarRef structVar.data.get.refToVar;
-          pointeeVar: pointee getVar;
-          pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
-        ]
-        [indexVar.data.getTag VarInt32 = ~ ["index must be Int32" @processor block compilerError] when ]
-        [refToIndex staticityOfVar Weak < [ "index must be static" @processor block compilerError] when ]
-        [
-          index: VarInt32 indexVar.data.get.end 0 cast;
-          struct: VarStruct pointeeVar.data.get.get;
-          index 0 < [index struct.fields.getSize < ~] || ["index is out of bounds" @processor block compilerError] when
-        ] [
-          field: index struct.fields.at.refToVar;
-          field makeRefBranch VarRef TRUE dynamic TRUE dynamic TRUE dynamic @processor @block createVariableWithVirtual @result set
-          refToStruct.mutable @result.setMutable
-          @result fullUntemporize
-        ]
-      ) sequence
-    ] [
-      (
-        [processor compilable]
-        [structVar.data.getTag VarStruct = ~ [ "not a combined" @processor block compilerError] when]
-        [indexVar.data.getTag VarInt32 = ~ ["index must be Int32" @processor block compilerError] when]
-        [
-          struct: VarStruct structVar.data.get.get;
-          refToIndex staticityOfVar Weak < [
-            struct.homogeneous [
-              struct.fields.size 0 > [
-                # create dynamic getIndex
-                realRefToStruct: refToStruct;
-                realStructVar: structVar;
-                realStruct: struct;
-                refToStruct staticityOfVar Virtual < ~ [
-                  "can't get dynamic index in virtual struct" @processor block compilerError
-                ] when
+              @refToIndex  makeVarRealCaptured
+              @refToStruct makeVarPtrCaptured
+              @refToStruct makeVarRealCaptured
 
-                @refToIndex  makeVarRealCaptured
-                @refToStruct makeVarPtrCaptured
-                @refToStruct makeVarRealCaptured
+              firstField: 0 realStruct.fields.at.refToVar;
+              fieldRef: firstField @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity;
 
-                firstField: 0 realStruct.fields.at.refToVar;
-                fieldRef: firstField @processor @block copyOneVarFromType Dynamic @processor @block makeStorageStaticity;
-
-                refToStruct.mutable @fieldRef.setMutable
-                @fieldRef fullUntemporize
-                fieldRef staticityOfVar Virtual < ~ [
-                  "dynamic index in combined of virtuals" @processor block compilerError
-                ] [
-                  fieldRef @processor @block makeVarTreeDynamicStoraged
-                  @fieldRef @processor block unglobalize
-                  fieldRef refToIndex realRefToStruct @processor @block createDynamicGEP
-                  fieldVar: @fieldRef getVar;
-                  block.program.size 1 - @fieldVar.@getInstructionIndex set
-                  fieldRef @result set
-                ] if
-
-                refToStruct.mutable [
-                  refToStruct @processor @block makeVarTreeDirty
-                ] when
+              refToStruct.mutable @fieldRef.setMutable
+              @fieldRef fullUntemporize
+              fieldRef staticityOfVar Virtual < ~ [
+                "dynamic index in combined of virtuals" @processor block compilerError
               ] [
-                "struct is empty" @processor block compilerError
+                fieldRef @processor @block makeVarTreeDynamicStoraged
+                @fieldRef @processor block unglobalize
+                fieldRef refToIndex realRefToStruct @processor @block createDynamicGEP
+                fieldVar: @fieldRef getVar;
+                block.program.size 1 - @fieldVar.@getInstructionIndex set
+                fieldRef @result set
               ] if
+
+              refToStruct.mutable [
+                refToStruct @processor @block makeVarTreeDirty
+              ] when
             ] [
-              "dynamic index in non-homogeneous combined" @processor block compilerError
+              "struct is empty" @processor block compilerError
             ] if
           ] [
-            index: VarInt32 indexVar.data.get.end 0 cast;
-            index @refToStruct @processor @block processStaticAt @result set
+            "dynamic index in non-homogeneous combined" @processor block compilerError
           ] if
-        ]
-      ) sequence
-    ] if
+        ] [
+          index: VarInt32 indexVar.data.get.end 0 cast;
+          index @refToStruct @processor @block processStaticAt @result set
+        ] if
+      ]
+    ) sequence
   ] when
 
   result
@@ -826,12 +803,7 @@ staticityOfBinResult: [
       varSchema: refToSchema getVar;
       schemaOfResult: RefToVar;
       varSchema.data.getTag VarRef = [
-        refToSchema isSchema [
-          VarRef varSchema.data.get.refToVar @processor @block copyVarFromChild @schemaOfResult set
-          refToSchema.mutable schemaOfResult.mutable and @schemaOfResult.setMutable
-        ] [
-          [FALSE] "Unable in current semantic!" assert
-        ] if
+        [FALSE] "Unable in current semantic!" assert
       ] [
         refToSchema @schemaOfResult set
       ] if
@@ -839,13 +811,19 @@ staticityOfBinResult: [
       schemaOfResult isVirtual [
         "pointee is virtual, cannot cast" @processor block compilerError
       ] [
-        refBranch: schemaOfResult makeRefBranch;
-        FALSE @refBranch.@refToVar.setMoved
+        refToVar staticityOfVar Dynamic > [VarNatX var.data.get.end 0n64 =] && [
+          result: schemaOfResult @processor @block getNilVar @processor @block getLastShadow;
+          schemaOfResult.mutable @result.setMutable
+          result @block push
+        ] [
+          refBranch: schemaOfResult makeRefBranch;
+          FALSE @refBranch.@refToVar.setMoved
 
-        refToDst: refBranch @processor @block createRefVariable;
-        Dynamic makeValuePair @refToDst getVar.@staticity set
-        refToVar @refToDst "inttoptr" @processor @block createCastCopyToNew
-        @refToDst @processor @block derefAndPush
+          refToDst: refBranch @processor @block createRefVariable;
+          Dynamic makeValuePair @refToDst getVar.@staticity set
+          refToVar @refToDst "inttoptr" @processor @block createCastCopyToNew
+          @refToDst @processor @block derefAndPush
+        ] if
       ] if
     ] [
       "address must be a NatX" @processor block compilerError
@@ -857,17 +835,7 @@ staticityOfBinResult: [
   refToVar: @processor @block pop;
   processor compilable [
     refToVar isVirtual [
-      refToVar isSchema [
-        pointee: VarRef refToVar getVar.data.get.refToVar;
-        pointee isVirtual [
-          0nx
-        ] [
-          pointee @processor block checkUnsizedData
-          pointee @processor getAlignment
-        ] if
-      ] [
-        0nx
-      ] if
+      0nx
     ] [
       refToVar @processor block checkUnsizedData
       refToVar @processor getAlignment
@@ -1249,19 +1217,10 @@ staticityOfBinResult: [
   refToVar: @processor @block pop;
   processor compilable [
     var: refToVar getVar;
-    refToVar isSchema [
-      pointee: VarRef var.data.get.refToVar;
-      pointeeVar: pointee getVar;
-      pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
-      processor compilable [
-        VarStruct pointeeVar.data.get.get.fields.size 0i64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
-      ] when
-    ] [
-      var.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
-      processor compilable [
-        VarStruct var.data.get.get.fields.size 0i64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
-      ] when
-    ] if
+    var.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
+    processor compilable [
+      VarStruct var.data.get.get.fields.size 0i64 cast makeValuePair VarInt32 @processor @block createVariable Static @processor @block makeStaticity @processor @block createPlainIR @block push
+    ] when
   ] when
 ] "mplBuiltinFieldCount" @declareBuiltin ucall
 
@@ -1301,23 +1260,14 @@ staticityOfBinResult: [
       processor compilable [
         count: VarInt32 varCount.data.get.end 0 cast;
         var: refToVar getVar;
-        refToVar isSchema [
-          pointee: VarRef var.data.get.refToVar;
-          pointeeVar: pointee getVar;
-          pointeeVar.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
+        var.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
+        processor compilable [
+          struct: VarStruct var.data.get.get;
+          count 0 < [count struct.fields.getSize < ~] || ["index is out of bounds" @processor block compilerError] when
           processor compilable [
-            count VarStruct pointeeVar.data.get.get.fields.at.nameInfo processor.nameManager.getText @processor @block makeVarString @block push
+            count struct.fields.at.nameInfo processor.nameManager.getText @processor @block makeVarString @block push
           ] when
-        ] [
-          var.data.getTag VarStruct = ~ ["not a combined" @processor block compilerError] when
-          processor compilable [
-            struct: VarStruct var.data.get.get;
-            count 0 < [count struct.fields.getSize < ~] || ["index is out of bounds" @processor block compilerError] when
-            processor compilable [
-              count struct.fields.at.nameInfo processor.nameManager.getText @processor @block makeVarString @block push
-            ] when
-          ] when
-        ] if
+        ] when
       ] when
     ] when
   ] when
@@ -1527,9 +1477,7 @@ staticityOfBinResult: [
 
       cmpResult 0 = [
         @refToVar1 makeVarPtrCaptured
-        @refToVar1 makeVarRealCaptured
         @refToVar2 makeVarPtrCaptured
-        @refToVar2 makeVarRealCaptured
         result: FALSE makeValuePair VarCond @processor @block createVariable Dynamic @processor @block makeStaticity @processor @block createAllocIR;
         refToVar1 refToVar2 result "icmp eq" @processor @block createDirectBinaryOperation
         result @block push
@@ -1759,11 +1707,6 @@ staticityOfBinResult: [
 ] "mplBuiltinSame" @declareBuiltin ucall
 
 [
-  block.nextLabelIsSchema ["duplicate schema specifier" @processor block compilerError] when
-  TRUE @block.@nextLabelIsSchema set
-] "mplBuiltinSchema" @declareBuiltin ucall
-
-[
   @processor @block defaultSet
 ] "mplBuiltinSet" @declareBuiltin ucall
 
@@ -1793,14 +1736,17 @@ staticityOfBinResult: [
     [refToVar: @processor @block pop;]
     [refToVar isVirtual ["variable is virtual, cannot get address" @processor block compilerError] when]
     [
-      @refToVar makeVarPtrCaptured
-      @refToVar makeVarRealCaptured
-      refToVar @processor @block makeVarTreeDirty
-      refToDst: 0n64 makeValuePair VarNatX @processor @block createVariable;
-      Dynamic makeValuePair @refToDst getVar.@staticity set
-      var: refToVar getVar;
-      refToVar @refToDst "ptrtoint" @processor @block createCastCopyPtrToNew
-      refToDst @block push
+      refToVar getVar.storageStaticity Virtual = [
+        0n64 makeValuePair VarNatX @processor @block createVariable @processor @block createPlainIR @block push
+      ] [
+        @refToVar makeVarPtrCaptured
+        refToVar @processor @block makeVarTreeDirty
+        refToDst: 0n64 makeValuePair VarNatX @processor @block createVariable;
+        Dynamic makeValuePair @refToDst getVar.@staticity set
+        var: refToVar getVar;
+        refToVar @refToDst "ptrtoint" @processor @block createCastCopyPtrToNew
+        refToDst @block push
+      ] if
     ]
   ) sequence
 ] "mplBuiltinStorageAddress" @declareBuiltin ucall
@@ -1809,17 +1755,7 @@ staticityOfBinResult: [
   refToVar: @processor @block pop;
   processor compilable [
     refToVar isVirtual [
-      refToVar isSchema [
-        pointee: VarRef refToVar getVar.data.get.refToVar;
-        pointee isVirtual [
-          0nx
-        ] [
-          pointee @processor block checkUnsizedData
-          pointee @processor getStorageSize
-        ] if
-      ] [
-        0nx
-      ] if
+      0nx
     ] [
       refToVar @processor block checkUnsizedData
       refToVar @processor getStorageSize

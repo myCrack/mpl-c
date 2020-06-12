@@ -125,7 +125,7 @@ MatchingInfo: [{
 
 NameWithOverload: [{
   nameInfo: -1 dynamic;
-  nameOverloadDepth: -1 dynamic;
+  nameOverloadDepth: -1 dynamic; 
 }];
 
 NameWithOverloadAndRefToVar: [{
@@ -181,7 +181,6 @@ Block: [{
 
   nodeIsRecursive:     FALSE dynamic;
   nextLabelIsVirtual:  FALSE dynamic;
-  nextLabelIsSchema:   FALSE dynamic;
   nextLabelIsConst:    FALSE dynamic;
   nextLabelIsOverload: FALSE dynamic;
   recursionState:      NodeRecursionStateNo;

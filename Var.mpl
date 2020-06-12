@@ -18,7 +18,6 @@ Dynamic: [1n8 dynamic];
 Weak:    [2n8 dynamic];
 Static:  [3n8 dynamic];
 Virtual: [4n8 dynamic];
-Schema:  [5n8 dynamic];
 
 ShadowReasonNo:           [0];
 ShadowReasonCapture:      [1];
@@ -208,12 +207,6 @@ isVirtual: [
   [refToVar isVirtualType] ||
 ];
 
-isSchema: [
-  refToVar:;
-  var: refToVar getVar;
-  var.data.getTag VarRef = [var.staticity.end Schema =] &&
-];
-
 isVirtualType: [
   refToVar:;
 
@@ -222,7 +215,6 @@ isVirtualType: [
   [var.data.getTag VarCode =] ||
   [var.data.getTag VarInvalid =] ||
   [var.data.getTag VarStruct = [VarStruct var.data.get.get.fullVirtual copy] &&] ||
-  [refToVar isSchema] ||
 ];
 
 isInt: [
@@ -330,7 +322,7 @@ getVirtualValue: [
     VarRef     [
       pointee: VarRef var.data.get.refToVar;
       pointeeVar: pointee getVar;
-      var.staticity.end Schema = [
+      pointeeVar.storageStaticity Virtual = [
         "." @result.cat
       ] [
         pointeeVar.data.getTag (
@@ -339,7 +331,9 @@ getVirtualValue: [
             (string.size "_" string getStringImplementation) @result.catMany
           ]
           VarImport  [VarImport  pointeeVar.data.get @result.cat]
-          [[FALSE] "Wrong type for virtual reference!" assert]
+          [
+            [FALSE] "Wrong type for virtual reference!" assert
+          ]
         ) case
       ] if
     ]

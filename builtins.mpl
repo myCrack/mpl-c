@@ -90,7 +90,6 @@ builtins: (
   {name: "recursive"                     ; impl: @mplBuiltinRecursive               ;}
   {name: "rshift"                        ; impl: @mplBuiltinRShift                  ;}
   {name: "same"                          ; impl: @mplBuiltinSame                    ;}
-  {name: "schema"                        ; impl: @mplBuiltinSchema                  ;}
   {name: "set"                           ; impl: @mplBuiltinSet                     ;}
   {name: "sin"                           ; impl: @mplBuiltinSin                     ;}
   {name: "sqrt"                          ; impl: @mplBuiltinSqrt                    ;}

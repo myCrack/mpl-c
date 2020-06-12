@@ -794,6 +794,7 @@ createGetCallTrace: [
 # require captures "processor" and "codeNode"
 generateVariableIRNameWith: [
   hostOfVariable: temporaryRegister: processor: block: ;;;;
+
   temporaryRegister ~ [block.parent 0 =] && [
     ("@global." processor.globalVarCount) assembleString @processor makeStringId
     processor.globalVarCount 1 + @processor.@globalVarCount set

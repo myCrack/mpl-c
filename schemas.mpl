@@ -4,6 +4,7 @@
 "Variant.Variant" use
 "control" use
 
+"Var.RefToVar"         use
 "Var.VarBuiltin"      use
 "Var.VarCode"         use
 "Var.VarCond"         use
@@ -113,6 +114,7 @@ VariableSchema: [{
   irTypeId: -1;
   dbgTypeId: -1;
   dbgTypeDeclarationId: -1;
+  nilVar: RefToVar;
   data: (
     BuiltinTypeSchema
     FunctionSchema

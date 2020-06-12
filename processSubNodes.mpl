@@ -69,7 +69,6 @@
 "Var.getVar" use
 "Var.isNonrecursiveType" use
 "Var.isPlain" use
-"Var.isSchema" use
 "Var.isSemiplainNonrecursiveType" use
 "Var.isVirtual" use
 "Var.makeValuePair" use
@@ -86,6 +85,7 @@
 "codeNode.finalizeCodeNode" use
 "codeNode.getField" use
 "codeNode.getFieldForMatching" use
+"codeNode.getLastShadow" use
 "codeNode.getNameForMatching" use
 "codeNode.getNameForMatchingWithOverloadIndex" use
 "codeNode.getNameWithOverloadIndex" use
@@ -737,7 +737,9 @@ fixRef: [
     ] [
       # dont have shadow - to deref of captured dynamic pointer
       # must by dynamic
-      var.staticity.end Static = [pointeeVar.storageStaticity Static =] && ["returning pointer to local variable" @processor block compilerError] when
+      var.staticity.end Static = [pointeeVar.storageStaticity Static =] && [
+        "returning pointer to local variable" @processor block compilerError
+      ] when
 
       #pointee getVar.host currentChangesNode is ~
 
@@ -795,14 +797,12 @@ fixOutputRefsRec: [
           [currentFromStack hasGoodSource] "Stack var source invariant failed!" assert
 
           stackEntryVar.data.getTag VarRef = [
-            currentFromStack isSchema ~ [
-              stackPointee: VarRef @stackEntryVar.@data.get.@refToVar;
-              stackPointee getVar.host currentChangesNode is [
-                fixedPointer: currentFromStack appliedVars fixRef;
-                fixedPointer staticityOfVar Dynamic > [
-                  fixed: fixedPointer @processor @block getPointeeNoDerefIR;
-                  fixed @unfinishedStack.pushBack
-                ] when
+            stackPointee: VarRef @stackEntryVar.@data.get.@refToVar;
+            stackPointee getVar.host currentChangesNode is [
+              fixedPointer: currentFromStack appliedVars fixRef;
+              fixedPointer staticityOfVar Dynamic > [
+                fixed: fixedPointer @processor @block getPointeeNoDerefIR;
+                fixed @unfinishedStack.pushBack
               ] when
             ] when
           ] [
@@ -890,9 +890,13 @@ fixCaptureRef: [
             topologyIndexOfPointee: cachePointee getVar.topologyIndex copy;
             topologyIndexOfPointee 0 < [
               cachePointee getVar.storageStaticity Dynamic = [
-                #here???
+                #here dont need to do something
               ] [
-                "returning pointer to local variable" @processor block compilerError
+                cachePointee getVar.storageStaticity Virtual = [
+                  cachePointee @processor @block getLastShadow getVar @cachePointee.setVar
+                ] [
+                  "returning pointer to local variable" @processor block compilerError
+                ] if
               ] if
             ] [
               #fixing here...
