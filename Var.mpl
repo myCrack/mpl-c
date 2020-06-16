@@ -191,7 +191,7 @@ Variable: [{
   DIE: [];
 }];
 
-virtual VarSchema: Variable NilRef;
+virtual VarSchema: Variable Ref;
 
 getVar: [
   refToVar:;

@@ -364,6 +364,7 @@ debugMemory [
     beventCount: 0;
     meventCount: 0;
     captureCount: 0;
+    globalCaptureCount: 0;
     failedCaptureCount: 0;
     dependentsSize: 0;
 
@@ -386,6 +387,10 @@ debugMemory [
           branch.refToVar getVar processor.varForFails getVar is [
             failedCaptureCount 1 + !failedCaptureCount
           ] when
+
+          branch.refToVar getVar.global [
+            globalCaptureCount 1 + !globalCaptureCount
+          ] when
         ] when
       ] each
     ] each
@@ -402,7 +407,7 @@ debugMemory [
       "; meventCount=" meventCount
       "; meventCountByTag=" 0 eventTagCount @ ":" 1 eventTagCount @ ":" 2 eventTagCount @ ":" 3 eventTagCount @ ":" 4 eventTagCount @ ":" 5 eventTagCount @
       "; eventSize=" ShadowEvent storageSize
-      "; captureCount=" captureCount "; failedCaptureCount=" failedCaptureCount
+      "; captureCount=" captureCount "; failedCaptureCount=" failedCaptureCount "; globalCaptureCount=" globalCaptureCount
       "; captureSize=" Capture storageSize
       "; dependentPointersCount=" dependentsSize "; dependentPointer size=" (RefToVar RefToVar FALSE dynamic) storageSize
     ) addLog

@@ -79,8 +79,8 @@ CFunctionSignature: [{
 
 CompilerPositionInfo: [{
   file:   ["File.FileSchema" use FileSchema] Mref;
-  line:   -1;
-  column: -1;
+  line:   -1 dynamic;
+  column: -1 dynamic;
   token:  String;
 }];
 
@@ -164,6 +164,10 @@ ShadowEventPointee: [{
   pointee: RefToVar;
 }];
 
+ShadowEventStableName: [{
+  nameInfo: Int32;
+}];
+
 Block: [{
   id:              Int32;
   root:            FALSE dynamic;
@@ -233,4 +237,4 @@ Block: [{
   DIE: [];
 }];
 
-virtual BlockSchema: Block NilRef;
+virtual BlockSchema: Block Ref;

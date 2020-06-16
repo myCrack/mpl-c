@@ -505,6 +505,7 @@ tryMatchNode: [
             cacheEntry: branch.refToVar;
             overloadIndex: outOverloadDepth: branch @block branch.file TRUE getOverloadIndex;;
             stackEntry: branch.nameInfo branch overloadIndex @processor @block branch.file getNameForMatchingWithOverloadIndex.refToVar;
+
             stackEntry cacheEntry TRUE @comparingMessage currentMatchingNode processor compareOnePair
 
             [
@@ -1098,7 +1099,7 @@ changeVarValue: [
 
     [dst hasGoodSource] "Change var value var source invariant failed!" assert
 
-    varSrc.staticity @varDst.@staticity set
+    varSrc.staticity.end @varDst.@staticity.@end set
     dst isPlain [
       varDst.data.getTag VarCond VarReal64 1 + [
         copy tag:;

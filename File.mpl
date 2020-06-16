@@ -9,4 +9,4 @@ File: [{
   rootBlock: ["Block.BlockSchema" use BlockSchema] Mref;
 }];
 
-virtual FileSchema: File NilRef;
+virtual FileSchema: File Ref;

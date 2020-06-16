@@ -317,6 +317,7 @@ makeStaticity: [
     var: @refToVar getVar;
     staticity @var.@staticity.@begin set
     staticity @var.@staticity.@end set
+
     staticity Virtual < ~ [
       @refToVar @processor block makeVariableType
     ] when
@@ -1381,6 +1382,7 @@ getNameAs: [
     object:            RefToVar;
     mplFieldIndex:     -1 dynamic;
     nameCase:          NameCaseInvalid;
+    isOverloaded:      FALSE dynamic;
   };
 
   overloadIndex 0 < [overloadIndex file nameInfo processor.nameManager.findItem !overloadIndex] when
@@ -1389,9 +1391,10 @@ getNameAs: [
   ] [
     nameInfoEntry: overloadIndex nameInfo processor.nameManager.getItem;
 
-    overloadIndex            @result.@overloadIndex set
-    nameInfoEntry.nameCase   @result.@nameCase   set
-    nameInfoEntry.startPoint @result.@startPoint set
+    overloadIndex              @result.@overloadIndex set
+    nameInfoEntry.nameCase     @result.@nameCase      set
+    nameInfoEntry.startPoint   @result.@startPoint    set
+    nameInfoEntry.file isNil ~ @result.@isOverloaded  set
 
     nameCase: matchingCapture.captureCase NameCaseInvalid = [result.nameCase copy] [matchingCapture.captureCase copy] if;
 
@@ -1466,214 +1469,217 @@ captureName: [
     object: RefToVar;
   };
 
-  processor compilable [getNameResult.nameCase NameCaseInvalid = ~] && [
+  #file.rootBlock.state NodeStateCompiled = [getNameResult.nameInfoNotOverloaded copy] && [getNameResult.refToVar isGlobal] && [FALSE] && [
 
-    addBlockIdTo: [
-      whereNames: nameInfo: nameOverloadDepth: captureCase: mplSchemaId: ;;;;;
+  #] [
+    processor compilable [getNameResult.nameCase NameCaseInvalid = ~] && [
+      addBlockIdTo: [
+        whereNames: nameInfo: nameOverloadDepth: captureCase: mplSchemaId: ;;;;;
 
-      addToLine: [
-        line:;
-        index: line.size 1 -;
-        result: TRUE dynamic;
+        addToLine: [
+          line:;
+          index: line.size 1 -;
+          result: TRUE dynamic;
 
-        [
-          index 0 < [index line.at.block block is ~] || [
-            FALSE #no such item
-          ] [
-            index line.at.file file is [
-              FALSE !result #we have such item
-              FALSE
+          [
+            index 0 < [index line.at.block block is ~] || [
+              FALSE #no such item
             ] [
-              index 1 - !index
-              TRUE #find deeper
+              index line.at.file file is [
+                FALSE !result #we have such item
+                FALSE
+              ] [
+                index 1 - !index
+                TRUE #find deeper
+              ] if
             ] if
-          ] if
-        ] loop
+          ] loop
 
-        result [
-          NameInfoCoord @line.pushBack
-          block @line.last.@block.set
-          file  @line.last.@file.set
+          result [
+            NameInfoCoord @line.pushBack
+            block @line.last.@block.set
+            file  @line.last.@file.set
+          ] when
+
+          result
+        ];
+
+        addBlockToObjectCase: [
+          nameOverloadDepth: mplSchemaId: table: ;;;
+
+          nameOverloadDepth table.size < ~ [nameOverloadDepth 1 + @table.resize] when
+          whereTypes: nameOverloadDepth @table.at;
+          mplSchemaId whereTypes.size < ~ [mplSchemaId 1 + @whereTypes.resize] when
+          whereIds: mplSchemaId @whereTypes.at;
+          @whereIds addToLine
+        ];
+
+        nameInfo processor.selfNameInfo = [
+          nameOverloadDepth mplSchemaId @whereNames.@selfNames addBlockToObjectCase
+        ] [
+          nameInfo processor.closureNameInfo =  [
+            nameOverloadDepth mplSchemaId @whereNames.@closureNames addBlockToObjectCase
+          ] [
+            nameInfo whereNames.simpleNames.size < ~ [nameInfo 1 + @whereNames.@simpleNames.resize] when
+            whereOverloads: nameInfo @whereNames.@simpleNames.at;
+            nameOverloadDepth whereOverloads.size < ~ [nameOverloadDepth 1 + @whereOverloads.resize] when
+            whereIds: nameOverloadDepth @whereOverloads.at;
+            @whereIds addToLine
+          ] if
+        ] if
+      ];
+
+      captureRefToVar: [
+        copy captureCase:;
+        refToVar:;
+        copy overloadDepth:;
+        copy nameInfo:;
+
+        result: {
+          refToVar: refToVar copy;
+          newVar: FALSE;
+        };
+
+        getNameResult.startPoint block.id = ~ [@processor.@captureTable nameInfo overloadDepth captureCase refToVar getVar.mplSchemaId addBlockIdTo] && [
+          refToVar @result.@refToVar set
+
+          shadow: RefToVar;
+          @shadow refToVar ShadowReasonCapture @processor @block makeShadows
+          @shadow fullUntemporize
+
+          newCapture: Capture;
+          shadow @newCapture.@refToVar set
+          nameInfo @newCapture.@nameInfo set
+          [getNameResult.overloadIndex 0 < ~] "name overload not initialized!" assert
+
+          overloadDepth @newCapture.@nameOverloadDepth set
+          captureCase   @newCapture.@captureCase set
+          file          @newCapture.@file.set
+
+          refToVar isVirtual [ArgVirtual] [refToVar isGlobal [ArgGlobal] [ArgRef] if ] if @newCapture.@argCase set
+          realCapture: newCapture.argCase ArgRef =;
+
+          realCapture [block.exportDepth refToVar getVar.host.exportDepth = ~] && [
+            @newCapture.@refToVar @processor @block makeVarTreeDirty
+            captureId: block.buildingMatchingInfo.captures.size;
+            fr: captureId block.captureErrors.find;
+            fr.success ~ [
+              captureId processor.positions.last @block.@captureErrors.insert
+            ] when
+          ] when
+
+          nameInfo processor.selfNameInfo = [overloadDepth 0 = ~] && [
+            [FALSE] "Self cannot have overloads!" assert
+          ] when
+
+          newEvent: ShadowEvent;
+          ShadowReasonCapture @newEvent.setTag
+          branch: ShadowReasonCapture @newEvent.get;
+          newCapture @branch set
+          shadow @branch.@refToVar set
+
+          newCapture @block.@buildingMatchingInfo.@captures.pushBack
+          block.state NodeStateNew = [
+            newCapture @block.@matchingInfo.@captures.pushBack
+          ] when
+
+          @block @shadow setTopologyIndex
+          @newEvent @block addShadowEvent
+
+          processor.options.debug [shadow isVirtual ~] && [shadow isGlobal ~] && [
+            fakePointer: shadow makeRefBranch FALSE @processor @block createRefVariable;
+            shadow @fakePointer @processor @block createRefOperation
+            nameInfo fakePointer @processor @block addVariableMetadata
+            programSize: block.program.getSize;
+            TRUE programSize 3 - @block.@program.at.@fakePointer set
+            TRUE programSize 2 - @block.@program.at.@fakePointer set
+            TRUE programSize 1 - @block.@program.at.@fakePointer set
+            @processor @block addDebugLocationForLastInstruction
+          ] when
+
+          shadow @result.@refToVar set
+          TRUE @result.@newVar set
+
+          [shadow getVar.temporary ~] "Captured var must not be temporary!" assert
         ] when
 
         result
       ];
 
-      addBlockToObjectCase: [
-        nameOverloadDepth: mplSchemaId: table: ;;;
-
-        nameOverloadDepth table.size < ~ [nameOverloadDepth 1 + @table.resize] when
-        whereTypes: nameOverloadDepth @table.at;
-        mplSchemaId whereTypes.size < ~ [mplSchemaId 1 + @whereTypes.resize] when
-        whereIds: mplSchemaId @whereTypes.at;
-        @whereIds addToLine
-      ];
-
-      nameInfo processor.selfNameInfo = [
-        nameOverloadDepth mplSchemaId @whereNames.@selfNames addBlockToObjectCase
-      ] [
-        nameInfo processor.closureNameInfo =  [
-          nameOverloadDepth mplSchemaId @whereNames.@closureNames addBlockToObjectCase
+      # now we must capture and create GEP instruction
+      getNameResult.mplFieldIndex 0 < ~ [
+        nameInfo: getNameResult.nameCase NameCaseSelfMember = [
+          processor.selfNameInfo copy
         ] [
-          nameInfo whereNames.simpleNames.size < ~ [nameInfo 1 + @whereNames.@simpleNames.resize] when
-          whereOverloads: nameInfo @whereNames.@simpleNames.at;
-          nameOverloadDepth whereOverloads.size < ~ [nameOverloadDepth 1 + @whereOverloads.resize] when
-          whereIds: nameOverloadDepth @whereOverloads.at;
-          @whereIds addToLine
-        ] if
+          getNameResult.nameCase NameCaseClosureMember = [
+            processor.closureNameInfo copy
+          ] [
+            [FALSE] "Invalid getName case for members!" assert
+            processor.closureNameInfo copy
+          ] if
+        ] if;
+
+        cro: nameInfo 0 @getNameResult.@object getNameResult.nameCase MemberCaseToObjectCase captureRefToVar;
+
+        cro.refToVar @result.@object set
+        [cro.refToVar noMatterToCopy [cro.refToVar getVar.host block is] ||] "Captured name is not from here!" assert
+        getNameResult.mplFieldIndex @cro.@refToVar @processor @block processStaticAt @result.@refToVar set
+        cro.newVar [
+          {
+            nameInfo:      nameInfo copy;
+            mplFieldIndex: getNameResult.mplFieldIndex copy;
+            startPoint:    getNameResult.startPoint copy;
+            overloadDepth: 0;
+            addNameCase:   getNameResult.nameCase MemberCaseToObjectCaptureCase;
+            refToVar:      cro.refToVar copy;
+          } @processor @block addNameInfo
+        ] when # add name info for "self"/"closure" as Object; result is object
+
+        getNameResult.startPoint block.id = ~ [@processor.@captureTable getNameResult.nameInfo overloadDepth NameCaseCapture -1 addBlockIdTo] && [
+          {
+            nameInfo:      getNameResult.nameInfo copy;
+            mplFieldIndex: getNameResult.mplFieldIndex copy;
+            startPoint:    getNameResult.startPoint copy;
+            overloadDepth: overloadDepth copy;
+            addNameCase:   getNameResult.nameCase copy;
+            refToVar:      result.refToVar copy;
+          } @processor @block addNameInfo
+
+          newFieldCapture: FieldCapture;
+          [overloadDepth 0 < ~] "name overload not initialized!" assert
+
+          getNameResult.nameInfo      @newFieldCapture.@nameInfo set
+          overloadDepth               @newFieldCapture.@nameOverloadDepth set
+          result.object               @newFieldCapture.@object set
+          getNameResult.nameCase      @newFieldCapture.@captureCase set
+          getNameResult.mplFieldIndex @newFieldCapture.@fieldIndex set
+          file                        @newFieldCapture.@file.set
+
+          newEvent: ShadowEvent;
+          ShadowReasonFieldCapture @newEvent.setTag
+          branch: ShadowReasonFieldCapture @newEvent.get;
+          newFieldCapture @branch set
+          result.object @branch.@object set
+          @newEvent @block addShadowEvent
+        ] when
+      ] [
+        cr: getNameResult.nameInfo overloadDepth @getNameResult.@refToVar getNameResult.nameCase captureRefToVar;
+        cr.refToVar @result.@refToVar set
+        cr.newVar [
+          {
+            nameInfo:      getNameResult.nameInfo copy;
+            startPoint:    getNameResult.startPoint copy;
+            overloadDepth: overloadDepth copy;
+            addNameCase:   NameCaseCapture;
+            refToVar:      result.refToVar copy;
+          } @processor @block addNameInfo
+        ] when
       ] if
-    ];
-
-    captureRefToVar: [
-      copy captureCase:;
-      refToVar:;
-      copy overloadDepth:;
-      copy nameInfo:;
-
-      result: {
-        refToVar: refToVar copy;
-        newVar: FALSE;
-      };
-
-      getNameResult.startPoint block.id = ~ [@processor.@captureTable nameInfo overloadDepth captureCase refToVar getVar.mplSchemaId addBlockIdTo] && [
-        refToVar @result.@refToVar set
-
-        shadow: RefToVar;
-        @shadow refToVar ShadowReasonCapture @processor @block makeShadows
-        @shadow fullUntemporize
-
-        newCapture: Capture;
-        shadow @newCapture.@refToVar set
-        nameInfo @newCapture.@nameInfo set
-        [getNameResult.overloadIndex 0 < ~] "name overload not initialized!" assert
-
-        overloadDepth @newCapture.@nameOverloadDepth set
-        captureCase   @newCapture.@captureCase set
-        file          @newCapture.@file.set
-
-        refToVar isVirtual [ArgVirtual] [refToVar isGlobal [ArgGlobal] [ArgRef] if ] if @newCapture.@argCase set
-        realCapture: newCapture.argCase ArgRef =;
-
-        realCapture [block.exportDepth refToVar getVar.host.exportDepth = ~] && [
-          @newCapture.@refToVar @processor @block makeVarTreeDirty
-          captureId: block.buildingMatchingInfo.captures.size;
-          fr: captureId block.captureErrors.find;
-          fr.success ~ [
-            captureId processor.positions.last @block.@captureErrors.insert
-          ] when
-        ] when
-
-        nameInfo processor.selfNameInfo = [overloadDepth 0 = ~] && [
-          [FALSE] "Self cannot have overloads!" assert
-        ] when
-
-        newEvent: ShadowEvent;
-        ShadowReasonCapture @newEvent.setTag
-        branch: ShadowReasonCapture @newEvent.get;
-        newCapture @branch set
-        shadow @branch.@refToVar set
-
-        newCapture @block.@buildingMatchingInfo.@captures.pushBack
-        block.state NodeStateNew = [
-          newCapture @block.@matchingInfo.@captures.pushBack
-        ] when
-
-        @block @shadow setTopologyIndex
-        @newEvent @block addShadowEvent
-
-        processor.options.debug [shadow isVirtual ~] && [shadow isGlobal ~] && [
-          fakePointer: shadow makeRefBranch FALSE @processor @block createRefVariable;
-          shadow @fakePointer @processor @block createRefOperation
-          nameInfo fakePointer @processor @block addVariableMetadata
-          programSize: block.program.getSize;
-          TRUE programSize 3 - @block.@program.at.@fakePointer set
-          TRUE programSize 2 - @block.@program.at.@fakePointer set
-          TRUE programSize 1 - @block.@program.at.@fakePointer set
-          @processor @block addDebugLocationForLastInstruction
-        ] when
-
-        shadow @result.@refToVar set
-        TRUE @result.@newVar set
-
-        [shadow getVar.temporary ~] "Captured var must not be temporary!" assert
-      ] when
-
-      result
-    ];
-
-    # now we must capture and create GEP instruction
-    getNameResult.mplFieldIndex 0 < ~ [
-      nameInfo: getNameResult.nameCase NameCaseSelfMember = [
-        processor.selfNameInfo copy
-      ] [
-        getNameResult.nameCase NameCaseClosureMember = [
-          processor.closureNameInfo copy
-        ] [
-          [FALSE] "Invalid getName case for members!" assert
-          processor.closureNameInfo copy
-        ] if
-      ] if;
-
-      cro: nameInfo 0 @getNameResult.@object getNameResult.nameCase MemberCaseToObjectCase captureRefToVar;
-
-      cro.refToVar @result.@object set
-      [cro.refToVar noMatterToCopy [cro.refToVar getVar.host block is] ||] "Captured name is not from here!" assert
-      getNameResult.mplFieldIndex @cro.@refToVar @processor @block processStaticAt @result.@refToVar set
-      cro.newVar [
-        {
-          nameInfo:      nameInfo copy;
-          mplFieldIndex: getNameResult.mplFieldIndex copy;
-          startPoint:    getNameResult.startPoint copy;
-          overloadDepth: 0;
-          addNameCase:   getNameResult.nameCase MemberCaseToObjectCaptureCase;
-          refToVar:      cro.refToVar copy;
-        } @processor @block addNameInfo
-      ] when # add name info for "self"/"closure" as Object; result is object
-
-      getNameResult.startPoint block.id = ~ [@processor.@captureTable getNameResult.nameInfo overloadDepth NameCaseCapture -1 addBlockIdTo] && [
-        {
-          nameInfo:      getNameResult.nameInfo copy;
-          mplFieldIndex: getNameResult.mplFieldIndex copy;
-          startPoint:    getNameResult.startPoint copy;
-          overloadDepth: overloadDepth copy;
-          addNameCase:   getNameResult.nameCase copy;
-          refToVar:      result.refToVar copy;
-        } @processor @block addNameInfo
-
-        newFieldCapture: FieldCapture;
-        [overloadDepth 0 < ~] "name overload not initialized!" assert
-
-        getNameResult.nameInfo      @newFieldCapture.@nameInfo set
-        overloadDepth               @newFieldCapture.@nameOverloadDepth set
-        result.object               @newFieldCapture.@object set
-        getNameResult.nameCase      @newFieldCapture.@captureCase set
-        getNameResult.mplFieldIndex @newFieldCapture.@fieldIndex set
-        file                        @newFieldCapture.@file.set
-
-        newEvent: ShadowEvent;
-        ShadowReasonFieldCapture @newEvent.setTag
-        branch: ShadowReasonFieldCapture @newEvent.get;
-        newFieldCapture @branch set
-        result.object @branch.@object set
-        @newEvent @block addShadowEvent
-      ] when
     ] [
-      cr: getNameResult.nameInfo overloadDepth @getNameResult.@refToVar getNameResult.nameCase captureRefToVar;
-      cr.refToVar @result.@refToVar set
-      cr.newVar [
-        {
-          nameInfo:      getNameResult.nameInfo copy;
-          startPoint:    getNameResult.startPoint copy;
-          overloadDepth: overloadDepth copy;
-          addNameCase:   NameCaseCapture;
-          refToVar:      result.refToVar copy;
-        } @processor @block addNameInfo
-      ] when
+      file getNameResult.nameInfo overloadDepth @processor @block addEmptyCapture
+      processor.varForFails @result.@refToVar set
     ] if
-  ] [
-    file getNameResult.nameInfo overloadDepth @processor @block addEmptyCapture
-    processor.varForFails @result.@refToVar set
-  ] if
+  #] if
 
   result
 ];
@@ -3011,7 +3017,6 @@ finalizeListNode: [
         ] [
           @curRef TRUE dynamic @processor @block createRef @newField.@refToVar set
           @curRef makeVarPtrCaptured
-          @curRef @processor @block makeVarRealCaptured
         ] if
 
         newField @struct.@fields.pushBack
@@ -4226,6 +4231,7 @@ makeCompilerPosition: [
     FALSE @refToVar getVar.@temporary set
 
     declarationNode.nodeCase NodeCaseCodeRefDeclaration = [
+      Virtual @refToVar getVar.@storageStaticity set
       "null" toString @processor makeStringId @refToVar getVar.@irNameId set
       "null" toString @declarationNode.@irName set
       topNode.parent 0 = [

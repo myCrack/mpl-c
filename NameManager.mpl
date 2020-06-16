@@ -8,7 +8,7 @@
 "control" use
 
 NameManager: [{
-  virtual itemSchema: NilRef; # Should have a field named "file", which is used as opaque pointer by NameManager
+  virtual itemSchema: Ref; # Should have a field named "file", which is used as opaque pointer by NameManager
 
   createName: [
     text:;
