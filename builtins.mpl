@@ -6,6 +6,7 @@
 
 "Block.Block" use
 "Block.NameCaseBuiltin" use
+"Block.NameCaseLocal" use
 "File.File" use
 "Var.VarBuiltin" use
 "Var.Virtual" use
@@ -117,10 +118,10 @@ addBuiltin: [
   bvar: @id VarBuiltin @processor @block createVariable Virtual @processor @block makeStaticity;
 
   {
-    addNameCase: NameCaseBuiltin;
+    addNameCase: NameCaseLocal;
     refToVar:    bvar copy;
     nameInfo:    nameId copy;
-    file:        File Cref;
+    file:        0 processor.files.at.get;
   } @processor @block addNameInfo
 ];
 

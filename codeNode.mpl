@@ -74,6 +74,7 @@
 "Var.ShadowReasonFieldCapture" use
 "Var.ShadowReasonInput" use
 "Var.ShadowReasonPointee" use
+"Var.ShadowReasonStableName" use
 "Var.Static" use
 "Var.Struct" use
 "Var.VarBuiltin" use
@@ -173,6 +174,7 @@
 "defaultImpl.makeVarRealCaptured" use
 "defaultImpl.nodeHasCode" use
 "defaultImpl.pop" use
+"defaultImpl.setRef" use
 "irWriter.addStrToProlog" use
 "irWriter.appendInstruction" use
 "irWriter.createAllocIR" use
@@ -233,6 +235,8 @@ addNameInfo: [
   addNameCase:    params.addNameCase copy dynamic;
   refToVar:       params.refToVar copy dynamic;
   nameInfo:       params.nameInfo copy dynamic;
+
+  [params.refToVar.assigned] "Add name must have corrent refToVar!" assert
 
   [
     nameInfo 0 < ~ [
@@ -1363,14 +1367,14 @@ getNameAs: [
   copy nameInfo:;
 
   unknownName: [
-    forMatching [
-      processor.varForFails @result.@refToVar set
-    ] [
+    processor.varForFails @result.@refToVar set
+
+    forMatching ~ [
       message: ("unknown name: " nameInfo processor.nameManager.getText) assembleString;
       @message nameInfo @processor catPossibleModulesList
 
       message @processor block compilerError
-    ] if
+    ] when
   ];
 
   result: {
@@ -1381,7 +1385,6 @@ getNameAs: [
     object:            RefToVar;
     mplFieldIndex:     -1 dynamic;
     nameCase:          NameCaseInvalid;
-    isOverloaded:      FALSE dynamic;
   };
 
   overloadIndex 0 < [overloadIndex file nameInfo processor.nameManager.findItem !overloadIndex] when
@@ -1393,7 +1396,6 @@ getNameAs: [
     overloadIndex              @result.@overloadIndex set
     nameInfoEntry.nameCase     @result.@nameCase      set
     nameInfoEntry.startPoint   @result.@startPoint    set
-    nameInfoEntry.file isNil ~ @result.@isOverloaded  set
 
     nameCase: matchingCapture.captureCase NameCaseInvalid = [result.nameCase copy] [matchingCapture.captureCase copy] if;
 
@@ -1460,6 +1462,29 @@ getNameForMatchingWithOverloadIndex: [
   TRUE dynamic overloadIndex @processor @block file getNameAs
 ];
 
+nameResultIsStable: [
+  file: getNameResult: processor: ;;;
+
+  file.rootBlock isNil ~ [getNameResult.nameCase NameCaseCapture > ~] && [getNameResult.nameInfo processor.nameManager.hasOverload ~] && [getNameResult.refToVar isGlobal] && [getNameResult.refToVar isVirtual] &&
+];
+
+addStableName: [
+  nameInfo: processor: block: ;;;
+
+  nameInfo processor.captureTable.stableNames.getSize < ~ [nameInfo 1 + @processor.@captureTable.@stableNames.resize] when
+  current: nameInfo @processor.@captureTable.@stableNames.at;
+  current.getSize 0 = [current.last block.id = ~] || [
+    block.id @current.pushBack
+    nameInfo @block.@stableNames.pushBack
+
+    newEvent: ShadowEvent;
+    ShadowReasonStableName @newEvent.setTag
+    branch: ShadowReasonStableName @newEvent.get;
+    nameInfo @branch.@nameInfo set
+    @newEvent @block addShadowEvent
+  ] when
+];
+
 captureName: [
   getNameResult: overloadDepth: processor: block: file: ;;;;;
 
@@ -1468,9 +1493,10 @@ captureName: [
     object: RefToVar;
   };
 
-  #file.rootBlock.state NodeStateCompiled = [getNameResult.nameInfoNotOverloaded copy] && [getNameResult.refToVar isGlobal] && [FALSE] && [
-
-  #] [
+  file getNameResult processor nameResultIsStable [
+    getNameResult.nameInfo @processor @block addStableName
+    getNameResult.refToVar @result.@refToVar set
+  ] [
     processor compilable [getNameResult.nameCase NameCaseInvalid = ~] && [
       addBlockIdTo: [
         whereNames: nameInfo: nameOverloadDepth: captureCase: mplSchemaId: ;;;;;
@@ -1678,7 +1704,7 @@ captureName: [
       file getNameResult.nameInfo overloadDepth @processor @block addEmptyCapture
       processor.varForFails @result.@refToVar set
     ] if
-  #] if
+  ] if
 
   result
 ];
@@ -1982,53 +2008,6 @@ getPossiblePointee: [
 derefAndPush: [
   processor: block: ;;
   @processor @block getPossiblePointee @block push
-];
-
-setRef: [
-  processor: block: ;;
-  refToVar:; # destination
-  compileOnce
-
-  var: refToVar getVar;
-  var.data.getTag VarRef = [
-    refToVar isVirtual [
-      "can not write to virtual" @processor block compilerError
-    ] [
-      pointee: VarRef var.data.get.refToVar;
-      pointee.mutable ~ [
-        FALSE @processor @block defaultMakeConstWith #source
-      ] when
-
-      processor compilable [
-        src: @processor @block pop;
-        processor compilable [
-          src pointee variablesAreSame [
-            src @block push
-            @src makeVarPtrCaptured
-            TRUE @processor @block defaultRef #source
-            refToVar @block push
-            @processor @block defaultSet
-          ] [
-            src @block push
-            refToVar @block push
-            @processor @block defaultSet
-          ] if
-        ] when
-      ] when
-    ] if
-  ] [
-    #rewrite value case!
-    src: @processor @block pop;
-    processor compilable [
-      src getVar.temporary [
-        src @block push
-        refToVar @block push
-        @processor @block defaultSet
-      ] [
-        "rewrite value works only with temporary values" @processor block compilerError
-      ] if
-    ] when
-  ] if
 ];
 
 {
@@ -2621,6 +2600,7 @@ addBlock: [
       refToVar:    refToVar copy;
       nameInfo:    refToVar getVar.mplNameId copy;
       overload:    TRUE;
+      file:        0 processor.files.at.get;
     } @processor @block addNameInfo
   ] if
 
@@ -3141,6 +3121,15 @@ unregCodeNodeNames: [
     ] each
   ];
 
+  unregStableNames: [
+    whereNames:;
+    [
+      current: @whereNames.@stableNames.at;
+      [current.last block.id =] "Wrong block id while unreg object name!" assert
+      @current.popBack
+    ] each
+  ];
+
   registerWithoutOverload: [
     addNameCase:;
     [
@@ -3161,6 +3150,7 @@ unregCodeNodeNames: [
 
   @block.@captureNames      @processor.@captureTable unregTable
   @block.@fieldCaptureNames @processor.@captureTable unregTable
+  @block.@stableNames       @processor.@captureTable unregStableNames
 
   @block.@capturedVars [
     curVar: getVar;
@@ -3170,6 +3160,7 @@ unregCodeNodeNames: [
   @block.@capturedVars.release
   @block.@captureNames.release
   @block.@fieldCaptureNames.release
+  @block.@stableNames.release
 ];
 
 addMatchingNode: [
@@ -4125,6 +4116,10 @@ makeCompilerPosition: [
           branch:;
           ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth "); staticity=" branch.refToVar getVar.staticity.begin " as " branch.refToVar getVar.buildingTopologyIndex " type " branch.refToVar @processor @block getMplType) assembleString @block createComment
         ]
+        ShadowReasonStableName [
+          branch:;
+          ("shadow event [" i "] stableName " branch.nameInfo processor.nameManager.getText) assembleString @block createComment
+        ]
         ShadowReasonFieldCapture [
           branch:;
           ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.buildingTopologyIndex) assembleString @block createComment
@@ -4446,8 +4441,14 @@ addIndexArrayToProcess: [
   #add to match table
   indexArray storageAddress @block addMatchingNode
 
-  block.parent 0 = [block.id 1 >] && [
-    1 dynamic addNamesFromModule
+  block.parent 0 = [
+    block.id 0 > [
+      0 dynamic addNamesFromModule #builtins
+    ] when
+
+    block.id 1 > [
+      1 dynamic addNamesFromModule #definitions
+    ] when
   ] when
 
   recursionTries: 0 dynamic;
@@ -4459,6 +4460,7 @@ addIndexArrayToProcess: [
     @block.@fromModuleNames.clear
     @block.@captureNames.clear
     @block.@fieldCaptureNames.clear
+    @block.@stableNames.clear
     @block.@unprocessedAstNodes.clear
     @block.@dependentPointers.clear
     @block.@captureErrors.clear

@@ -110,6 +110,7 @@ Instruction: [0 0 makeInstruction];
 ShadowEvent: [(
   Cond                    #ShadowReasonNo
   ShadowEventCapture      #ShadowReasonCapture
+  ShadowEventStableName   #ShadowReasonStableName
   ShadowEventFieldCapture #ShadowReasonFieldCapture
   ShadowEventInput        #ShadowReasonInput
   ShadowEventField        #ShadowReasonField
@@ -217,6 +218,7 @@ Block: [{
   labelNames:        NameWithOverloadAndRefToVar Array;
   captureNames:      NameWithOverloadAndRefToVar Array;
   fieldCaptureNames: NameWithOverloadAndRefToVar Array;
+  stableNames:       Int32 Array;
 
   candidatesToDie:     RefToVar Array;
   unprocessedAstNodes: TokenRef Array;

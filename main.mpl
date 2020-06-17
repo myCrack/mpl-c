@@ -196,7 +196,8 @@ processIntegerOption: [
 
     forceArrayChecks: -1 dynamic;
     forceCallTrace: -1 dynamic;
-
+    
+    "*builtins"    toString @options.@fileNames.pushBack
     "*definitions" toString @options.@fileNames.pushBack
 
     argc 1 = [
@@ -317,7 +318,7 @@ processIntegerOption: [
       FALSE @success set
     ] when
 
-    options.fileNames.getSize 1 = [
+    options.fileNames.getSize 2 = [
       hasVersion [
         DEBUG [
           ("MPL compiler version " COMPILER_SOURCE_VERSION " debug" LF) printList
@@ -356,16 +357,20 @@ processIntegerOption: [
             filename: i options.fileNames @;
 
             i 0 = [
-              filename definitions addToProcess
+              #builtins
             ] [
-              loadStringResult: filename loadString;
-              loadStringResult.success [
-                ("Loaded string from " filename) addLog
-                ("HASH=" loadStringResult.data hash) addLog
-                filename loadStringResult.data addToProcess
+              i 1 = [
+                filename definitions addToProcess
               ] [
-                "Unable to load string:" print filename print LF print
-                FALSE @success set
+                loadStringResult: filename loadString;
+                loadStringResult.success [
+                  ("Loaded string from " filename) addLog
+                  ("HASH=" loadStringResult.data hash) addLog
+                  filename loadStringResult.data addToProcess
+                ] [
+                  "Unable to load string:" print filename print LF print
+                  FALSE @success set
+                ] if
               ] if
             ] if
           ] times

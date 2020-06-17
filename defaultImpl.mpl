@@ -20,12 +20,14 @@
 "Var.ShadowReasonInput" use
 "Var.VarCode" use
 "Var.VarImport" use
+"Var.VarRef" use
 "Var.VarString" use
 "Var.Virtual" use
 "Var.Weak" use
 "Var.getPlainValueInformation" use
 "Var.getVar" use
 "Var.isPlain" use
+"Var.isVirtual" use
 "Var.staticityOfVar" use
 "Var.variablesAreSame" use
 "declarations.compilerError" use
@@ -148,6 +150,53 @@ defaultRef: [
   processor compilable [
     @refToVar mutable @processor @block createRef @block push
   ] when
+];
+
+setRef: [
+  processor: block: ;;
+  refToVar:; # destination
+  compileOnce
+
+  var: refToVar getVar;
+  var.data.getTag VarRef = [
+    refToVar isVirtual [
+      "can not write to virtual" @processor block compilerError
+    ] [
+      pointee: VarRef var.data.get.refToVar;
+      pointee.mutable ~ [
+        FALSE @processor @block defaultMakeConstWith #source
+      ] when
+
+      processor compilable [
+        src: @processor @block pop;
+        processor compilable [
+          src pointee variablesAreSame [
+            src @block push
+            @src makeVarPtrCaptured
+            TRUE @processor @block defaultRef #source
+            refToVar @block push
+            @processor @block defaultSet
+          ] [
+            src @block push
+            refToVar @block push
+            @processor @block defaultSet
+          ] if
+        ] when
+      ] when
+    ] if
+  ] [
+    #rewrite value case!
+    src: @processor @block pop;
+    processor compilable [
+      src getVar.temporary [
+        src @block push
+        refToVar @block push
+        @processor @block defaultSet
+      ] [
+        "rewrite value works only with temporary values" @processor block compilerError
+      ] if
+    ] when
+  ] if
 ];
 
 defaultMakeConstWith: [

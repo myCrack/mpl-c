@@ -26,7 +26,9 @@ NameManager: [{
   addItem: [
     item: nameId:;;
 
-    @item move nameId @names.at.@items.pushBack
+    current: nameId @names.at;
+    item.file isNil [current.overloadCount 1 + @current.!overloadCount] when
+    @item move @current.@items.pushBack
   ];
 
   findItem: [
@@ -45,6 +47,11 @@ NameManager: [{
     index
   ];
 
+  hasOverload: [
+    nameId: copy;
+    nameId @names.at.overloadCount 0 >
+  ];
+
   getItem: [
     index: nameId:;;
     index nameId @names.at.@items.at
@@ -58,7 +65,11 @@ NameManager: [{
   removeItem: [
     nameId:;
 
-    nameId @names.at.@items.popBack
+    current: nameId @names.at;
+    current.items.last.file isNil [current.overloadCount 1 - @current.!overloadCount] when
+
+    @current.@items.popBack
+
   ];
 
   # Private
@@ -66,6 +77,7 @@ NameManager: [{
   Name: [{
     text: String;
     items: @itemSchema Array;
+    overloadCount: Int32;
   }];
 
   names: Name Array;

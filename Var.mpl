@@ -21,10 +21,11 @@ Virtual: [4n8 dynamic];
 
 ShadowReasonNo:           [0];
 ShadowReasonCapture:      [1];
-ShadowReasonFieldCapture: [2];
-ShadowReasonInput:        [3];
-ShadowReasonField:        [4];
-ShadowReasonPointee:      [5];
+ShadowReasonStableName:   [2];
+ShadowReasonFieldCapture: [3];
+ShadowReasonInput:        [4];
+ShadowReasonField:        [5];
+ShadowReasonPointee:      [6];
 
 VarInvalid: [ 0 static];
 VarCond:    [ 1 static];

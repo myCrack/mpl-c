@@ -54,6 +54,7 @@
 "Var.ShadowReasonFieldCapture" use
 "Var.ShadowReasonInput" use
 "Var.ShadowReasonPointee" use
+"Var.ShadowReasonStableName" use
 "Var.Static" use
 "Var.VarBuiltin" use
 "Var.VarCond" use
@@ -80,6 +81,7 @@
 "astNodeType.IndexArray" use
 "codeNode.addBlock" use
 "codeNode.astNodeToCodeNode" use
+"codeNode.addStableName" use
 "codeNode.captureName" use
 "codeNode.deleteNode" use
 "codeNode.finalizeCodeNode" use
@@ -101,6 +103,7 @@
 "codeNode.makeVarTreeDirty" use
 "codeNode.makeVarTreeDirty" use
 "codeNode.makeVarTreeDynamic" use
+"codeNode.nameResultIsStable" use
 "codeNode.popForMatching" use
 "codeNode.processStaticAt" use
 "debugWriter.addDebugReserve" use
@@ -392,6 +395,10 @@ catShadowEvents: [
         branch:;
         ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") index " branch.refToVar getVar.topologyIndex " type " branch.refToVar @processor @block getMplType LF) @message.catMany
       ]
+      ShadowReasonStableName [
+        branch:;
+        ("shadow event [" i "] stableName " branch.nameInfo processor.nameManager.getText LF) @message.catMany
+      ]
       ShadowReasonFieldCapture [
         branch:;
         ("shadow event [" i "] fieldCapture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") [" branch.fieldIndex "] in " branch.object getVar.topologyIndex LF) @message.catMany
@@ -504,18 +511,32 @@ tryMatchNode: [
 
             cacheEntry: branch.refToVar;
             overloadIndex: outOverloadDepth: branch @block branch.file TRUE getOverloadIndex;;
-            stackEntry: branch.nameInfo branch overloadIndex @processor @block branch.file getNameForMatchingWithOverloadIndex.refToVar;
+            gnr: branch.nameInfo branch overloadIndex @processor @block branch.file getNameForMatchingWithOverloadIndex;
+            branch.file gnr processor nameResultIsStable [
+              "cache entry was not stable, now it is stable" toString @comparingMessage set
+              currentMatchingNode.nodeCompileOnce [i mismatchMessage] when
+              FALSE dynamic @success set
+            ] [
+              stackEntry: gnr.refToVar;
+              stackEntry cacheEntry TRUE @comparingMessage currentMatchingNode processor compareOnePair
 
-            stackEntry cacheEntry TRUE @comparingMessage currentMatchingNode processor compareOnePair
+              [
+                cacheEntry noMatterToCopy [cacheEntry getVar.topologyIndex 0 < ~] || [
+                  ("captureName=" branch.nameInfo processor.nameManager.getText "; captureType=" cacheEntry @processor @block getMplType LF) printList
+                  FALSE
+                ] ||
+              ] "Capture shadow event index is negative!" assert
 
-            [
-              cacheEntry noMatterToCopy [cacheEntry getVar.topologyIndex 0 < ~] || [
-                ("captureName=" branch.nameInfo processor.nameManager.getText "; captureType=" cacheEntry @processor @block getMplType LF) printList
-                FALSE
-              ] ||
-            ] "Capture shadow event index is negative!" assert
-
-            [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
+              [@stackEntry cacheEntry @eventVars addEventVar] && ~ [
+                currentMatchingNode.nodeCompileOnce [i mismatchMessage] when
+                FALSE dynamic @success set
+              ] when
+            ] if
+          ]
+          ShadowReasonStableName [
+            branch:;
+            branch.nameInfo processor.nameManager.hasOverload [
+              "cache entry was stable, now it is not stable" toString @comparingMessage set
               currentMatchingNode.nodeCompileOnce [i mismatchMessage] when
               FALSE dynamic @success set
             ] when
@@ -982,6 +1003,10 @@ applyNodeChanges: [
           stackEntry getVar.data.getTag VarInvalid = ~ [stackEntry @pops.pushBack] when
           stackEntry cacheEntry @appliedVars addAppliedVar
         ]
+        ShadowReasonStableName [
+          branch:;
+          branch.nameInfo @processor @block addStableName
+        ]
         ShadowReasonCapture [
           branch:;
           cacheEntry: branch.refToVar;
@@ -1384,6 +1409,10 @@ useMatchingInfoOnly: [
         stackEntry: gnr outOverloadDepth @processor @block branch.file captureName.refToVar;
         stackEntry cacheEntry addEventVar
       ]
+      ShadowReasonStableName [
+        branch:;
+        branch.nameInfo @processor @block addStableName
+      ]
       ShadowReasonFieldCapture [
         branch:;
         overloadIndex: outOverloadDepth: branch @block branch.file FALSE getOverloadIndex;;
@@ -1550,7 +1579,14 @@ useMatchingInfoOnly: [
   ] if
 ] "processPre" exportFunction
 
-processIf: [
+{
+  block: Block Ref; processor: Processor Ref; 
+  fileElse: File Cref;
+  astNodeElse: AstNode Cref;
+  fileThen: File Cref;
+  astNodeThen: AstNode Cref;
+  refToCond: RefToVar Cref;
+} () {} [
   processor: block: ;;
 
   fileElse:;
@@ -1558,6 +1594,8 @@ processIf: [
   fileThen:;
   astNodeThen:;
   refToCond:;
+
+  overload failProc: processor block FailProcForProcessor;
 
   indexArrayElse: AstNodeType.Code astNodeElse.data.get;
   indexArrayThen: AstNodeType.Code astNodeThen.data.get;
@@ -1925,79 +1963,7 @@ processIf: [
       ] if
     ] if
   ] if
-];
-
-processLoop: [
-  astNode: processor: block: file: ;;;;
-  indexArray: AstNodeType.Code astNode.data.get;
-  positionInfo: astNode file makeCompilerPosition;
-
-  iterationNumber: 0 dynamic;
-  loopIsDynamic: FALSE;
-
-  [
-    newNodeIndex: @indexArray @processor @block tryMatchAllNodes dynamic;
-    newNodeIndex 0 < [
-      "loop" makeStringView
-      block.id
-      NodeCaseCode
-      indexArray
-      file
-      positionInfo
-      CFunctionSignature
-      @processor
-      astNodeToCodeNode @newNodeIndex set
-    ] when
-
-    newNode: newNodeIndex @processor.@blocks.at.get;
-    processor compilable ~ [
-      newNode @processor @block useMatchingInfoOnly
-      FALSE
-    ] [
-      newNodeIndex changeNewNodeState
-      newNode.state NodeStateHasOutput < [
-        FALSE
-      ] [
-        newNode.state NodeStateHasOutput = [NodeStateHasOutput @block.@state set] when
-        appliedVars: newNode applyNodeChanges;
-
-        appliedVars.fixedOutputs.getSize 0 = ["loop body must return Cond" @processor block compilerError] when
-        processor compilable [
-          condition: newNode.outputs.last.refToVar;
-          condVar: condition getVar;
-          condVar.data.getTag VarCond = ~ ["loop body must return Cond" @processor block compilerError] when
-
-          processor compilable [
-            condition staticityOfVar Weak > [
-              appliedVars.stackVars.size [
-                stackEntry: i appliedVars.stackVars.at;
-                cacheEntry: i appliedVars.cacheVars.at;
-                cacheEntry @stackEntry changeVarValue
-              ] times
-
-              newNode newNodeIndex @appliedVars applyStackChanges
-              a: @processor @block pop;
-              VarCond a getVar.data.get.end copy
-            ] [
-              TRUE dynamic @loopIsDynamic set
-              FALSE
-            ] if
-          ] &&
-        ] &&
-      ] if
-    ] if
-
-    iterationNumber 1 + @iterationNumber set
-    iterationNumber processor.options.staticLoopLengthLimit > [
-      TRUE @processor.@result.!passErrorThroughPRE
-      ("Static loop length limit (" processor.options.staticLoopLengthLimit ") exceeded. Dynamize loop or increase limit using -static_loop_lenght_limit option") assembleString @processor block compilerError
-    ] when
-
-    processor compilable and
-  ] loop
-
-  loopIsDynamic [indexArray file processDynamicLoop] when
-];
+] "processIf" exportFunction
 
 processDynamicLoop: [
   indexArray: file:;;
@@ -2171,6 +2137,83 @@ processDynamicLoop: [
     ] &&
   ] loop
 ];
+
+{
+  file: File Cref; block: Block Ref; processor: Processor Ref; astNode: AstNode Cref;
+} () {} [
+  astNode: processor: block: file: ;;;;
+
+  overload failProc: processor block FailProcForProcessor;
+
+  indexArray: AstNodeType.Code astNode.data.get;
+  positionInfo: astNode file makeCompilerPosition;
+
+  iterationNumber: 0 dynamic;
+  loopIsDynamic: FALSE;
+
+  [
+    newNodeIndex: @indexArray @processor @block tryMatchAllNodes dynamic;
+    newNodeIndex 0 < [
+      "loop" makeStringView
+      block.id
+      NodeCaseCode
+      indexArray
+      file
+      positionInfo
+      CFunctionSignature
+      @processor
+      astNodeToCodeNode @newNodeIndex set
+    ] when
+
+    newNode: newNodeIndex @processor.@blocks.at.get;
+    processor compilable ~ [
+      newNode @processor @block useMatchingInfoOnly
+      FALSE
+    ] [
+      newNodeIndex changeNewNodeState
+      newNode.state NodeStateHasOutput < [
+        FALSE
+      ] [
+        newNode.state NodeStateHasOutput = [NodeStateHasOutput @block.@state set] when
+        appliedVars: newNode applyNodeChanges;
+
+        appliedVars.fixedOutputs.getSize 0 = ["loop body must return Cond" @processor block compilerError] when
+        processor compilable [
+          condition: newNode.outputs.last.refToVar;
+          condVar: condition getVar;
+          condVar.data.getTag VarCond = ~ ["loop body must return Cond" @processor block compilerError] when
+
+          processor compilable [
+            condition staticityOfVar Weak > [
+              appliedVars.stackVars.size [
+                stackEntry: i appliedVars.stackVars.at;
+                cacheEntry: i appliedVars.cacheVars.at;
+                cacheEntry @stackEntry changeVarValue
+              ] times
+
+              newNode newNodeIndex @appliedVars applyStackChanges
+              a: @processor @block pop;
+              VarCond a getVar.data.get.end copy
+            ] [
+              TRUE dynamic @loopIsDynamic set
+              FALSE
+            ] if
+          ] &&
+        ] &&
+      ] if
+    ] if
+
+    iterationNumber 1 + @iterationNumber set
+    iterationNumber processor.options.staticLoopLengthLimit > [
+      TRUE @processor.@result.!passErrorThroughPRE
+      ("Static loop length limit (" processor.options.staticLoopLengthLimit ") exceeded. Dynamize loop or increase limit using -static_loop_lenght_limit option") assembleString @processor block compilerError
+    ] when
+
+    processor compilable and
+  ] loop
+
+  loopIsDynamic [indexArray file processDynamicLoop] when
+] "processLoop" exportFunction
 
 {
   block: Block Ref; processor: Processor Ref;

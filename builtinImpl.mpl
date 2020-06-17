@@ -90,7 +90,6 @@
 "codeNode.processMember" use
 "codeNode.processStaticAt" use
 "codeNode.push" use
-"codeNode.setRef" use
 "debugWriter.addGlobalVariableDebugInfo" use
 "declarations.callAssign" use
 "declarations.callDie" use
@@ -120,6 +119,7 @@
 "defaultImpl.makeVarPtrCaptured" use
 "defaultImpl.makeVarRealCaptured" use
 "defaultImpl.pop" use
+"defaultImpl.setRef" use
 "irWriter.createAllocIR" use
 "irWriter.createBinaryOperation" use
 "irWriter.createBinaryOperationDiffTypes" use
@@ -1051,7 +1051,6 @@ staticityOfBinResult: [
       gnr: newBlock.varNameInfo @processor @block getName;
       cnr: @gnr 0 dynamic @processor @block processor.positions.last.file captureName;
       refToVar: cnr.refToVar copy;
-
       refToVar @block push
     ]
   ) sequence

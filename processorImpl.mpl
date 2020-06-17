@@ -105,6 +105,15 @@ debugMemory [
 
   @processor addBlock
   TRUE dynamic @processor.@blocks.last.get.@root set
+  
+  processor.options.fileNames.size @processor.@files.resize
+  processor.options.fileNames.size [
+    File owner i @processor.@files.at set
+    i processor.options.fileNames.at i @processor.@files.at.get.@name set
+    i processor.options.fileNames.at stripExtension extractFilename toString i @processor.@fileNameIds.insert
+  ] times
+
+  @processor.@blocks.last.get 0 @processor.@files.at.get.@rootBlock.set
 
   @processor initBuiltins
 
@@ -133,13 +142,6 @@ debugMemory [
 
   @processor addLinkerOptionsDebugInfo
 
-  processor.options.fileNames.size @processor.@files.resize
-  processor.options.fileNames.size [
-    File owner i @processor.@files.at set
-    i processor.options.fileNames.at i @processor.@files.at.get.@name set
-    i processor.options.fileNames.at stripExtension extractFilename toString i @processor.@fileNameIds.insert
-  ] times
-
   processor.options.debug [
     @processor [processor:; @processor addDebugProlog @processor.@debugInfo.@unit set] call
 
@@ -159,7 +161,7 @@ debugMemory [
       n:;
       file: n @processor.@files.at.get;
       file !lastFile
-      fileNode: n processor.multiParserResult.nodes.at;
+      fileNode: n 1 - processor.multiParserResult.nodes.at;
       rootPositionInfo: CompilerPositionInfo;
       file @rootPositionInfo.@file.set
       1    @rootPositionInfo.!line
@@ -215,7 +217,7 @@ debugMemory [
     n: 0 dynamic;
     [
       n processor.multiParserResult.nodes.size < [
-        processor.multiParserResult.nodes.size 1 - n - @unfinishedFiles.pushBack
+        processor.multiParserResult.nodes.size n - @unfinishedFiles.pushBack
         n 1 + @n set TRUE
       ] &&
     ] loop
@@ -292,125 +294,127 @@ debugMemory [
 
     ("max depth of recursion=" processor.maxDepthOfRecursion) addLog
 
-    varHeadMemory: 0nx;
-    varShadowMemory: 0nx;
-    totalFieldCount: 0;
+    HAS_LOGS [
+      varHeadMemory: 0nx;
+      varShadowMemory: 0nx;
+      totalFieldCount: 0;
 
-    varStaticStoragedMemory:  0nx;
-    varDynamicStoragedHeadMemory:  0nx;
-    varDynamicStoragedShadowMemory:  0nx;
+      varStaticStoragedMemory:  0nx;
+      varDynamicStoragedHeadMemory:  0nx;
+      varDynamicStoragedShadowMemory:  0nx;
 
-    getCoordsMemory: [
-      where:;
+      getCoordsMemory: [
+        where:;
 
-      result: 0nx;
-      where.dataReserve Natx cast where.elementSize * result + !result
-      where [
-        where1:;
-        where1.dataReserve Natx cast where1.elementSize * result + !result
-        where1 [
-          where2:;
-          where2.dataReserve Natx cast where2.elementSize * result + !result
+        result: 0nx;
+        where.dataReserve Natx cast where.elementSize * result + !result
+        where [
+          where1:;
+          where1.dataReserve Natx cast where1.elementSize * result + !result
+          where1 [
+            where2:;
+            where2.dataReserve Natx cast where2.elementSize * result + !result
+          ] each
+        ] each
+
+        result
+      ];
+
+      coordsMemory:
+        processor.captureTable.simpleNames  getCoordsMemory
+        processor.captureTable.selfNames    getCoordsMemory +
+        processor.captureTable.closureNames getCoordsMemory +;
+
+      getVariableUsedMemory: [
+        var:;
+
+        var.data.getTag VarStruct = [
+          struct: VarStruct var.data.get.get;
+          struct storageSize struct.fields.size Natx cast Field storageSize * +
+          var storageSize +
+        ] [
+          var storageSize
+        ] if
+      ];
+
+      processor.variables [
+        [
+          var:;
+          varSize: var getVariableUsedMemory;
+
+          var.capturedHead getVar.host var.host is ~ [
+            varSize varShadowMemory + !varShadowMemory
+          ] [
+            varSize varHeadMemory + !varHeadMemory
+          ] if
+
+          var.data.getTag VarStruct = [
+            VarStruct var.data.get.get.fields.size totalFieldCount + !totalFieldCount
+          ] when
+
+          var.storageStaticity Dynamic = [
+            var.topologyIndex 0 < ~ [
+              varSize varDynamicStoragedShadowMemory + !varDynamicStoragedShadowMemory
+            ] [
+              varSize varDynamicStoragedHeadMemory + !varDynamicStoragedHeadMemory
+            ] if
+          ] [
+            varSize varStaticStoragedMemory + !varStaticStoragedMemory
+          ] if
         ] each
       ] each
 
-      result
-    ];
+      beventCount: 0;
+      meventCount: 0;
+      captureCount: 0;
+      globalCaptureCount: 0;
+      failedCaptureCount: 0;
+      dependentsSize: 0;
 
-    coordsMemory:
-      processor.captureTable.simpleNames  getCoordsMemory
-      processor.captureTable.selfNames    getCoordsMemory +
-      processor.captureTable.closureNames getCoordsMemory +;
+      eventTagCount: Int32 ShadowEvent.typeList fieldCount array;
 
-    getVariableUsedMemory: [
-      var:;
+      processor.blocks [
+        block: .get;
+        block.buildingMatchingInfo.shadowEvents.size beventCount + !beventCount
+        block.matchingInfo.shadowEvents.size meventCount + !meventCount
+        block.matchingInfo.captures.size captureCount + !captureCount
+        block.dependentPointers.size dependentsSize + !dependentsSize
 
-      var.data.getTag VarStruct = [
-        struct: VarStruct var.data.get.get;
-        struct storageSize struct.fields.size Natx cast Field storageSize * +
-        var storageSize +
-      ] [
-        var storageSize
-      ] if
-    ];
+        block.matchingInfo.shadowEvents [
+          event:;
+          src: event.getTag @eventTagCount @;
+          src 1 + @src set
 
-    processor.variables [
-      [
-        var:;
-        varSize: var getVariableUsedMemory;
+          event.getTag ShadowReasonCapture = [
+            branch: ShadowReasonCapture event.get;
+            branch.refToVar getVar processor.varForFails getVar is [
+              failedCaptureCount 1 + !failedCaptureCount
+            ] when
 
-        var.capturedHead getVar.host var.host is ~ [
-          varSize varShadowMemory + !varShadowMemory
-        ] [
-          varSize varHeadMemory + !varHeadMemory
-        ] if
-
-        var.data.getTag VarStruct = [
-          VarStruct var.data.get.get.fields.size totalFieldCount + !totalFieldCount
-        ] when
-
-        var.storageStaticity Dynamic = [
-          var.topologyIndex 0 < ~ [
-            varSize varDynamicStoragedShadowMemory + !varDynamicStoragedShadowMemory
-          ] [
-            varSize varDynamicStoragedHeadMemory + !varDynamicStoragedHeadMemory
-          ] if
-        ] [
-          varSize varStaticStoragedMemory + !varStaticStoragedMemory
-        ] if
-      ] each
-    ] each
-
-    beventCount: 0;
-    meventCount: 0;
-    captureCount: 0;
-    globalCaptureCount: 0;
-    failedCaptureCount: 0;
-    dependentsSize: 0;
-
-    eventTagCount: Int32 6 array;
-
-    processor.blocks [
-      block: .get;
-      block.buildingMatchingInfo.shadowEvents.size beventCount + !beventCount
-      block.matchingInfo.shadowEvents.size meventCount + !meventCount
-      block.matchingInfo.captures.size captureCount + !captureCount
-      block.dependentPointers.size dependentsSize + !dependentsSize
-
-      block.matchingInfo.shadowEvents [
-        event:;
-        src: event.getTag @eventTagCount @;
-        src 1 + @src set
-
-        event.getTag ShadowReasonCapture = [
-          branch: ShadowReasonCapture event.get;
-          branch.refToVar getVar processor.varForFails getVar is [
-            failedCaptureCount 1 + !failedCaptureCount
+            branch.refToVar getVar.global [
+              globalCaptureCount 1 + !globalCaptureCount
+            ] when
           ] when
-
-          branch.refToVar getVar.global [
-            globalCaptureCount 1 + !globalCaptureCount
-          ] when
-        ] when
+        ] each
       ] each
-    ] each
 
-    (
-      debugMemory ["; currentAllocationSize=" getMemoryMetrics.memoryCurrentAllocationSize] [] uif
-      "; coordsMemory=" coordsMemory
-      "; varShadowMemory=" varShadowMemory "; varHeadMemory=" varHeadMemory
-      "; varDynamicStoragedHeadMemory=" varDynamicStoragedHeadMemory
-      "; varDynamicStoragedShadowMemory=" varDynamicStoragedShadowMemory
-      "; varStaticStoragedMemory=" varStaticStoragedMemory
-      "; totalFieldCount=" totalFieldCount "; fieldSize=" Field storageSize
-      "; beventCount=" beventCount
-      "; meventCount=" meventCount
-      "; meventCountByTag=" 0 eventTagCount @ ":" 1 eventTagCount @ ":" 2 eventTagCount @ ":" 3 eventTagCount @ ":" 4 eventTagCount @ ":" 5 eventTagCount @
-      "; eventSize=" ShadowEvent storageSize
-      "; captureCount=" captureCount "; failedCaptureCount=" failedCaptureCount "; globalCaptureCount=" globalCaptureCount
-      "; captureSize=" Capture storageSize
-      "; dependentPointersCount=" dependentsSize "; dependentPointer size=" (RefToVar RefToVar FALSE dynamic) storageSize
-    ) addLog
+      (
+        debugMemory ["; currentAllocationSize=" getMemoryMetrics.memoryCurrentAllocationSize] [] uif
+        "; coordsMemory=" coordsMemory
+        "; varShadowMemory=" varShadowMemory "; varHeadMemory=" varHeadMemory
+        "; varDynamicStoragedHeadMemory=" varDynamicStoragedHeadMemory
+        "; varDynamicStoragedShadowMemory=" varDynamicStoragedShadowMemory
+        "; varStaticStoragedMemory=" varStaticStoragedMemory
+        "; totalFieldCount=" totalFieldCount "; fieldSize=" Field storageSize
+        "; beventCount=" beventCount
+        "; meventCount=" meventCount
+        "; meventCountByTag=" 0 eventTagCount @ ":" 1 eventTagCount @ ":" 2 eventTagCount @ ":" 3 eventTagCount @ ":" 4 eventTagCount @ ":" 5 eventTagCount @
+        "; eventSize=" ShadowEvent storageSize
+        "; captureCount=" captureCount "; failedCaptureCount=" failedCaptureCount "; globalCaptureCount=" globalCaptureCount
+        "; captureSize=" Capture storageSize
+        "; dependentPointersCount=" dependentsSize "; dependentPointer size=" (RefToVar RefToVar FALSE dynamic) storageSize
+      ) addLog
+    ] when
 
     processor.usedFloatBuiltins [@processor createFloatBuiltins] when
     processor.options.callTrace processor.options.threadModel 1 = and @processor createCtors

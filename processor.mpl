@@ -131,6 +131,7 @@ Processor: [{
     simpleNames:  NameInfoCoord Array Array Array; #name; overload; vector of blocks
     selfNames:    NameInfoCoord Array Array Array; #overload; mplTypeId; vector of blocks
     closureNames: NameInfoCoord Array Array Array; #overload; mplTypeId; vector of blocks
+    stableNames:  Int32 Array Array; #vector of vector of blockId
   };
 
   emptyNameInfo:               -1 dynamic;
