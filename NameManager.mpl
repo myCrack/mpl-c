@@ -19,6 +19,7 @@ NameManager: [{
       nameId 1 + @names.enlarge
       string.getStringView nameId @textNameIds.insertUnsafe # Make StringView using the source String object, reference should remain valid when we move String
       @string move @names.last.@text set
+      0 @names.last.!overloadCount
       nameId
     ] if
   ];

@@ -1465,7 +1465,14 @@ getNameForMatchingWithOverloadIndex: [
 nameResultIsStable: [
   file: getNameResult: processor: ;;;
 
-  file.rootBlock isNil ~ [getNameResult.nameCase NameCaseCapture > ~] && [getNameResult.nameInfo processor.nameManager.hasOverload ~] && [getNameResult.refToVar isGlobal] && [getNameResult.refToVar isVirtual] &&
+  file.rootBlock isNil ~
+  [getNameResult.nameCase NameCaseCapture > ~] &&
+  [getNameResult.nameInfo processor.nameManager.hasOverload ~] &&
+  [
+    getNameResult.nameCase NameCaseInvalid =
+    [getNameResult.startPoint processor.blocks.at.get.parent 0 =] ||
+  ] &&
+  [getNameResult.refToVar isVirtual] &&
 ];
 
 addStableName: [
@@ -4107,6 +4114,10 @@ makeCompilerPosition: [
     block.buildingMatchingInfo.shadowEvents.size [
       event: i block.buildingMatchingInfo.shadowEvents.at;
 
+      getFileName: [
+        file:; file isNil ["NIL" makeStringView] [file.name makeStringView] if
+      ];
+
       (
         ShadowReasonInput [
           branch:;
@@ -4114,7 +4125,7 @@ makeCompilerPosition: [
         ]
         ShadowReasonCapture [
           branch:;
-          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth "); staticity=" branch.refToVar getVar.staticity.begin " as " branch.refToVar getVar.buildingTopologyIndex " type " branch.refToVar @processor @block getMplType) assembleString @block createComment
+          ("shadow event [" i "] capture " branch.nameInfo processor.nameManager.getText "(" branch.nameOverloadDepth ") in " branch.file getFileName "; staticity=" branch.refToVar getVar.staticity.begin " as " branch.refToVar getVar.buildingTopologyIndex " type " branch.refToVar @processor @block getMplType) assembleString @block createComment
         ]
         ShadowReasonStableName [
           branch:;

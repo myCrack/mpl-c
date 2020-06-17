@@ -163,8 +163,9 @@ Processor: [{
   schemaBuffer: VariableSchema Array;
   schemaTable: VariableSchema Int32 HashTable;
 
-  nameBuffer:  String Array;
-  nameTable:   StringView Int32 HashTable;       #strings->nameTag; strings from nameBuffer
+  nameBuffer:      String Array;
+  nameTable:       StringView Int32 HashTable;       #strings->nameTag; strings from nameBuffer
+  defaultVarNames: Int32 Array;
 
   depthOfRecursion:    0 dynamic;
   maxDepthOfRecursion: 0 dynamic;

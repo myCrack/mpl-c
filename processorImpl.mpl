@@ -28,6 +28,7 @@
 "Var.VarSchema" use
 "Var.VarStruct" use
 "Var.getVar" use
+"Var.isVirtual" use
 "astNodeType.IndexArray" use
 "astNodeType.MultiParserResult" use
 "builtins.initBuiltins" use
@@ -61,6 +62,7 @@
 "processor.NameInfoEntry" use
 "processor.Processor" use
 "processor.ProcessorOptions" use
+"variable.isGlobal" use
 
 debugMemory [
   "memory.getMemoryMetrics" use
@@ -391,7 +393,7 @@ debugMemory [
               failedCaptureCount 1 + !failedCaptureCount
             ] when
 
-            branch.refToVar getVar.global [
+            branch.refToVar isGlobal [branch.refToVar isVirtual] && [
               globalCaptureCount 1 + !globalCaptureCount
             ] when
           ] when
@@ -410,7 +412,7 @@ debugMemory [
         "; meventCount=" meventCount
         "; meventCountByTag=" 0 eventTagCount @ ":" 1 eventTagCount @ ":" 2 eventTagCount @ ":" 3 eventTagCount @ ":" 4 eventTagCount @ ":" 5 eventTagCount @
         "; eventSize=" ShadowEvent storageSize
-        "; captureCount=" captureCount "; failedCaptureCount=" failedCaptureCount "; globalCaptureCount=" globalCaptureCount
+        "; captureCount=" captureCount "; failedCaptureCount=" failedCaptureCount "; globalNonVirtualCaptureCount=" globalCaptureCount
         "; captureSize=" Capture storageSize
         "; dependentPointersCount=" dependentsSize "; dependentPointer size=" (RefToVar RefToVar FALSE dynamic) storageSize
       ) addLog

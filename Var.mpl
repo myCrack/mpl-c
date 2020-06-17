@@ -545,6 +545,18 @@ makeStringId: [
   ] if
 ];
 
+makeDefaultVarId: [
+  varId: processor: ;;
+
+  [varId processor.defaultVarNames.getSize < ~] [
+    -1 @processor.@defaultVarNames.pushBack
+  ] while
+
+  result: varId @processor.@defaultVarNames.at;
+  result 0 < [("%var." varId) assembleString @processor makeStringId @result set] when
+  result copy
+];
+
 markAsUnableToDie: [
   refToVar:;
   var: @refToVar getVar;

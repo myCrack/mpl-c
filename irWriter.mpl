@@ -25,6 +25,7 @@
 "Var.isNat" use
 "Var.isPlain" use
 "Var.isVirtual" use
+"Var.makeDefaultVarId" use
 "Var.makeStringId" use
 "Var.markAsUnableToDie" use
 "Var.staticityOfVar" use
@@ -800,7 +801,7 @@ generateVariableIRNameWith: [
     ("@global." processor.globalVarCount) assembleString @processor makeStringId
     processor.globalVarCount 1 + @processor.@globalVarCount set
   ] [
-    ("%var." hostOfVariable.lastVarName) assembleString @processor makeStringId
+    hostOfVariable.lastVarName @processor makeDefaultVarId
     hostOfVariable.lastVarName 1 + @hostOfVariable.@lastVarName set
   ] if
 ];
